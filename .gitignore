@@ -1,0 +1,10 @@
+.gradle/
+build/
+composeApp/build/
+.idea/
+.qodo/
+local.properties
+*.iml
+.DS_Store
+.kotlin/
+.claude/
