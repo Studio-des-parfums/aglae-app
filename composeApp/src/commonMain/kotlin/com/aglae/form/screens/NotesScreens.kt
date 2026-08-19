@@ -35,12 +35,18 @@ import com.aglae.form.Primary
 import com.aglae.form.Surface
 import com.aglae.form.SurfaceContainerLowest
 import com.aglae.form.i18n.LocalStrings
+import com.aglae.form.network.IngredientRuleType
+import com.aglae.form.network.NoteCountBounds
 import com.aglae.form.network.NoteItem
+import com.aglae.form.network.NoteRuleWarning
+import com.aglae.form.network.isCountWithinBounds
 
 @Composable
 fun NotesSelectionScreen(
     selectedCounts: Map<String, Int>,
+    bounds: NoteCountBounds?,
     onSectionClick: (String) -> Unit,
+    noteCountError: String?,
     onConfirm: () -> Unit,
     onBackToHome: () -> Unit
 ) {
@@ -54,11 +60,40 @@ fun NotesSelectionScreen(
         else -> name
     }
 
+    // Bornes (min, max) applicables à une section donnée, `null` si aucune contrainte connue
+    // pour cette famille (auquel cas aucun texte de borne n'est affiché sur la carte).
+    fun boundsFor(name: String): Pair<Int?, Int?>? = when (name) {
+        "Notes de tête" -> bounds?.let { it.minTop to it.maxTop }
+        "Notes de cœur" -> bounds?.let { it.minHeart to it.maxHeart }
+        "Notes de fond" -> bounds?.let { it.minBase to it.maxBase }
+        else -> null
+    }
+
+    // Texte "entre min et max notes" / "N notes max" / "au moins N notes" / "N note(s) à
+    // choisir" adapté au cas — voir Strings.noteCountBetween/AtLeast/AtMost/Exactly. `null` si
+    // min et max sont tous deux `null` (pas de contrainte connue pour cette famille).
+    fun boundsLabel(min: Int?, max: Int?): String? = when {
+        min == null && max == null -> null
+        min != null && min == max -> strings.noteCountExactly(min)
+        min != null && max != null -> strings.noteCountBetween(min, max)
+        max != null -> strings.noteCountAtMost(max)
+        else -> strings.noteCountAtLeast(min!!)
+    }
+
     val sections = listOf(
         NotesSectionData("Notes de tête", strings.topNotesDescription, "🍋"),
         NotesSectionData("Notes de cœur", strings.heartNotesDescription, "🌸"),
         NotesSectionData("Notes de fond", strings.baseNotesDescription, "🪵")
     )
+
+    // Le bouton "Valider ma formule" reste désactivé tant que le nombre de notes choisies dans
+    // chaque famille ne respecte pas ses bornes min/max (quand elles sont connues). Aucune borne
+    // connue pour une famille = pas de contrainte sur celle-ci (comportement identique à avant
+    // le chargement des règles, ou si le back n'en a défini aucune).
+    val allFamiliesValid = sections.all { section ->
+        val (min, max) = boundsFor(section.name) ?: (null to null)
+        isCountWithinBounds(selectedCounts[section.name] ?: 0, min, max)
+    }
 
     Box(
         modifier = Modifier.fillMaxSize().clipToBounds().background(Surface),
@@ -127,6 +162,16 @@ fun NotesSelectionScreen(
                                     modifier = Modifier.padding(top = 4.dp)
                                 )
                                 val count = selectedCounts[section.name] ?: 0
+                                val (min, max) = boundsFor(section.name) ?: (null to null)
+                                boundsLabel(min, max)?.let { label ->
+                                    Text(
+                                        text = label,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = if (isCountWithinBounds(count, min, max)) OnSurfaceVariant else Color(0xFFBA1A1A),
+                                        modifier = Modifier.padding(top = 4.dp)
+                                    )
+                                }
                                 if (count > 0) {
                                     Text(
                                         text = strings.noteSelectedCount(count),
@@ -148,6 +193,17 @@ fun NotesSelectionScreen(
                 }
             }
 
+            if (noteCountError != null) {
+                Text(
+                    text = noteCountError,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFFBA1A1A),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
 
             val totalSelected = selectedCounts.values.sum()
@@ -158,7 +214,7 @@ fun NotesSelectionScreen(
                     .widthIn(max = 320.dp)
                     .height(56.dp),
                 shape = PillShape,
-                enabled = totalSelected > 0,
+                enabled = totalSelected > 0 && allFamiliesValid,
                 colors = ButtonDefaults.buttonColors(
                     backgroundColor = Primary,
                     contentColor = OnPrimary,
@@ -220,11 +276,44 @@ fun NotesDetailScreen(
     onRetryCatalog: () -> Unit,
     selected: Set<String>,
     onToggle: (String) -> Unit,
+    pendingRuleWarning: NoteRuleWarning? = null,
+    pendingRuleWarningNoteName: String? = null,
+    onResolveRuleWarning: (Boolean) -> Unit = {},
+    noteRecommendationSource: String? = null,
+    noteRecommendation: String? = null,
+    onDismissRecommendation: () -> Unit = {},
     onBack: () -> Unit,
     onGoHome: () -> Unit
 ) {
     val strings = LocalStrings.current
     val (floatA, floatB, dotAlpha) = rememberFloatingBackground()
+
+    if (pendingRuleWarning != null) {
+        val conflictNames = pendingRuleWarning.conflictingNames.joinToString(", ")
+        AlertDialog(
+            onDismissRequest = { onResolveRuleWarning(false) },
+            title = { Text(strings.ruleWarningTitle, fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    when (pendingRuleWarning.type) {
+                        IngredientRuleType.GROUP_LIMIT ->
+                            strings.ruleWarningGroupLimit(pendingRuleWarning.maxChoices ?: 0, conflictNames)
+                        else -> strings.ruleWarningIncompatibility(pendingRuleWarningNoteName ?: "", conflictNames)
+                    }
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { onResolveRuleWarning(true) }) {
+                    Text(strings.ruleWarningConfirm, color = Primary, fontWeight = FontWeight.SemiBold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { onResolveRuleWarning(false) }) {
+                    Text(strings.ruleWarningCancel, color = OnSurfaceVariant)
+                }
+            }
+        )
+    }
 
     val translatedSectionName = when (sectionName) {
         "Notes de tête" -> strings.topNotesName
@@ -291,6 +380,23 @@ fun NotesDetailScreen(
                 fontStyle = FontStyle.Italic,
                 textAlign = TextAlign.Center
             )
+
+            if (noteRecommendation != null) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Surface(
+                    modifier = Modifier.fillMaxWidth().clickable(onClick = onDismissRecommendation),
+                    shape = RoundedCornerShape(12.dp),
+                    color = Primary.copy(alpha = 0.10f),
+                    border = BorderStroke(1.dp, Primary.copy(alpha = 0.30f))
+                ) {
+                    Text(
+                        text = "💡 ${strings.ruleRecommendation(noteRecommendationSource ?: "", noteRecommendation)}",
+                        fontSize = 14.sp,
+                        color = OnSurface,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
 

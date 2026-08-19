@@ -148,8 +148,7 @@ fun QuestionnaireScreen(
         "Non" -> strings.no
         "Homme" -> strings.genderMale
         "Femme" -> strings.genderFemale
-        "Brume" -> strings.quantityMist
-        else -> value // ex: "10ml", "30ml" restent identiques dans toutes les langues
+        else -> value // ex: "30ml" reste identique dans toutes les langues
     }
 
     val questions = listOf(
@@ -299,7 +298,7 @@ fun QuestionnaireScreen(
         ),
         QuestionData.OptionQuestion(
             title = strings.questionQuantityTitle,
-            options = listOf("10ml", "30ml", "50ml", "100ml", "Brume"),
+            options = listOf("30ml", "50ml", "100ml"),
             selectedOption = quantity,
             onOptionSelected = onQuantityChange
         )

@@ -102,7 +102,6 @@ object StringsEn : Strings {
     override val liabilityQuestion = "If so, would you like to proceed by waiving our liability?"
     override val rgpdQuestion = "Under GDPR, may we keep your formula on file?"
     override val questionQuantityTitle = "Before we start, choose the desired quantity"
-    override val quantityMist = "Mist"
     override val questionnaireChooseNotes = "Choose my notes"
 
     override val notesSelectionTitle = "Choose an olfactory family"
@@ -117,10 +116,28 @@ object StringsEn : Strings {
     override val openContentDescription = "Open"
     override val validateMyFormula = "Confirm my formula"
     override val backToHome = "Back to home"
+    override fun noteCountTooFew(familyName: String, min: Int) =
+        "$familyName: choose at least $min."
+    override fun noteCountTooMany(familyName: String, max: Int) =
+        "$familyName: choose at most $max."
+    override fun noteCountExactly(count: Int) = "$count note(s) to choose"
+    override fun noteCountBetween(min: Int, max: Int) = "Between $min and $max notes"
+    override fun noteCountAtLeast(min: Int) = "At least $min note(s)"
+    override fun noteCountAtMost(max: Int) = "$max note(s) max"
 
     override val notesDetailSubtitle = "Choose your favorite notes"
     override val notesDetailLoadError = "Unable to load notes.\nCheck your connection to the server."
     override fun notesDetailValidate(count: Int) = if (count == 0) back else "Confirm ($count)"
+
+    override val ruleWarningTitle = "Warning"
+    override fun ruleWarningIncompatibility(clickedName: String, conflictingNames: String) =
+        "We recommend not adding $clickedName with $conflictingNames. Do you want to add it anyway?"
+    override fun ruleWarningGroupLimit(maxChoices: Int, groupNames: String) =
+        "We recommend not having more than $maxChoices notes among these notes: $groupNames. Do you want to add it anyway?"
+    override val ruleWarningConfirm = "Yes"
+    override val ruleWarningCancel = "No"
+    override fun ruleRecommendation(clickedName: String, recommendedNames: String) =
+        "$clickedName pairs well with $recommendedNames."
 
     override val noteQuantitiesTitle = "Quantity per note"
     override val noteQuantitiesSubtitle = "Enter the quantity (ml) for each note, if known"

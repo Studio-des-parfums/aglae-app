@@ -57,6 +57,31 @@ object ApiClient {
     suspend fun fetchBoxSets(): List<BoxSetItem> =
         client.get("$ingredientsBaseUrl/api/box-sets").body()
 
+    // Règles de nombre min/max de notes par famille (tête/cœur/fond) pour une combinaison
+    // taille de flacon / coffret / intensité donnée. `bottleSize` et `boxSet` restent optionnels
+    // (non transmis si vides) ; l'intensité n'est volontairement pas filtrée ici car elle n'est
+    // choisie par le client qu'à l'écran suivant ("perfumeIntensity"), après la sélection des
+    // notes — on récupère donc les règles "toutes intensités" pertinentes pour la taille/coffret.
+    suspend fun fetchNoteCountRules(bottleSize: String? = null, boxSet: String? = null): List<IngredientRule> =
+        client.get("$ingredientsBaseUrl/api/ingredient-rules") {
+            parameter("rule_type", "note_count")
+            parameter("active_only", "true")
+            if (!bottleSize.isNullOrBlank()) parameter("bottle_size", bottleSize)
+            if (!boxSet.isNullOrBlank()) parameter("box_set", boxSet)
+        }.body()
+
+    // Toutes les règles ingrédients (incompatibility, max_dosage, group_limit, note_count,
+    // recommendation confondues — voir IngredientRuleType) pour une combinaison taille de
+    // flacon / coffret donnée. Utilisée pour évaluer incompatibility/group_limit/recommendation
+    // au clic sur une note (voir List<IngredientRule>.evaluateNoteClick dans ApiModels.kt) ;
+    // note_count continue d'être chargée séparément par fetchNoteCountRules ci-dessus.
+    suspend fun fetchIngredientRules(bottleSize: String? = null, boxSet: String? = null): List<IngredientRule> =
+        client.get("$ingredientsBaseUrl/api/ingredient-rules") {
+            parameter("active_only", "true")
+            if (!bottleSize.isNullOrBlank()) parameter("bottle_size", bottleSize)
+            if (!boxSet.isNullOrBlank()) parameter("box_set", boxSet)
+        }.body()
+
     // Calcule via l'IA la quantité en ml de chaque note choisie, selon l'intensité
     // souhaitée et le volume total du flacon. N'enregistre rien côté serveur.
     suspend fun suggestQuantities(request: SuggestQuantitiesRequest): SuggestQuantitiesResponse =

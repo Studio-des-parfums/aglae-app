@@ -10,11 +10,17 @@ import com.aglae.form.network.CustomerSearchResult
 import com.aglae.form.network.FormulaDetail
 import com.aglae.form.network.FormulaHistoryItem
 import com.aglae.form.network.IngredientItem
+import com.aglae.form.network.IngredientRule
+import com.aglae.form.network.NoteCountBounds
+import com.aglae.form.network.NoteItem
+import com.aglae.form.network.NoteRuleWarning
 import com.aglae.form.network.SubmissionResult
 import com.aglae.form.network.SuggestQuantitiesRequest
 import com.aglae.form.network.SupervisorIdentifierResponse
 import com.aglae.form.network.TabletNote
 import com.aglae.form.network.TabletSubmission
+import com.aglae.form.network.evaluateNoteClick
+import com.aglae.form.network.toNoteCountBounds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -107,6 +113,36 @@ class FormViewModel(private val scope: CoroutineScope) {
     var selectedTopNotes by mutableStateOf(setOf<String>())
     var selectedHeartNotes by mutableStateOf(setOf<String>())
     var selectedBaseNotes by mutableStateOf(setOf<String>())
+
+    // Bornes min/max de notes par famille (GET /api/ingredient-rules?rule_type=note_count),
+    // chargées pour la taille de flacon (`quantity`) et le coffret (`selectedBoxSet`) choisis.
+    // L'utilisateur reste libre de sélectionner autant de notes qu'il veut dans notesDetail ; ces
+    // bornes ne sont vérifiées qu'au clic sur "Valider ma formule" (voir `validateNoteCounts`).
+    var noteCountBounds by mutableStateOf<NoteCountBounds?>(null)
+    var noteCountError by mutableStateOf<String?>(null)
+
+    // Toutes les règles ingrédients (incompatibility, max_dosage, group_limit, note_count,
+    // recommendation), chargées avec les mêmes dépendances (taille de flacon / coffret) que
+    // `noteCountBounds`. Utilisée pour évaluer un clic sur une note dans notesDetail — voir
+    // `handleNoteClick`. `max_dosage` n'est pas exploité côté tablette pour l'instant (pas
+    // d'écran de dosage au moment du clic ; voir IngredientRule dans ApiModels.kt).
+    var ingredientRules by mutableStateOf<List<IngredientRule>>(emptyList())
+
+    // Alerte bloquante en attente de réponse utilisateur (Oui/Non) suite au clic sur une note
+    // couverte par une règle incompatibility ou group_limit. `null` = pas de dialog affiché.
+    // `pendingRuleWarningNoteName` retient le nom de la note dont le clic a déclenché l'alerte, pour
+    // pouvoir l'ajouter effectivement si l'utilisateur confirme malgré l'avertissement.
+    var pendingRuleWarning by mutableStateOf<NoteRuleWarning?>(null)
+    var pendingRuleWarningNoteName: String? = null
+        private set
+
+    // Suggestions positives (rule_type = recommendation) à afficher après un clic sur une note,
+    // sous forme de message informatif non bloquant. Stocke le nom de la note qui a déclenché la
+    // suggestion et la liste des notes recommandées associées (pas un texte déjà formaté, pour
+    // laisser l'écran composer le message localisé via strings.ruleRecommendation). Vidé au clic
+    // suivant ou à la fermeture du bandeau.
+    var noteRecommendationSource by mutableStateOf<String?>(null)
+    var noteRecommendation by mutableStateOf<String?>(null)
 
     // Quantité (ml) saisie pour chaque note sélectionnée, par nom de note
     var topNoteQuantities by mutableStateOf(mapOf<String, String>())
@@ -236,6 +272,90 @@ class FormViewModel(private val scope: CoroutineScope) {
         } catch (e: Exception) {
             catalogError = e.message ?: strings.networkError
         }
+        loadNoteCountBounds()
+    }
+
+    // Charge les bornes min/max de notes par famille pour la taille de flacon (`quantity`) et le
+    // coffret (`selectedBoxSet`) actuellement choisis. Appelée avec `loadIngredients` (mêmes
+    // dépendances : coffret + rechargement de catalogue). Échec silencieux : si les règles ne
+    // peuvent pas être chargées, on ne bloque pas le parcours (`noteCountBounds` reste `null` et
+    // `validateNoteCounts` laisse alors passer sans contrainte).
+    private suspend fun loadNoteCountBounds() {
+        val bottleSize = quantity.takeIf { it.isNotBlank() && it.endsWith("ml") }
+        try {
+            val rules = ApiClient.fetchNoteCountRules(bottleSize = bottleSize, boxSet = selectedBoxSet)
+            noteCountBounds = rules.toNoteCountBounds()
+        } catch (_: Exception) {
+            noteCountBounds = null
+        }
+        try {
+            ingredientRules = ApiClient.fetchIngredientRules(bottleSize = bottleSize, boxSet = selectedBoxSet)
+        } catch (_: Exception) {
+            // Échec silencieux, comme pour noteCountBounds : si les règles ne peuvent pas être
+            // chargées, on ne bloque pas le parcours, on n'affiche simplement aucune alerte.
+            ingredientRules = emptyList()
+        }
+    }
+
+    // ── Clic sur une note dans notesDetail : évalue incompatibility/group_limit/recommendation ──
+    // avant de basculer la sélection. Décocher une note ne passe jamais par les règles (rien à
+    // prévenir en retirant une note) ; seul le fait de cocher une note nouvelle est évalué.
+    // `catalog` est la liste de NoteItem de la famille actuellement affichée (notesDetail), et
+    // `selected`/`applyToggle` viennent du ViewModel côté appelant (AppContent), qui connaît la
+    // famille (top/heart/base) concernée par `selectedNoteSection`.
+    fun handleNoteClick(catalog: List<NoteItem>, selected: Set<String>, name: String, applyToggle: () -> Unit) {
+        noteRecommendationSource = null
+        noteRecommendation = null
+        if (name in selected) {
+            // Décocher : jamais d'alerte.
+            applyToggle()
+            return
+        }
+        val evaluation = ingredientRules.evaluateNoteClick(catalog, selected, name)
+        val warning = evaluation.blockingWarning
+        if (warning != null) {
+            pendingRuleWarning = warning
+            pendingRuleWarningNoteName = name
+            return
+        }
+        applyToggle()
+        if (evaluation.recommendations.isNotEmpty()) {
+            noteRecommendationSource = name
+            noteRecommendation = evaluation.recommendations.joinToString(", ")
+        }
+    }
+
+    // Résolution du dialog Oui/Non affiché par `pendingRuleWarning`. `confirm = true` ajoute
+    // quand même la note malgré l'avertissement ; `confirm = false` annule le clic.
+    fun resolveRuleWarning(confirm: Boolean, applyToggle: () -> Unit) {
+        if (confirm) applyToggle()
+        pendingRuleWarning = null
+        pendingRuleWarningNoteName = null
+    }
+
+    // ── Validation du nombre de notes choisies par famille, au clic sur "Valider ma formule" ──
+    // L'utilisateur peut sélectionner autant de notes qu'il veut dans notesDetail ; ce n'est qu'à
+    // la confirmation qu'on vérifie le respect des bornes min/max renvoyées par le back. Retourne
+    // true (et vide `noteCountError`) si tout est valide ou si aucune borne n'est connue.
+    fun validateNoteCounts(strings: Strings): Boolean {
+        val bounds = noteCountBounds
+        if (bounds == null) {
+            noteCountError = null
+            return true
+        }
+
+        fun checkFamily(count: Int, min: Int?, max: Int?, familyName: String): String? = when {
+            min != null && count < min -> strings.noteCountTooFew(familyName, min)
+            max != null && count > max -> strings.noteCountTooMany(familyName, max)
+            else -> null
+        }
+
+        val error = checkFamily(selectedTopNotes.size, bounds.minTop, bounds.maxTop, strings.topNotesName)
+            ?: checkFamily(selectedHeartNotes.size, bounds.minHeart, bounds.maxHeart, strings.heartNotesName)
+            ?: checkFamily(selectedBaseNotes.size, bounds.minBase, bounds.maxBase, strings.baseNotesName)
+
+        noteCountError = error
+        return error == null
     }
 
     // ── Liste des coffrets disponibles (écran affiché juste après "Commencer") ──
@@ -287,6 +407,13 @@ class FormViewModel(private val scope: CoroutineScope) {
         selectedTopNotes = emptySet()
         selectedHeartNotes = emptySet()
         selectedBaseNotes = emptySet()
+        noteCountBounds = null
+        noteCountError = null
+        ingredientRules = emptyList()
+        pendingRuleWarning = null
+        pendingRuleWarningNoteName = null
+        noteRecommendationSource = null
+        noteRecommendation = null
         topNoteQuantities = emptyMap()
         heartNoteQuantities = emptyMap()
         baseNoteQuantities = emptyMap()
@@ -393,7 +520,7 @@ class FormViewModel(private val scope: CoroutineScope) {
         }
     }
 
-    // "50ml" -> 50.0 ; "Brume" (pas de volume défini) -> null
+    // "50ml" -> 50.0 ; valeur vide ou non numérique -> null
     fun parseVolumeMl(rawQuantity: String): Double? =
         rawQuantity.removeSuffix("ml").trim().toDoubleOrNull()
 
@@ -401,7 +528,7 @@ class FormViewModel(private val scope: CoroutineScope) {
     fun suggestNoteQuantities(strings: Strings) {
         val totalVolumeMl = parseVolumeMl(quantity)
         if (totalVolumeMl == null || totalVolumeMl <= 0.0) {
-            // Pas de volume exploitable (ex: "Brume") : on laisse la saisie manuelle.
+            // Pas de volume exploitable : on laisse la saisie manuelle.
             return
         }
         if (isSuggestingQuantities) return

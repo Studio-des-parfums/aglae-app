@@ -114,7 +114,6 @@ interface Strings {
     val liabilityQuestion: String
     val rgpdQuestion: String
     val questionQuantityTitle: String
-    val quantityMist: String
     val questionnaireChooseNotes: String
 
     // ── Notes selection screen ──
@@ -130,11 +129,25 @@ interface Strings {
     val openContentDescription: String
     val validateMyFormula: String
     val backToHome: String
+    fun noteCountTooFew(familyName: String, min: Int): String
+    fun noteCountTooMany(familyName: String, max: Int): String
+    fun noteCountExactly(count: Int): String
+    fun noteCountBetween(min: Int, max: Int): String
+    fun noteCountAtLeast(min: Int): String
+    fun noteCountAtMost(max: Int): String
 
     // ── Notes detail screen ──
     val notesDetailSubtitle: String
     val notesDetailLoadError: String
     fun notesDetailValidate(count: Int): String
+
+    // ── Alertes de règles ingrédients (incompatibility / group_limit au clic sur une note) ──
+    val ruleWarningTitle: String
+    fun ruleWarningIncompatibility(clickedName: String, conflictingNames: String): String
+    fun ruleWarningGroupLimit(maxChoices: Int, groupNames: String): String
+    val ruleWarningConfirm: String
+    val ruleWarningCancel: String
+    fun ruleRecommendation(clickedName: String, recommendedNames: String): String
 
     // ── Note quantities screen ──
     val noteQuantitiesTitle: String

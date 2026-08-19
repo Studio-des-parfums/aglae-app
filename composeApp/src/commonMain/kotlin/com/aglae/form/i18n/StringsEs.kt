@@ -102,7 +102,6 @@ object StringsEs : Strings {
     override val liabilityQuestion = "En caso afirmativo, ¿deseas continuar eximiéndonos de responsabilidad?"
     override val rgpdQuestion = "En el marco del RGPD, ¿podemos conservar tu fórmula?"
     override val questionQuantityTitle = "Antes de empezar, elige la cantidad deseada"
-    override val quantityMist = "Bruma"
     override val questionnaireChooseNotes = "Elegir mis notas"
 
     override val notesSelectionTitle = "Elige una familia olfativa"
@@ -117,10 +116,28 @@ object StringsEs : Strings {
     override val openContentDescription = "Abrir"
     override val validateMyFormula = "Validar mi fórmula"
     override val backToHome = "Volver al inicio"
+    override fun noteCountTooFew(familyName: String, min: Int) =
+        "$familyName: elige al menos $min."
+    override fun noteCountTooMany(familyName: String, max: Int) =
+        "$familyName: elige como máximo $max."
+    override fun noteCountExactly(count: Int) = "$count nota(s) a elegir"
+    override fun noteCountBetween(min: Int, max: Int) = "Entre $min y $max notas"
+    override fun noteCountAtLeast(min: Int) = "Al menos $min nota(s)"
+    override fun noteCountAtMost(max: Int) = "$max nota(s) máx."
 
     override val notesDetailSubtitle = "Elige tus notas favoritas"
     override val notesDetailLoadError = "No se pudieron cargar las notas.\nComprueba la conexión con el servidor."
     override fun notesDetailValidate(count: Int) = if (count == 0) back else "Validar ($count)"
+
+    override val ruleWarningTitle = "Atención"
+    override fun ruleWarningIncompatibility(clickedName: String, conflictingNames: String) =
+        "No recomendamos añadir $clickedName con $conflictingNames. ¿Deseas añadirla de todos modos?"
+    override fun ruleWarningGroupLimit(maxChoices: Int, groupNames: String) =
+        "No recomendamos tener más de $maxChoices notas entre estas notas: $groupNames. ¿Deseas añadirla de todos modos?"
+    override val ruleWarningConfirm = "Sí"
+    override val ruleWarningCancel = "No"
+    override fun ruleRecommendation(clickedName: String, recommendedNames: String) =
+        "$clickedName combina bien con $recommendedNames."
 
     override val noteQuantitiesTitle = "Cantidad por nota"
     override val noteQuantitiesSubtitle = "Indica la cantidad (ml) de cada nota, si la conoces"

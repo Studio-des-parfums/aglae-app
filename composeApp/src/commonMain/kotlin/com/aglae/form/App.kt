@@ -248,11 +248,18 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                         "Notes de cœur" to vm.selectedHeartNotes.size,
                         "Notes de fond" to vm.selectedBaseNotes.size
                     ),
+                    bounds = vm.noteCountBounds,
                     onSectionClick = { section ->
                         vm.selectedNoteSection = section
+                        vm.noteCountError = null
                         vm.screen = "notesDetail"
                     },
-                    onConfirm = { vm.screen = "perfumeIntensity" },
+                    noteCountError = vm.noteCountError,
+                    onConfirm = {
+                        if (vm.validateNoteCounts(strings)) {
+                            vm.screen = "perfumeIntensity"
+                        }
+                    },
                     onBackToHome = { vm.resetAll() }
                 )
                 "perfumeIntensity" -> PerfumeIntensityScreen(
@@ -297,21 +304,22 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                     onBack = { vm.screen = "noteQuantities" },
                     onGoHome = { vm.resetAll() }
                 )
-                "notesDetail" -> NotesDetailScreen(
-                    sectionName = vm.selectedNoteSection,
-                    notes = when (vm.selectedNoteSection) {
+                "notesDetail" -> {
+                    val currentCatalog = when (vm.selectedNoteSection) {
                         "Notes de tête" -> notesCatalog?.topNotes
                         "Notes de cœur" -> notesCatalog?.heartNotes
                         else -> notesCatalog?.baseNotes
-                    },
-                    catalogError = vm.catalogError,
-                    onRetryCatalog = { vm.catalogReloadKey++ },
-                    selected = when (vm.selectedNoteSection) {
+                    }
+                    val currentSelected = when (vm.selectedNoteSection) {
                         "Notes de tête" -> vm.selectedTopNotes
                         "Notes de cœur" -> vm.selectedHeartNotes
                         else -> vm.selectedBaseNotes
-                    },
-                    onToggle = { name ->
+                    }
+
+                    // Bascule effective de la sélection (utilisée directement pour décocher, et
+                    // via vm.handleNoteClick/resolveRuleWarning une fois les règles évaluées pour
+                    // cocher). Capture `name` par fermeture au moment de l'appel.
+                    fun applyToggle(name: String) {
                         when (vm.selectedNoteSection) {
                             "Notes de tête" -> {
                                 vm.selectedTopNotes =
@@ -329,10 +337,30 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                                 vm.sendAnswer("baseNotes", vm.selectedBaseNotes.joinToString(","))
                             }
                         }
-                    },
-                    onBack = { vm.screen = "notesSelection" },
-                    onGoHome = { vm.resetAll() }
-                )
+                    }
+
+                    NotesDetailScreen(
+                        sectionName = vm.selectedNoteSection,
+                        notes = currentCatalog,
+                        catalogError = vm.catalogError,
+                        onRetryCatalog = { vm.catalogReloadKey++ },
+                        selected = currentSelected,
+                        onToggle = { name ->
+                            vm.handleNoteClick(currentCatalog.orEmpty(), currentSelected, name) { applyToggle(name) }
+                        },
+                        pendingRuleWarning = vm.pendingRuleWarning,
+                        pendingRuleWarningNoteName = vm.pendingRuleWarningNoteName,
+                        onResolveRuleWarning = { confirm ->
+                            val name = vm.pendingRuleWarningNoteName
+                            vm.resolveRuleWarning(confirm) { name?.let(::applyToggle) }
+                        },
+                        noteRecommendationSource = vm.noteRecommendationSource,
+                        noteRecommendation = vm.noteRecommendation,
+                        onDismissRecommendation = { vm.noteRecommendation = null; vm.noteRecommendationSource = null },
+                        onBack = { vm.screen = "notesSelection" },
+                        onGoHome = { vm.resetAll() }
+                    )
+                }
                 "recap" -> RecapScreen(
                     firstName = vm.firstName,
                     lastName = vm.lastName,
