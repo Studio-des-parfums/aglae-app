@@ -8,7 +8,7 @@ import androidx.compose.ui.window.rememberWindowState
 fun main() = application {
     Window(
         onCloseRequest = ::exitApplication,
-        title = "Aglae Form",
+        title = "SDP Form",
         state = rememberWindowState(width = 960.dp, height = 720.dp)
     ) {
         App()

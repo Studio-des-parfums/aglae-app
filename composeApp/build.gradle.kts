@@ -1,9 +1,12 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
+import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.android.application)
     alias(libs.plugins.compose.multiplatform)
+    alias(libs.plugins.compose.compiler)
     alias(libs.plugins.kotlin.serialization)
 }
 
@@ -24,6 +27,20 @@ kotlin {
         }
     }
 
+    @OptIn(ExperimentalWasmDsl::class)
+    wasmJs {
+        moduleName = "aglaeForm"
+        browser {
+            commonWebpackConfig {
+                outputFileName = "aglaeForm.js"
+                devServer = (devServer ?: KotlinWebpackConfig.DevServer()).apply {
+                    port = 8081
+                }
+            }
+        }
+        binaries.executable()
+    }
+
     sourceSets {
         val commonMain by getting {
             dependencies {
@@ -33,11 +50,13 @@ kotlin {
                 implementation(compose.ui)
                 implementation(compose.animation)
                 implementation(compose.materialIconsExtended)
+                implementation(compose.components.resources)
                 implementation(libs.ktor.client.core)
                 implementation(libs.ktor.client.content.negotiation)
                 implementation(libs.ktor.client.websockets)
                 implementation(libs.ktor.serialization.kotlinx.json)
                 implementation(libs.kotlinx.serialization.json)
+                implementation(libs.kotlinx.coroutines.core)
             }
         }
 
@@ -52,6 +71,12 @@ kotlin {
             dependencies {
                 implementation(compose.desktop.currentOs)
                 implementation(libs.ktor.client.cio)
+            }
+        }
+
+        val wasmJsMain by getting {
+            dependencies {
+                implementation(libs.ktor.client.js)
             }
         }
     }
@@ -77,10 +102,6 @@ android {
     buildFeatures {
         compose = true
     }
-
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.10"
-    }
 }
 
 compose.desktop {
@@ -89,7 +110,7 @@ compose.desktop {
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "AglaeForm"
+            packageName = "SDPForm"
             packageVersion = "1.0.0"
         }
     }

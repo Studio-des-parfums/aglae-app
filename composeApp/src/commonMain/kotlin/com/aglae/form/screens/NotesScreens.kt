@@ -1,6 +1,9 @@
 package com.aglae.form.screens
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -14,11 +17,12 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -26,42 +30,114 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.aglae.form.OnPrimary
-import com.aglae.form.OnSurface
 import com.aglae.form.OnSurfaceVariant
-import com.aglae.form.OutlineVariant
-import com.aglae.form.PillShape
 import com.aglae.form.Primary
-import com.aglae.form.Surface
-import com.aglae.form.SurfaceContainerLowest
+import com.aglae.form.QuestionOnSurface
+import com.aglae.form.QuestionOnSurfaceVariant
+import com.aglae.form.QuestionOutlineVariant
+import com.aglae.form.QuestionPrimary
 import com.aglae.form.i18n.LocalStrings
 import com.aglae.form.network.IngredientRuleType
 import com.aglae.form.network.NoteCountBounds
 import com.aglae.form.network.NoteItem
 import com.aglae.form.network.NoteRuleWarning
 import com.aglae.form.network.isCountWithinBounds
+import org.jetbrains.compose.resources.painterResource
+import aglae_form.composeapp.generated.resources.Res
+import aglae_form.composeapp.generated.resources.slide_aglae
+
+// ── Écran : explication pédagogique de la pyramide olfactive (image plein écran),
+// affiché juste avant la sélection des notes ──
+@Composable
+fun PyramidExplanationScreen(
+    onNext: () -> Unit,
+    onBack: () -> Unit
+) {
+    val strings = LocalStrings.current
+    val bodyFont = questionBodyFont()
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.White)
+    ) {
+        Image(
+            painter = painterResource(Res.drawable.slide_aglae),
+            contentDescription = null,
+            // Fit (et non Crop) : c'est un visuel explicatif avec du texte jusque dans les
+            // coins, un recadrage couperait de l'information plutôt que de la décoration.
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 88.dp)
+        )
+
+        TextButton(
+            onClick = onBack,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(top = 32.dp, start = 32.dp),
+            colors = ButtonDefaults.textButtonColors(contentColor = QuestionOnSurfaceVariant)
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = QuestionOnSurfaceVariant
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = strings.back,
+                fontFamily = bodyFont,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 1.5.sp
+            )
+        }
+
+        QuestionActionButton(
+            text = strings.next,
+            onClick = onNext,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 24.dp)
+        )
+    }
+}
+
+// ── Couleur associée à chaque famille de notes (tête = bleu, cœur = rose, fond = marron) ──
+fun colorForSection(name: String): Color = when (name) {
+    "Notes de tête" -> Color(0xFF4083BD)
+    "Notes de cœur" -> Color(0xFFE97BD8)
+    "Notes de fond" -> Color(0xFF612E10)
+    "Notes booster" -> Color(0xFFC9A227)
+    else -> Color(0xFF221007)
+}
 
 @Composable
 fun NotesSelectionScreen(
     selectedCounts: Map<String, Int>,
     bounds: NoteCountBounds?,
+    showBoosterSection: Boolean = false,
     onSectionClick: (String) -> Unit,
     noteCountError: String?,
     onConfirm: () -> Unit,
-    onBackToHome: () -> Unit
+    onBack: () -> Unit,
+    onGoHome: () -> Unit
 ) {
     val strings = LocalStrings.current
-    val (floatA, floatB, dotAlpha) = rememberFloatingBackground()
+    val bodyFont = questionBodyFont()
 
-    fun translateSectionName(name: String): String = when (name) {
-        "Notes de tête" -> strings.topNotesName
-        "Notes de cœur" -> strings.heartNotesName
-        "Notes de fond" -> strings.baseNotesName
+    fun shortSectionName(name: String): String = when (name) {
+        "Notes de tête" -> strings.topNotesShortName
+        "Notes de cœur" -> strings.heartNotesShortName
+        "Notes de fond" -> strings.baseNotesShortName
+        "Notes booster" -> strings.boosterNotesShortName
         else -> name
     }
 
     // Bornes (min, max) applicables à une section donnée, `null` si aucune contrainte connue
     // pour cette famille (auquel cas aucun texte de borne n'est affiché sur la carte).
+    // "Notes booster" n'a pas de bornes serveur (max 2 est une contrainte UI simple, voir
+    // applyToggle dans App.kt) : tombe volontairement dans le `else -> null`.
     fun boundsFor(name: String): Pair<Int?, Int?>? = when (name) {
         "Notes de tête" -> bounds?.let { it.minTop to it.maxTop }
         "Notes de cœur" -> bounds?.let { it.minHeart to it.maxHeart }
@@ -80,10 +156,19 @@ fun NotesSelectionScreen(
         else -> strings.noteCountAtLeast(min!!)
     }
 
-    val sections = listOf(
-        NotesSectionData("Notes de tête", strings.topNotesDescription, "🍋"),
-        NotesSectionData("Notes de cœur", strings.heartNotesDescription, "🌸"),
-        NotesSectionData("Notes de fond", strings.baseNotesDescription, "🪵")
+    // Ordre de sélection recommandé : Fond (1) → Cœur (2) → Tête (3) → Booster (4).
+    fun selectionOrder(name: String): Int = when (name) {
+        "Notes de fond" -> 1
+        "Notes de cœur" -> 2
+        "Notes de tête" -> 3
+        else -> 4
+    }
+
+    val sections = listOfNotNull(
+        NotesSectionData("Notes de tête", strings.topNotesDescription),
+        NotesSectionData("Notes de cœur", strings.heartNotesDescription),
+        NotesSectionData("Notes de fond", strings.baseNotesDescription),
+        if (showBoosterSection) NotesSectionData("Notes booster", strings.boosterNotesDescription) else null
     )
 
     // Le bouton "Valider ma formule" reste désactivé tant que le nombre de notes choisies dans
@@ -95,99 +180,108 @@ fun NotesSelectionScreen(
         isCountWithinBounds(selectedCounts[section.name] ?: 0, min, max)
     }
 
-    Box(
-        modifier = Modifier.fillMaxSize().clipToBounds().background(Surface),
-        contentAlignment = Alignment.Center
-    ) {
-        AtmosphericBackground(floatA = floatA, floatB = floatB, dotAlpha = dotAlpha)
-
+    QuestionScreenScaffold(onBack = onBack, onGoHome = onGoHome, showTitle = false) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier
-                .fillMaxWidth()
-                .widthIn(max = 560.dp)
-                .padding(horizontal = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxWidth().widthIn(max = 640.dp)
         ) {
-            Text(
-                text = strings.notesSelectionTitle,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = OnSurface,
-                textAlign = TextAlign.Center
-            )
+            QuestionPill(text = strings.notesSelectionTitle)
 
             Text(
                 text = strings.notesSelectionSubtitle,
-                fontSize = 16.sp,
-                color = OnSurfaceVariant,
-                textAlign = TextAlign.Center
+                fontFamily = bodyFont,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Light,
+                color = QuestionOnSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(bottom = 12.dp)
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
-
             sections.forEach { section ->
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .clickable { onSectionClick(section.name) },
-                    shape = RoundedCornerShape(16.dp),
-                    color = SurfaceContainerLowest,
-                    elevation = 4.dp,
-                    border = BorderStroke(1.dp, OutlineVariant.copy(alpha = 0.30f))
+                val shortName = shortSectionName(section.name)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp)
+                    Surface(
+                        shape = androidx.compose.foundation.shape.CircleShape,
+                        color = colorForSection(section.name),
+                        modifier = Modifier.size(32.dp)
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
+                        Box(contentAlignment = Alignment.Center) {
                             Text(
-                                text = section.emoji,
-                                fontSize = 32.sp
+                                text = selectionOrder(section.name).toString(),
+                                fontFamily = bodyFont,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
                             )
-                            Column(modifier = Modifier.weight(1f)) {
+                        }
+                    }
+                    Surface(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(PillShapeCompat)
+                            .clickable { onSectionClick(section.name) },
+                        shape = PillShapeCompat,
+                        color = Color.White.copy(alpha = 0.50f),
+                        elevation = 0.dp,
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.70f))
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 32.dp, vertical = 20.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(24.dp)
+                            ) {
                                 Text(
-                                    text = translateSectionName(section.name),
-                                    fontSize = 20.sp,
+                                    text = shortName,
+                                    fontFamily = questionHeadlineFont(),
+                                    fontSize = 22.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = OnSurface
+                                    color = QuestionPrimary,
+                                    modifier = Modifier.widthIn(min = 96.dp)
                                 )
                                 Text(
                                     text = section.description,
+                                    fontFamily = bodyFont,
                                     fontSize = 14.sp,
-                                    color = OnSurfaceVariant,
+                                    color = QuestionOnSurfaceVariant,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                    contentDescription = strings.openContentDescription,
+                                    tint = QuestionPrimary,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+
+                            val count = selectedCounts[section.name] ?: 0
+                            val (min, max) = boundsFor(section.name) ?: (null to null)
+                            boundsLabel(min, max)?.let { label ->
+                                Text(
+                                    text = label,
+                                    fontFamily = bodyFont,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = if (isCountWithinBounds(count, min, max)) QuestionPrimary else Color(0xFFBA1A1A),
+                                    modifier = Modifier.padding(top = 8.dp)
+                                )
+                            }
+                            if (count > 0) {
+                                Text(
+                                    text = strings.noteSelectedCount(count),
+                                    fontFamily = bodyFont,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = QuestionPrimary,
                                     modifier = Modifier.padding(top = 4.dp)
                                 )
-                                val count = selectedCounts[section.name] ?: 0
-                                val (min, max) = boundsFor(section.name) ?: (null to null)
-                                boundsLabel(min, max)?.let { label ->
-                                    Text(
-                                        text = label,
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        color = if (isCountWithinBounds(count, min, max)) OnSurfaceVariant else Color(0xFFBA1A1A),
-                                        modifier = Modifier.padding(top = 4.dp)
-                                    )
-                                }
-                                if (count > 0) {
-                                    Text(
-                                        text = strings.noteSelectedCount(count),
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = Primary,
-                                        modifier = Modifier.padding(top = 4.dp)
-                                    )
-                                }
                             }
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                contentDescription = strings.openContentDescription,
-                                tint = OnSurfaceVariant.copy(alpha = 0.60f),
-                                modifier = Modifier.size(24.dp)
-                            )
                         }
                     }
                 }
@@ -196,6 +290,7 @@ fun NotesSelectionScreen(
             if (noteCountError != null) {
                 Text(
                     text = noteCountError,
+                    fontFamily = bodyFont,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     color = Color(0xFFBA1A1A),
@@ -204,68 +299,19 @@ fun NotesSelectionScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
             val totalSelected = selectedCounts.values.sum()
-            Button(
+            QuestionActionButton(
+                text = strings.validateMyFormula,
                 onClick = onConfirm,
-                modifier = Modifier
-                    .fillMaxWidth(0.8f)
-                    .widthIn(max = 320.dp)
-                    .height(56.dp),
-                shape = PillShape,
-                enabled = totalSelected > 0 && allFamiliesValid,
-                colors = ButtonDefaults.buttonColors(
-                    backgroundColor = Primary,
-                    contentColor = OnPrimary,
-                    disabledBackgroundColor = OnSurface.copy(alpha = 0.12f),
-                    disabledContentColor = OnSurface.copy(alpha = 0.38f)
-                )
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = strings.validateMyFormula,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-
-            TextButton(
-                onClick = onBackToHome,
-                colors = ButtonDefaults.textButtonColors(
-                    contentColor = OnSurfaceVariant
-                )
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                    tint = OnSurfaceVariant
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = strings.backToHome,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
+                enabled = totalSelected > 0 && allFamiliesValid
+            )
         }
     }
 }
 
 data class NotesSectionData(
     val name: String,
-    val description: String,
-    val emoji: String
+    val description: String
 )
 
 @Composable
@@ -286,7 +332,7 @@ fun NotesDetailScreen(
     onGoHome: () -> Unit
 ) {
     val strings = LocalStrings.current
-    val (floatA, floatB, dotAlpha) = rememberFloatingBackground()
+    val bodyFont = questionBodyFont()
 
     if (pendingRuleWarning != null) {
         val conflictNames = pendingRuleWarning.conflictingNames.joinToString(", ")
@@ -319,55 +365,22 @@ fun NotesDetailScreen(
         "Notes de tête" -> strings.topNotesName
         "Notes de cœur" -> strings.heartNotesName
         "Notes de fond" -> strings.baseNotesName
+        "Notes booster" -> strings.boosterNotesName
         else -> sectionName
     }
+    val sectionColor = colorForSection(sectionName)
 
-    Box(
-        modifier = Modifier.fillMaxSize().clipToBounds().background(Surface),
-        contentAlignment = Alignment.Center
-    ) {
-        AtmosphericBackground(floatA = floatA, floatB = floatB, dotAlpha = dotAlpha)
-        HomeButton(onClick = onGoHome)
-
+    QuestionScreenScaffold(onBack = onBack, onGoHome = onGoHome, showTitle = false) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier
-                .fillMaxWidth()
-                .widthIn(max = 720.dp)
-                .padding(horizontal = 24.dp, vertical = 24.dp)
+            modifier = Modifier.fillMaxWidth().widthIn(max = 720.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Start
-            ) {
-                TextButton(
-                    onClick = onBack,
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = OnSurfaceVariant
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                        tint = OnSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = strings.back,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
             Text(
                 text = translatedSectionName,
+                fontFamily = questionHeadlineFont(),
                 fontSize = 32.sp,
-                fontWeight = FontWeight.Bold,
-                color = Primary,
+                fontWeight = FontWeight.Medium,
+                color = sectionColor,
                 textAlign = TextAlign.Center
             )
 
@@ -375,9 +388,9 @@ fun NotesDetailScreen(
 
             Text(
                 text = strings.notesDetailSubtitle,
+                fontFamily = bodyFont,
                 fontSize = 18.sp,
-                color = OnSurfaceVariant,
-                fontStyle = FontStyle.Italic,
+                color = QuestionPrimary,
                 textAlign = TextAlign.Center
             )
 
@@ -386,13 +399,14 @@ fun NotesDetailScreen(
                 Surface(
                     modifier = Modifier.fillMaxWidth().clickable(onClick = onDismissRecommendation),
                     shape = RoundedCornerShape(12.dp),
-                    color = Primary.copy(alpha = 0.10f),
-                    border = BorderStroke(1.dp, Primary.copy(alpha = 0.30f))
+                    color = QuestionPrimary.copy(alpha = 0.10f),
+                    border = BorderStroke(1.dp, QuestionPrimary.copy(alpha = 0.30f))
                 ) {
                     Text(
-                        text = "💡 ${strings.ruleRecommendation(noteRecommendationSource ?: "", noteRecommendation)}",
+                        text = strings.ruleRecommendation(noteRecommendationSource ?: "", noteRecommendation),
+                        fontFamily = bodyFont,
                         fontSize = 14.sp,
-                        color = OnSurface,
+                        color = QuestionOnSurface,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
                     )
                 }
@@ -405,9 +419,9 @@ fun NotesDetailScreen(
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
-                        color = SurfaceContainerLowest,
-                        elevation = 2.dp,
-                        border = BorderStroke(1.dp, OutlineVariant.copy(alpha = 0.20f))
+                        color = Color.White.copy(alpha = 0.80f),
+                        elevation = 0.dp,
+                        border = BorderStroke(1.dp, QuestionOutlineVariant.copy(alpha = 0.5f))
                     ) {
                         Column(
                             modifier = Modifier.padding(24.dp),
@@ -416,31 +430,26 @@ fun NotesDetailScreen(
                         ) {
                             Text(
                                 text = strings.notesDetailLoadError,
+                                fontFamily = bodyFont,
                                 fontSize = 16.sp,
-                                color = OnSurfaceVariant,
+                                color = QuestionOnSurfaceVariant,
                                 textAlign = TextAlign.Center
                             )
-                            Button(
+                            TextButton(
                                 onClick = onRetryCatalog,
-                                shape = PillShape,
-                                colors = ButtonDefaults.buttonColors(
-                                    backgroundColor = Primary,
-                                    contentColor = OnPrimary
-                                )
+                                colors = ButtonDefaults.textButtonColors(contentColor = QuestionPrimary)
                             ) {
-                                Text(strings.retry, fontSize = 16.sp)
+                                Text(strings.retry, fontFamily = bodyFont, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                             }
                         }
                     }
                 }
                 notes == null -> {
-                    CircularProgressIndicator(color = Primary)
+                    CircularProgressIndicator(color = QuestionPrimary)
                 }
                 else -> {
                     Column(
-                        modifier = Modifier
-                            .weight(1f, fill = false)
-                            .verticalScroll(rememberScrollState()),
+                        modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         notes.chunked(3).forEach { rowNotes ->
@@ -452,6 +461,7 @@ fun NotesDetailScreen(
                                     NoteChip(
                                         name = note.name,
                                         isSelected = note.name in selected,
+                                        color = sectionColor,
                                         onClick = { onToggle(note.name) },
                                         modifier = Modifier.weight(1f)
                                     )
@@ -463,24 +473,23 @@ fun NotesDetailScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(24.dp))
-
                     Button(
                         onClick = onBack,
-                        modifier = Modifier
-                            .fillMaxWidth(0.8f)
-                            .widthIn(max = 320.dp)
-                            .height(52.dp),
-                        shape = PillShape,
+                        modifier = Modifier.padding(top = 24.dp).widthIn(min = 280.dp),
+                        shape = PillShapeCompat,
                         colors = ButtonDefaults.buttonColors(
-                            backgroundColor = Primary,
-                            contentColor = OnPrimary
-                        )
+                            backgroundColor = QuestionPrimary,
+                            contentColor = Color.White
+                        ),
+                        contentPadding = PaddingValues(horizontal = 48.dp, vertical = 16.dp),
+                        elevation = ButtonDefaults.elevation(defaultElevation = 0.dp, pressedElevation = 0.dp)
                     ) {
                         Text(
                             text = strings.notesDetailValidate(selected.size),
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.SemiBold
+                            fontFamily = bodyFont,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            letterSpacing = 1.5.sp
                         )
                     }
                 }
@@ -493,40 +502,43 @@ fun NotesDetailScreen(
 fun NoteChip(
     name: String,
     isSelected: Boolean,
+    color: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val fillColor by animateColorAsState(
+        targetValue = if (isSelected) color.copy(alpha = 0.12f) else Color.Transparent,
+        animationSpec = tween(durationMillis = 250),
+        label = "noteChipFill"
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (isSelected) color else QuestionOutlineVariant,
+        animationSpec = tween(durationMillis = 250),
+        label = "noteChipBorder"
+    )
+    val contentColor by animateColorAsState(
+        targetValue = if (isSelected) QuestionPrimary else QuestionOnSurfaceVariant,
+        animationSpec = tween(durationMillis = 250),
+        label = "noteChipContent"
+    )
     Surface(
         modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
+            .clip(PillShapeCompat)
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
-        color = if (isSelected) Primary else SurfaceContainerLowest,
-        border = BorderStroke(1.dp, if (isSelected) Primary else OutlineVariant),
-        elevation = if (isSelected) 4.dp else 0.dp
+        shape = PillShapeCompat,
+        color = fillColor,
+        border = BorderStroke(1.dp, borderColor),
+        elevation = 0.dp
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            if (isSelected) {
-                Icon(
-                    imageVector = Icons.Default.Check,
-                    contentDescription = null,
-                    tint = OnPrimary,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-            }
-            Text(
-                text = name,
-                fontSize = 15.sp,
-                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                color = if (isSelected) OnPrimary else OnSurface,
-                textAlign = TextAlign.Center
-            )
-        }
+        Text(
+            text = name,
+            fontFamily = questionBodyFont(),
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = contentColor,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
+        )
     }
 }
 
@@ -536,9 +548,11 @@ fun NoteQuantitiesScreen(
     topNotes: List<String>,
     heartNotes: List<String>,
     baseNotes: List<String>,
+    boosterNotes: List<String> = emptyList(),
     topQuantities: Map<String, String>,
     heartQuantities: Map<String, String>,
     baseQuantities: Map<String, String>,
+    boosterQuantities: Map<String, String> = emptyMap(),
     onTopQuantityChange: (String, String) -> Unit,
     onHeartQuantityChange: (String, String) -> Unit,
     onBaseQuantityChange: (String, String) -> Unit,
@@ -549,66 +563,44 @@ fun NoteQuantitiesScreen(
     onGoHome: () -> Unit
 ) {
     val strings = LocalStrings.current
-    val (floatA, floatB, dotAlpha) = rememberFloatingBackground()
+    val bodyFont = questionBodyFont()
 
-    Box(
-        modifier = Modifier.fillMaxSize().clipToBounds().background(Surface),
-        contentAlignment = Alignment.Center
-    ) {
-        AtmosphericBackground(floatA = floatA, floatB = floatB, dotAlpha = dotAlpha)
-        HomeButton(onClick = onGoHome)
-
+    QuestionScreenScaffold(onBack = onBack, onGoHome = onGoHome) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier
-                .fillMaxWidth()
-                .widthIn(max = 560.dp)
-                .padding(horizontal = 24.dp, vertical = 24.dp)
+            modifier = Modifier.fillMaxWidth().widthIn(max = 560.dp)
         ) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
-                TextButton(onClick = onBack, colors = ButtonDefaults.textButtonColors(contentColor = OnSurfaceVariant)) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp), tint = OnSurfaceVariant)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(text = strings.back, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
             if (isLoadingSuggestions) {
                 // Le dosage IA n'est pas encore arrivé : on masque le formulaire (les champs
                 // seraient vides) et on affiche un vrai écran de chargement à la place.
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
-                    modifier = Modifier.fillMaxWidth().weight(1f)
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    CircularProgressIndicator(color = Primary)
+                    CircularProgressIndicator(color = QuestionPrimary)
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         text = strings.noteQuantitiesLoading,
+                        fontFamily = bodyFont,
                         fontSize = 15.sp,
-                        color = OnSurfaceVariant,
+                        color = QuestionOnSurfaceVariant,
                         textAlign = TextAlign.Center
                     )
                 }
             } else {
-                Text(
-                    text = strings.noteQuantitiesTitle,
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = OnSurface,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                QuestionPill(text = strings.noteQuantitiesTitle)
+
+                Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
                     text = strings.noteQuantitiesSubtitle,
+                    fontFamily = bodyFont,
                     fontSize = 15.sp,
-                    color = OnSurfaceVariant,
+                    color = QuestionOnSurfaceVariant,
                     textAlign = TextAlign.Center,
                     fontStyle = FontStyle.Italic,
-                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 if (suggestionsFailed) {
@@ -616,6 +608,7 @@ fun NoteQuantitiesScreen(
                     // que les ml n'ont pas pu être pré-remplis et que la saisie reste manuelle.
                     Text(
                         text = strings.noteQuantitiesSuggestFailed,
+                        fontFamily = bodyFont,
                         fontSize = 13.sp,
                         color = Color(0xFFBA1A1A),
                         textAlign = TextAlign.Center,
@@ -626,46 +619,77 @@ fun NoteQuantitiesScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Column(
-                    modifier = Modifier
-                        .weight(1f, fill = false)
-                        .verticalScroll(rememberScrollState()),
+                    modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(20.dp)
                 ) {
                     listOf(
-                        Triple("🍋 ${strings.topNotesName}", topNotes, topQuantities to onTopQuantityChange),
-                        Triple("🌸 ${strings.heartNotesName}", heartNotes, heartQuantities to onHeartQuantityChange),
-                        Triple("🪵 ${strings.baseNotesName}", baseNotes, baseQuantities to onBaseQuantityChange)
-                    ).forEach { (title, names, quantitiesAndCallback) ->
+                        Triple("Notes de tête", topNotes, topQuantities to onTopQuantityChange),
+                        Triple("Notes de cœur", heartNotes, heartQuantities to onHeartQuantityChange),
+                        Triple("Notes de fond", baseNotes, baseQuantities to onBaseQuantityChange),
+                        Triple("Notes booster", boosterNotes, boosterQuantities to { _: String, _: String -> })
+                    ).forEach { (sectionKey, names, quantitiesAndCallback) ->
                         if (names.isNotEmpty()) {
+                            val sectionColor = colorForSection(sectionKey)
+                            val title = when (sectionKey) {
+                                "Notes de tête" -> strings.topNotesName
+                                "Notes de cœur" -> strings.heartNotesName
+                                "Notes booster" -> strings.boosterNotesName
+                                else -> strings.baseNotesName
+                            }
+                            // Le booster est une valeur fixe (5ml), jamais éditable par le client.
+                            val readOnly = sectionKey == "Notes booster"
                             val (quantities, onChange) = quantitiesAndCallback
                             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                Text(text = title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = OnSurface)
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = sectionColor,
+                                    modifier = Modifier.wrapContentWidth()
+                                ) {
+                                    Text(
+                                        text = title,
+                                        fontFamily = bodyFont,
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color.White,
+                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                                    )
+                                }
                                 names.forEach { name ->
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
-                                        Text(
-                                            text = name,
-                                            fontSize = 16.sp,
-                                            color = OnSurface,
-                                            modifier = Modifier.weight(1f)
-                                        )
+                                        Surface(
+                                            shape = RoundedCornerShape(10.dp),
+                                            color = Color.Transparent,
+                                            modifier = Modifier.weight(1f).padding(end = 12.dp)
+                                        ) {
+                                            Text(
+                                                text = name,
+                                                fontFamily = bodyFont,
+                                                fontSize = 16.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = sectionColor,
+                                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+                                            )
+                                        }
                                         OutlinedTextField(
                                             value = quantities[name] ?: "",
                                             onValueChange = { onChange(name, it) },
-                                            placeholder = { Text(strings.mlPlaceholder, fontSize = 14.sp) },
-                                            trailingIcon = { Text("ml", fontSize = 14.sp, color = OnSurfaceVariant) },
+                                            readOnly = readOnly,
+                                            placeholder = { Text(strings.mlPlaceholder, fontFamily = bodyFont, fontSize = 14.sp) },
+                                            trailingIcon = { Text("ml", fontFamily = bodyFont, fontSize = 14.sp, color = sectionColor) },
                                             singleLine = true,
                                             modifier = Modifier.width(110.dp).height(56.dp),
                                             shape = RoundedCornerShape(10.dp),
-                                            textStyle = MaterialTheme.typography.body1.copy(fontSize = 15.sp),
+                                            textStyle = MaterialTheme.typography.body1.copy(fontFamily = bodyFont, fontSize = 15.sp),
                                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
                                             colors = TextFieldDefaults.outlinedTextFieldColors(
-                                                focusedBorderColor = Primary,
-                                                unfocusedBorderColor = OnSurface.copy(alpha = 0.38f),
-                                                cursorColor = Primary
+                                                backgroundColor = Color.White.copy(alpha = 0.80f),
+                                                focusedBorderColor = sectionColor,
+                                                unfocusedBorderColor = sectionColor.copy(alpha = 0.5f),
+                                                cursorColor = sectionColor
                                             )
                                         )
                                     }
@@ -675,16 +699,11 @@ fun NoteQuantitiesScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Button(
+                QuestionActionButton(
+                    text = strings.next,
                     onClick = onNext,
-                    modifier = Modifier.fillMaxWidth(0.8f).widthIn(max = 320.dp).height(56.dp),
-                    shape = PillShape,
-                    colors = ButtonDefaults.buttonColors(backgroundColor = Primary, contentColor = OnPrimary)
-                ) {
-                    Text(text = strings.next, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-                }
+                    enabled = true
+                )
             }
         }
     }

@@ -46,38 +46,22 @@ fun FormulaChoiceScreen(
     onGoHome: () -> Unit
 ) {
     val strings = LocalStrings.current
-    val (floatA, floatB, dotAlpha) = rememberFloatingBackground()
 
-    Box(
-        modifier = Modifier.fillMaxSize().clipToBounds().background(Surface),
-        contentAlignment = Alignment.Center
-    ) {
-        AtmosphericBackground(floatA = floatA, floatB = floatB, dotAlpha = dotAlpha)
-        HomeButton(onClick = onGoHome)
-
+    QuestionScreenScaffold(onBack = null, onGoHome = onGoHome) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier
-                .fillMaxWidth()
-                .widthIn(max = 560.dp)
-                .padding(horizontal = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+            verticalArrangement = Arrangement.spacedBy(24.dp),
+            modifier = Modifier.fillMaxWidth().widthIn(max = 560.dp)
         ) {
-            Text(
-                text = strings.formulaChoiceTitle,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                color = OnSurface,
-                textAlign = TextAlign.Center
-            )
+            QuestionPill(text = strings.formulaChoiceTitle)
 
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxWidth()
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.fillMaxWidth().widthIn(max = 480.dp)
             ) {
                 listOf("Nouvelle", "Réutiliser").forEach { option ->
-                    OptionCard(
+                    QuestionOptionCard(
                         text = if (option == "Nouvelle") strings.formulaChoiceNew else strings.formulaChoiceReuse,
                         isSelected = answer == option,
                         onClick = { onAnswerChange(option) }
@@ -85,20 +69,11 @@ fun FormulaChoiceScreen(
                 }
             }
 
-            Button(
+            QuestionActionButton(
+                text = strings.next,
                 onClick = onNext,
-                modifier = Modifier.fillMaxWidth(0.8f).widthIn(max = 240.dp).height(56.dp),
-                shape = PillShape,
-                enabled = answer.isNotEmpty(),
-                colors = ButtonDefaults.buttonColors(
-                    backgroundColor = Primary,
-                    contentColor = OnPrimary,
-                    disabledBackgroundColor = OnSurface.copy(alpha = 0.12f),
-                    disabledContentColor = OnSurface.copy(alpha = 0.38f)
-                )
-            ) {
-                Text(text = strings.next, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-            }
+                enabled = answer.isNotEmpty()
+            )
         }
     }
 }
@@ -121,7 +96,6 @@ fun FormulaHistoryScreen(
         contentAlignment = Alignment.Center
     ) {
         AtmosphericBackground(floatA = floatA, floatB = floatB, dotAlpha = dotAlpha)
-        HomeButton(onClick = onGoHome)
 
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -174,7 +148,7 @@ fun FormulaHistoryScreen(
                             Button(
                                 onClick = onRetry,
                                 shape = PillShape,
-                                colors = ButtonDefaults.buttonColors(backgroundColor = Primary, contentColor = OnPrimary)
+                                border = BorderStroke(1.dp, Color(0xFF221007)), colors = ButtonDefaults.buttonColors(backgroundColor = Color.Transparent, contentColor = Color(0xFFE5851A))
                             ) {
                                 Text(strings.retry, fontSize = 16.sp)
                             }
@@ -239,6 +213,9 @@ fun FormulaHistoryScreen(
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            HomeFooterLink(onClick = onGoHome)
         }
     }
 }
@@ -327,15 +304,16 @@ fun FormulaDetailModal(
                             enabled = !isReusing,
                             modifier = Modifier.fillMaxWidth().height(52.dp),
                             shape = PillShape,
+                            border = BorderStroke(1.dp, Color(0xFF221007)),
                             colors = ButtonDefaults.buttonColors(
-                                backgroundColor = Primary,
-                                contentColor = OnPrimary,
+                                backgroundColor = Color.Transparent,
+                                contentColor = Color(0xFFE5851A),
                                 disabledBackgroundColor = OnSurface.copy(alpha = 0.12f),
                                 disabledContentColor = OnSurface.copy(alpha = 0.38f)
                             )
                         ) {
                             if (isReusing) {
-                                CircularProgressIndicator(color = OnPrimary, strokeWidth = 2.dp, modifier = Modifier.size(22.dp))
+                                CircularProgressIndicator(color = Color(0xFFE5851A), strokeWidth = 2.dp, modifier = Modifier.size(22.dp))
                             } else {
                                 Text(text = strings.formulaDetailUseFormula, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                             }
@@ -397,7 +375,7 @@ fun ReuseSuccessScreen(
                 onClick = onDone,
                 modifier = Modifier.fillMaxWidth(0.8f).widthIn(max = 320.dp).height(56.dp),
                 shape = PillShape,
-                colors = ButtonDefaults.buttonColors(backgroundColor = Primary, contentColor = OnPrimary)
+                border = BorderStroke(1.dp, Color(0xFF221007)), colors = ButtonDefaults.buttonColors(backgroundColor = Color.Transparent, contentColor = Color(0xFFE5851A))
             ) {
                 Text(text = strings.finish, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
             }

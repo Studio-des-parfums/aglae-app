@@ -35,9 +35,11 @@ import com.aglae.form.screens.FormulaChoiceScreen
 import com.aglae.form.screens.FormulaDetailModal
 import com.aglae.form.screens.FormulaHistoryScreen
 import com.aglae.form.screens.HomeScreen
+import com.aglae.form.screens.PrinterSettingsScreen
 import com.aglae.form.screens.NoteQuantitiesScreen
 import com.aglae.form.screens.NotesDetailScreen
 import com.aglae.form.screens.NotesSelectionScreen
+import com.aglae.form.screens.PyramidExplanationScreen
 import com.aglae.form.screens.PerfumeIntensityScreen
 import com.aglae.form.screens.PerfumeNameScreen
 import com.aglae.form.screens.QuestionnaireScreen
@@ -126,8 +128,12 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                         vm.supervisorUser = user
                         vm.screen = "supervisor"
                     },
+                    onOpenPrinterSettings = { vm.screen = "printerSettings" },
                     language = language,
                     onLanguageChange = onLanguageChange
+                )
+                "printerSettings" -> PrinterSettingsScreen(
+                    onBack = { vm.screen = "home" }
                 )
                 "boxSetChoice" -> BoxSetScreen(
                     boxSets = vm.boxSets,
@@ -232,23 +238,57 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                     onRgpdAnswerChange = { vm.rgpdAnswer = it; vm.sendAnswer("rgpdConsent", it) },
                     quantity = vm.quantity,
                     onQuantityChange = { vm.quantity = it; vm.sendAnswer("quantity", it) },
+                    boxSet = vm.selectedBoxSet,
                     currentQuestion = vm.currentQuestion,
-                    onNextQuestion = { vm.currentQuestion++ },
-                    onPreviousQuestion = { if (vm.currentQuestion > 0) vm.currentQuestion-- },
+                    onNextQuestion = {
+                        // Page "Coordonnées" (index 1, email/téléphone) : uniquement dans le
+                        // parcours "nouvelle formule" (hasExistingFormula == "Non"), on vérifie
+                        // qu'aucun client n'existe déjà avec cet email/téléphone avant d'avancer.
+                        if (vm.currentQuestion == 1 && vm.hasExistingFormula != "Oui") {
+                            vm.checkContactThenAdvance(strings)
+                        } else {
+                            vm.currentQuestion++
+                        }
+                    },
+                    onPreviousQuestion = {
+                        // Client existant (parcours "j'ai déjà une formule" -> "nouvelle
+                        // formule") : le questionnaire démarre directement à la question légale
+                        // (index 2, voir startQuestionnaireForExistingCustomer). Revenir en
+                        // arrière depuis cette première question doit ramener à l'écran
+                        // "nouvelle formule ou réutiliser", pas décrémenter vers les pages
+                        // d'informations/coordonnées (jamais posées dans ce parcours).
+                        if (vm.hasExistingFormula == "Oui" && vm.currentQuestion == 2) {
+                            vm.screen = "formulaChoice"
+                        } else if (vm.currentQuestion > 0) {
+                            vm.currentQuestion--
+                        }
+                    },
                     onFinish = {
-                        vm.screen = "notesSelection"
+                        vm.screen = "pyramidExplanation"
                         vm.currentQuestion = 0
                         vm.selectedNoteSection = ""
                     },
-                    onGoHome = { vm.resetAll() }
+                    onGoHome = { vm.resetAll() },
+                    isCheckingContact = vm.isCheckingContact,
+                    contactCheckError = vm.contactCheckError
+                )
+                "pyramidExplanation" -> PyramidExplanationScreen(
+                    onNext = { vm.screen = "notesSelection" },
+                    onBack = {
+                        vm.currentQuestion = 2
+                        vm.screen = "questionnaire"
+                    }
                 )
                 "notesSelection" -> NotesSelectionScreen(
                     selectedCounts = mapOf(
                         "Notes de tête" to vm.selectedTopNotes.size,
                         "Notes de cœur" to vm.selectedHeartNotes.size,
-                        "Notes de fond" to vm.selectedBaseNotes.size
+                        "Notes de fond" to vm.selectedBaseNotes.size,
+                        "Notes booster" to vm.selectedBoosterNotes.size
                     ),
                     bounds = vm.noteCountBounds,
+                    showBoosterSection = vm.selectedBoxSet.equals("Odyssée", ignoreCase = true) ||
+                        vm.selectedBoxSet.equals("Odyssee", ignoreCase = true),
                     onSectionClick = { section ->
                         vm.selectedNoteSection = section
                         vm.noteCountError = null
@@ -260,7 +300,8 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                             vm.screen = "perfumeIntensity"
                         }
                     },
-                    onBackToHome = { vm.resetAll() }
+                    onBack = { vm.screen = "pyramidExplanation" },
+                    onGoHome = { vm.resetAll() }
                 )
                 "perfumeIntensity" -> PerfumeIntensityScreen(
                     selectedIntensity = vm.perfumeIntensity,
@@ -276,9 +317,11 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                     topNotes = vm.selectedTopNotes.toList(),
                     heartNotes = vm.selectedHeartNotes.toList(),
                     baseNotes = vm.selectedBaseNotes.toList(),
+                    boosterNotes = vm.selectedBoosterNotes.toList(),
                     topQuantities = vm.topNoteQuantities,
                     heartQuantities = vm.heartNoteQuantities,
                     baseQuantities = vm.baseNoteQuantities,
+                    boosterQuantities = vm.selectedBoosterNotes.associateWith { "5" },
                     isLoadingSuggestions = vm.isSuggestingQuantities,
                     suggestionsFailed = vm.suggestQuantitiesError != null,
                     onTopQuantityChange = { name, qty ->
@@ -308,11 +351,13 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                     val currentCatalog = when (vm.selectedNoteSection) {
                         "Notes de tête" -> notesCatalog?.topNotes
                         "Notes de cœur" -> notesCatalog?.heartNotes
+                        "Notes booster" -> notesCatalog?.boosterNotes
                         else -> notesCatalog?.baseNotes
                     }
                     val currentSelected = when (vm.selectedNoteSection) {
                         "Notes de tête" -> vm.selectedTopNotes
                         "Notes de cœur" -> vm.selectedHeartNotes
+                        "Notes booster" -> vm.selectedBoosterNotes
                         else -> vm.selectedBaseNotes
                     }
 
@@ -330,6 +375,16 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                                 vm.selectedHeartNotes =
                                     if (name in vm.selectedHeartNotes) vm.selectedHeartNotes - name else vm.selectedHeartNotes + name
                                 vm.sendAnswer("heartNotes", vm.selectedHeartNotes.joinToString(","))
+                            }
+                            "Notes booster" -> {
+                                // Plafond de 2 boosters : retirer reste toujours possible, ajouter
+                                // seulement sous le plafond (clic au-delà silencieusement ignoré).
+                                vm.selectedBoosterNotes = when {
+                                    name in vm.selectedBoosterNotes -> vm.selectedBoosterNotes - name
+                                    vm.selectedBoosterNotes.size < 2 -> vm.selectedBoosterNotes + name
+                                    else -> vm.selectedBoosterNotes
+                                }
+                                vm.sendAnswer("boosterNotes", vm.selectedBoosterNotes.joinToString(","))
                             }
                             else -> {
                                 vm.selectedBaseNotes =
@@ -370,6 +425,7 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                     topNotes = vm.selectedTopNotes.map { name -> vm.topNoteQuantities[name]?.takeIf { it.isNotBlank() }?.let { "$name ($it ml)" } ?: name },
                     heartNotes = vm.selectedHeartNotes.map { name -> vm.heartNoteQuantities[name]?.takeIf { it.isNotBlank() }?.let { "$name ($it ml)" } ?: name },
                     baseNotes = vm.selectedBaseNotes.map { name -> vm.baseNoteQuantities[name]?.takeIf { it.isNotBlank() }?.let { "$name ($it ml)" } ?: name },
+                    boosterNotes = vm.selectedBoosterNotes.map { name -> "$name (5 ml)" },
                     perfumeName = vm.perfumeName,
                     isSubmitting = vm.isSubmitting,
                     submitError = vm.submitError,

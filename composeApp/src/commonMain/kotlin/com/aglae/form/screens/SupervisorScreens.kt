@@ -20,6 +20,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -80,10 +81,13 @@ fun SupervisorHomeScreen(
 
     LaunchedEffect(Unit) { load() }
 
+    val (floatA, floatB, dotAlpha) = rememberFloatingBackground()
+
+    Box(modifier = Modifier.fillMaxSize()) {
+    AtmosphericBackground(floatA = floatA, floatB = floatB, dotAlpha = dotAlpha)
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Surface)
     ) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
@@ -124,8 +128,8 @@ fun SupervisorHomeScreen(
                 ) {
                     Text(error ?: "", color = OnSurfaceVariant, textAlign = TextAlign.Center)
                     Spacer(Modifier.height(16.dp))
-                    Button(onClick = { load() }, colors = ButtonDefaults.buttonColors(backgroundColor = Primary)) {
-                        Text("Reessayer", color = OnPrimary)
+                    Button(onClick = { load() }, colors = ButtonDefaults.buttonColors(backgroundColor = Color.Transparent, contentColor = Color(0xFFE5851A))) {
+                        Text("Reessayer", color = Color(0xFFE5851A))
                     }
                 }
             }
@@ -165,6 +169,7 @@ fun SupervisorHomeScreen(
                 }
             }
         }
+    }
     }
 }
 
@@ -247,9 +252,10 @@ fun SessionCard(
                     },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, Color(0xFF221007)),
                     colors = ButtonDefaults.buttonColors(
-                        backgroundColor = Primary,
-                        contentColor = OnPrimary
+                        backgroundColor = Color.Transparent,
+                        contentColor = Color(0xFFE5851A),
                     ),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                 ) {
@@ -329,10 +335,13 @@ fun SupervisorSessionDetailScreen(
         return
     }
 
+    val (detailFloatA, detailFloatB, detailDotAlpha) = rememberFloatingBackground()
+
+    Box(modifier = Modifier.fillMaxSize()) {
+    AtmosphericBackground(floatA = detailFloatA, floatB = detailFloatB, dotAlpha = detailDotAlpha)
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Surface)
     ) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
@@ -373,8 +382,8 @@ fun SupervisorSessionDetailScreen(
                 ) {
                     Text(error ?: "", color = OnSurfaceVariant, textAlign = TextAlign.Center)
                     Spacer(Modifier.height(16.dp))
-                    Button(onClick = { load() }, colors = ButtonDefaults.buttonColors(backgroundColor = Primary)) {
-                        Text("Reessayer", color = OnPrimary)
+                    Button(onClick = { load() }, colors = ButtonDefaults.buttonColors(backgroundColor = Color.Transparent, contentColor = Color(0xFFE5851A))) {
+                        Text("Reessayer", color = Color(0xFFE5851A))
                     }
                 }
             }
@@ -461,6 +470,7 @@ fun SupervisorSessionDetailScreen(
                 }
             }
         }
+    }
     }
 }
 
@@ -563,10 +573,13 @@ fun SupervisorNotesPickerScreen(
     }
     val sectionLabel = formatQuestionKey(sectionKey)
 
+    val (pickerFloatA, pickerFloatB, pickerDotAlpha) = rememberFloatingBackground()
+
+    Box(modifier = Modifier.fillMaxSize()) {
+    AtmosphericBackground(floatA = pickerFloatA, floatB = pickerFloatB, dotAlpha = pickerDotAlpha)
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Surface)
     ) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
@@ -610,8 +623,8 @@ fun SupervisorNotesPickerScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(catalogError ?: "", color = OnSurfaceVariant, textAlign = TextAlign.Center)
                         Spacer(Modifier.height(16.dp))
-                        Button(onClick = { catalogReloadKey++ }, colors = ButtonDefaults.buttonColors(backgroundColor = Primary)) {
-                            Text("Reessayer", color = OnPrimary)
+                        Button(onClick = { catalogReloadKey++ }, colors = ButtonDefaults.buttonColors(backgroundColor = Color.Transparent, contentColor = Color(0xFFE5851A))) {
+                            Text("Reessayer", color = Color(0xFFE5851A))
                         }
                     }
                 }
@@ -662,6 +675,7 @@ fun SupervisorNotesPickerScreen(
             }
         }
     }
+    }
 }
 
 @Composable
@@ -676,9 +690,9 @@ fun SupervisorNoteChip(
             .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
-        color = if (isSelected) Primary else Surface,
-        border = BorderStroke(1.dp, if (isSelected) Primary else OutlineVariant),
-        elevation = if (isSelected) 4.dp else 0.dp
+        color = Color.Transparent,
+        border = BorderStroke(1.dp, if (isSelected) Color(0xFF221007) else OutlineVariant),
+        elevation = 0.dp
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 12.dp),
@@ -689,7 +703,7 @@ fun SupervisorNoteChip(
                 Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = null,
-                    tint = OnPrimary,
+                    tint = Color(0xFFE5851A),
                     modifier = Modifier.size(14.dp)
                 )
                 Spacer(Modifier.width(4.dp))
@@ -698,7 +712,7 @@ fun SupervisorNoteChip(
                 text = name,
                 fontSize = 13.sp,
                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                color = if (isSelected) OnPrimary else OnSurface,
+                color = if (isSelected) Color(0xFFE5851A) else OnSurface,
                 textAlign = TextAlign.Center,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
@@ -736,8 +750,8 @@ fun GenderAnswerCard(
                             .clip(RoundedCornerShape(8.dp))
                             .clickable { onSelect(option) },
                         shape = RoundedCornerShape(8.dp),
-                        color = if (isSelected) Primary else Surface,
-                        border = BorderStroke(1.dp, if (isSelected) Primary else OutlineVariant)
+                        color = Color.Transparent,
+                        border = BorderStroke(1.dp, if (isSelected) Color(0xFF221007) else OutlineVariant)
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
@@ -745,13 +759,13 @@ fun GenderAnswerCard(
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             if (isSelected) {
-                                Icon(Icons.Default.Check, contentDescription = null, tint = OnPrimary, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Default.Check, contentDescription = null, tint = Color(0xFFE5851A), modifier = Modifier.size(16.dp))
                             }
                             Text(
                                 text = option,
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = if (isSelected) OnPrimary else OnSurface
+                                color = if (isSelected) Color(0xFFE5851A) else OnSurface
                             )
                         }
                     }
@@ -822,10 +836,10 @@ fun EditableAnswerCard(
                         onEdit(editText)
                         showEdit = false
                     },
-                    colors = ButtonDefaults.buttonColors(backgroundColor = Primary),
+                    border = BorderStroke(1.dp, Color(0xFF221007)), colors = ButtonDefaults.buttonColors(backgroundColor = Color.Transparent, contentColor = Color(0xFFE5851A)),
                     modifier = Modifier.align(Alignment.End)
                 ) {
-                    Text("Enregistrer", color = OnPrimary)
+                    Text("Enregistrer", color = Color(0xFFE5851A))
                 }
             }
         }

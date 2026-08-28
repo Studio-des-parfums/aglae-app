@@ -3,14 +3,12 @@ package com.aglae.form.screens
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Print
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -21,14 +19,17 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aglae.form.OnPrimary
-import com.aglae.form.OnSurface
 import com.aglae.form.OnSurfaceVariant
-import com.aglae.form.OutlineVariant
 import com.aglae.form.PillShape
 import com.aglae.form.Primary
+import com.aglae.form.QuestionOnSurface
+import com.aglae.form.QuestionOnSurfaceVariant
+import com.aglae.form.QuestionOutlineVariant
+import com.aglae.form.QuestionPrimary
 import com.aglae.form.Surface
-import com.aglae.form.SurfaceContainerLowest
 import com.aglae.form.i18n.LocalStrings
+import com.aglae.form.printer.LabelPrintResult
+import com.aglae.form.printer.rememberLabelPrinter
 
 @Composable
 fun RecapScreen(
@@ -40,6 +41,7 @@ fun RecapScreen(
     topNotes: List<String>,
     heartNotes: List<String>,
     baseNotes: List<String>,
+    boosterNotes: List<String> = emptyList(),
     perfumeName: String,
     isSubmitting: Boolean,
     submitError: String?,
@@ -48,67 +50,25 @@ fun RecapScreen(
     onGoHome: () -> Unit
 ) {
     val strings = LocalStrings.current
-    val (floatA, floatB, dotAlpha) = rememberFloatingBackground()
+    val bodyFont = questionBodyFont()
+    val labelPrinter = rememberLabelPrinter()
 
-    Box(
-        modifier = Modifier.fillMaxSize().clipToBounds().background(Surface),
-        contentAlignment = Alignment.Center
-    ) {
-        AtmosphericBackground(floatA = floatA, floatB = floatB, dotAlpha = dotAlpha)
-        HomeButton(onClick = onGoHome, enabled = !isSubmitting)
-
+    QuestionScreenScaffold(onBack = onBack, onGoHome = onGoHome) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier
                 .fillMaxWidth()
                 .widthIn(max = 560.dp)
-                .padding(horizontal = 24.dp, vertical = 24.dp)
-                .verticalScroll(rememberScrollState())
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Start
-            ) {
-                TextButton(
-                    onClick = onBack,
-                    enabled = !isSubmitting,
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = OnSurfaceVariant
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                        tint = OnSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = strings.back,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = strings.recapTitle,
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Bold,
-                color = Primary,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
+            QuestionPill(text = strings.recapTitle)
 
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                color = SurfaceContainerLowest,
-                elevation = 2.dp,
-                border = BorderStroke(1.dp, OutlineVariant.copy(alpha = 0.30f))
+                color = Color.White.copy(alpha = 0.80f),
+                elevation = 0.dp,
+                border = BorderStroke(1.dp, QuestionOutlineVariant.copy(alpha = 0.5f))
             ) {
                 Column(
                     modifier = Modifier.padding(20.dp),
@@ -116,58 +76,62 @@ fun RecapScreen(
                 ) {
                     Text(
                         text = "$firstName $lastName",
+                        fontFamily = bodyFont,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = OnSurface
+                        color = QuestionOnSurface
                     )
-                    Text(text = email, fontSize = 15.sp, color = OnSurfaceVariant)
-                    Text(text = phone, fontSize = 15.sp, color = OnSurfaceVariant)
+                    Text(text = email, fontFamily = bodyFont, fontSize = 15.sp, color = QuestionOnSurfaceVariant)
+                    Text(text = phone, fontFamily = bodyFont, fontSize = 15.sp, color = QuestionOnSurfaceVariant)
                     if (perfumeName.isNotBlank()) {
                         Text(
                             text = strings.recapPerfumeName(perfumeName),
+                            fontFamily = bodyFont,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Primary
+                            color = QuestionPrimary
                         )
                     }
                     if (quantity.isNotBlank()) {
                         Text(
                             text = strings.recapQuantity(quantity),
+                            fontFamily = bodyFont,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Primary
+                            color = QuestionPrimary
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
             listOf(
-                Triple("🍋 ${strings.topNotesName}", topNotes, Unit),
-                Triple("🌸 ${strings.heartNotesName}", heartNotes, Unit),
-                Triple("🪵 ${strings.baseNotesName}", baseNotes, Unit)
-            ).forEach { (title, noteList, _) ->
+                strings.topNotesName to topNotes,
+                strings.heartNotesName to heartNotes,
+                strings.baseNotesName to baseNotes,
+                strings.boosterNotesName to boosterNotes
+            ).forEach { (title, noteList) ->
                 if (noteList.isNotEmpty()) {
                     Surface(
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
-                        color = SurfaceContainerLowest,
-                        elevation = 2.dp,
-                        border = BorderStroke(1.dp, OutlineVariant.copy(alpha = 0.30f))
+                        color = Color.White.copy(alpha = 0.80f),
+                        elevation = 0.dp,
+                        border = BorderStroke(1.dp, QuestionOutlineVariant.copy(alpha = 0.5f))
                     ) {
                         Column(modifier = Modifier.padding(20.dp)) {
                             Text(
                                 text = title,
+                                fontFamily = bodyFont,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = OnSurface
+                                color = QuestionOnSurface
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
                                 text = noteList.joinToString(" · "),
+                                fontFamily = bodyFont,
                                 fontSize = 15.sp,
-                                color = OnSurfaceVariant
+                                color = QuestionOnSurfaceVariant
                             )
                         }
                     }
@@ -177,52 +141,73 @@ fun RecapScreen(
             if (submitError != null) {
                 Text(
                     text = submitError,
+                    fontFamily = bodyFont,
                     fontSize = 14.sp,
                     color = Color(0xFFBA1A1A),
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(vertical = 8.dp)
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(
-                onClick = onConfirm,
-                modifier = Modifier
-                    .fillMaxWidth(0.8f)
-                    .widthIn(max = 320.dp)
-                    .height(56.dp),
-                shape = PillShape,
-                enabled = !isSubmitting,
-                colors = ButtonDefaults.buttonColors(
-                    backgroundColor = Primary,
-                    contentColor = OnPrimary,
-                    disabledBackgroundColor = OnSurface.copy(alpha = 0.12f),
-                    disabledContentColor = OnSurface.copy(alpha = 0.38f)
+            if (isSubmitting) {
+                CircularProgressIndicator(
+                    color = QuestionPrimary,
+                    strokeWidth = 2.dp,
+                    modifier = Modifier.size(24.dp).padding(top = 16.dp)
                 )
-            ) {
-                if (isSubmitting) {
-                    CircularProgressIndicator(
-                        color = OnPrimary,
-                        strokeWidth = 2.dp,
-                        modifier = Modifier.size(24.dp)
-                    )
-                } else {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = strings.confirm,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.SemiBold
+            } else {
+                QuestionActionButton(
+                    text = strings.confirm,
+                    onClick = onConfirm,
+                    enabled = !isSubmitting
+                )
+                TextButton(
+                    onClick = { labelPrinter.printPerfumeName(perfumeName) },
+                    enabled = labelPrinter.result !is LabelPrintResult.InProgress,
+                    colors = ButtonDefaults.textButtonColors(contentColor = QuestionOnSurfaceVariant)
+                ) {
+                    if (labelPrinter.result is LabelPrintResult.InProgress) {
+                        CircularProgressIndicator(
+                            color = QuestionOnSurfaceVariant,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(16.dp)
                         )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(text = "Impression en cours…", fontFamily = bodyFont, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    } else {
                         Icon(
-                            imageVector = Icons.Default.Check,
+                            imageVector = Icons.Default.Print,
                             contentDescription = null,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(18.dp),
+                            tint = QuestionOnSurfaceVariant
                         )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(text = "Étiquette", fontFamily = bodyFont, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                     }
+                }
+                when (val printResult = labelPrinter.result) {
+                    is LabelPrintResult.NoPrinterConfigured -> Text(
+                        text = "Aucune imprimante configurée — va dans Réglages sur la page d'accueil.",
+                        fontFamily = bodyFont,
+                        fontSize = 12.sp,
+                        color = Color(0xFFBA1A1A),
+                        textAlign = TextAlign.Center
+                    )
+                    is LabelPrintResult.Failure -> Text(
+                        text = "Échec d'impression : ${printResult.message}",
+                        fontFamily = bodyFont,
+                        fontSize = 12.sp,
+                        color = Color(0xFFBA1A1A),
+                        textAlign = TextAlign.Center
+                    )
+                    is LabelPrintResult.Success -> Text(
+                        text = "Étiquette envoyée à l'imprimante.",
+                        fontFamily = bodyFont,
+                        fontSize = 12.sp,
+                        color = QuestionOnSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                    else -> Unit
                 }
             }
         }
@@ -294,9 +279,10 @@ fun SuccessScreen(
                     .widthIn(max = 320.dp)
                     .height(56.dp),
                 shape = PillShape,
+                border = BorderStroke(1.dp, Color(0xFF755D4B)),
                 colors = ButtonDefaults.buttonColors(
-                    backgroundColor = Primary,
-                    contentColor = OnPrimary
+                    backgroundColor = Color(0xFF755D4B),
+                    contentColor = Color.White,
                 )
             ) {
                 Text(

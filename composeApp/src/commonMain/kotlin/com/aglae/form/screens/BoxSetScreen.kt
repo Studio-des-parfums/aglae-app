@@ -1,7 +1,6 @@
 package com.aglae.form.screens
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.*
@@ -9,19 +8,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.aglae.form.CardShape
-import com.aglae.form.OnSurface
-import com.aglae.form.OnSurfaceVariant
-import com.aglae.form.OutlineVariant
-import com.aglae.form.Primary
-import com.aglae.form.Surface
-import com.aglae.form.SurfaceContainerLowest
+import com.aglae.form.QuestionOnSurfaceVariant
+import com.aglae.form.QuestionOutlineVariant
+import com.aglae.form.QuestionPrimary
 import com.aglae.form.i18n.LocalStrings
 import com.aglae.form.network.BoxSetItem
 
@@ -38,40 +32,26 @@ fun BoxSetScreen(
     onGoHome: () -> Unit
 ) {
     val strings = LocalStrings.current
-    val (floatA, floatB, dotAlpha) = rememberFloatingBackground()
+    val bodyFont = questionBodyFont()
 
-    Box(
-        modifier = Modifier.fillMaxSize().clipToBounds().background(Surface),
-        contentAlignment = Alignment.Center
-    ) {
-        AtmosphericBackground(floatA = floatA, floatB = floatB, dotAlpha = dotAlpha)
-        HomeButton(onClick = onGoHome)
-
+    QuestionScreenScaffold(onBack = null, onGoHome = onGoHome) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier
-                .fillMaxWidth()
-                .widthIn(max = 560.dp)
-                .padding(horizontal = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+            verticalArrangement = Arrangement.spacedBy(24.dp),
+            modifier = Modifier.fillMaxWidth().widthIn(max = 560.dp)
         ) {
-            Text(
-                text = strings.boxSetTitle,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                color = OnSurface,
-                textAlign = TextAlign.Center
-            )
+            QuestionPill(text = strings.boxSetTitle)
 
             Text(
                 text = strings.boxSetSubtitle,
+                fontFamily = bodyFont,
                 fontSize = 16.sp,
-                color = OnSurfaceVariant,
+                color = QuestionOnSurfaceVariant,
                 textAlign = TextAlign.Center
             )
 
             when {
-                isLoading -> CircularProgressIndicator(color = Primary)
+                isLoading -> CircularProgressIndicator(color = QuestionPrimary)
 
                 loadError != null -> Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -79,12 +59,13 @@ fun BoxSetScreen(
                 ) {
                     Text(
                         text = "${strings.boxSetLoadErrorPrefix}$loadError",
+                        fontFamily = bodyFont,
                         color = Color(0xFFBA1A1A),
                         fontSize = 14.sp,
                         textAlign = TextAlign.Center
                     )
                     TextButton(onClick = onRetry) {
-                        Text(text = strings.retry, color = Primary, fontWeight = FontWeight.SemiBold)
+                        Text(text = strings.retry, fontFamily = bodyFont, color = QuestionPrimary, fontWeight = FontWeight.SemiBold)
                     }
                 }
 
@@ -94,18 +75,19 @@ fun BoxSetScreen(
                 ) {
                     Text(
                         text = strings.boxSetEmpty,
+                        fontFamily = bodyFont,
                         fontSize = 16.sp,
-                        color = OnSurfaceVariant,
+                        color = QuestionOnSurfaceVariant,
                         textAlign = TextAlign.Center
                     )
                     TextButton(onClick = onRetry) {
-                        Text(text = strings.retry, color = Primary, fontWeight = FontWeight.SemiBold)
+                        Text(text = strings.retry, fontFamily = bodyFont, color = QuestionPrimary, fontWeight = FontWeight.SemiBold)
                     }
                 }
 
                 else -> Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     boxSets.forEach { boxSet ->
@@ -121,29 +103,33 @@ fun BoxSetScreen(
 @Composable
 private fun BoxSetCard(boxSet: BoxSetItem, onClick: () -> Unit) {
     val strings = LocalStrings.current
+    val bodyFont = questionBodyFont()
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .widthIn(min = 240.dp, max = 400.dp)
-            .clip(CardShape)
+            .clip(RoundedCornerShapeCompat)
             .clickable(onClick = onClick),
-        shape = CardShape,
-        color = SurfaceContainerLowest,
-        border = BorderStroke(1.dp, OutlineVariant),
+        shape = RoundedCornerShapeCompat,
+        color = Color.White.copy(alpha = 0.80f),
+        border = BorderStroke(1.dp, QuestionOutlineVariant.copy(alpha = 0.5f)),
         elevation = 0.dp
     ) {
-        Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)) {
+        Column(modifier = Modifier.padding(horizontal = 28.dp, vertical = 18.dp)) {
             Text(
                 text = boxSet.name,
+                fontFamily = bodyFont,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = OnSurface
+                color = QuestionPrimary
             )
             Text(
                 text = strings.boxSetIngredientCount(boxSet.ingredientCount),
+                fontFamily = bodyFont,
                 fontSize = 14.sp,
-                color = OnSurfaceVariant
+                color = QuestionOnSurfaceVariant
             )
         }
     }
 }
+
+private val RoundedCornerShapeCompat = androidx.compose.foundation.shape.RoundedCornerShape(20.dp)

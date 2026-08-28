@@ -21,7 +21,8 @@ data class BoxSetItem(
 data class NotesCatalog(
     @SerialName("top_notes") val topNotes: List<NoteItem> = emptyList(),
     @SerialName("heart_notes") val heartNotes: List<NoteItem> = emptyList(),
-    @SerialName("base_notes") val baseNotes: List<NoteItem> = emptyList()
+    @SerialName("base_notes") val baseNotes: List<NoteItem> = emptyList(),
+    @SerialName("booster_notes") val boosterNotes: List<NoteItem> = emptyList()
 )
 
 // ── Ingrédients (GET /api/ingredients) ──
@@ -61,7 +62,8 @@ fun List<IngredientItem>.toNotesCatalog(languageCode: String): NotesCatalog {
     return NotesCatalog(
         topNotes = ofType("top"),
         heartNotes = ofType("heart"),
-        baseNotes = ofType("base")
+        baseNotes = ofType("base"),
+        boosterNotes = ofType("booster")
     )
 }
 
@@ -282,7 +284,8 @@ data class TabletSubmission(
     @SerialName("perfume_intensity") val perfumeIntensity: String? = null,
     @SerialName("top_notes") val topNotes: List<TabletNote> = emptyList(),
     @SerialName("heart_notes") val heartNotes: List<TabletNote> = emptyList(),
-    @SerialName("base_notes") val baseNotes: List<TabletNote> = emptyList()
+    @SerialName("base_notes") val baseNotes: List<TabletNote> = emptyList(),
+    @SerialName("booster_notes") val boosterNotes: List<TabletNote> = emptyList()
 )
 
 @Serializable
@@ -319,7 +322,8 @@ data class FormulaDetail(
     @SerialName("reuse_count") val reuseCount: Int = 0,
     @SerialName("top_notes") val topNotes: List<TabletNote> = emptyList(),
     @SerialName("heart_notes") val heartNotes: List<TabletNote> = emptyList(),
-    @SerialName("base_notes") val baseNotes: List<TabletNote> = emptyList()
+    @SerialName("base_notes") val baseNotes: List<TabletNote> = emptyList(),
+    @SerialName("booster_notes") val boosterNotes: List<TabletNote> = emptyList()
 )
 
 @Serializable

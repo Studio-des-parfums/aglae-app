@@ -23,3 +23,17 @@ val SurfaceContainerLowest = Color(0xFFFFFFFF)
 val PillShape = RoundedCornerShape(9999.dp)
 val XlShape = RoundedCornerShape(12.dp)
 val CardShape = RoundedCornerShape(12.dp)
+
+// ── Palette "écrans question" (glassmorphism) — reprend la structure du design fourni,
+// avec la teinte or remplacée par le marron de la marque ──
+val QuestionSurface = Color(0xFFFFF8F5)
+val QuestionOnSurface = Color(0xFF1E1B18)
+val QuestionOnSurfaceVariant = Color(0xFF4E4639)
+val QuestionOutline = Color(0xFF7F7667)
+val QuestionOutlineVariant = Color(0xFFD1C5B4)
+val QuestionPrimary = Color(0xFF755D4B)
+val QuestionPrimaryDark = Color(0xFF221007)
+val QuestionPrimaryLight = Color(0xFF9E7C6B)
+val QuestionOnPrimary = Color(0xFFFFFFFF)
+val QuestionSurfaceContainerLowest = Color(0xFFFFFFFF)
+val QuestionTertiaryContainer = Color(0xFFB0A391)

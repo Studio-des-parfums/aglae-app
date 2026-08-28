@@ -108,11 +108,21 @@ class FormViewModel(private val scope: CoroutineScope) {
     var quantity by mutableStateOf("")
     var currentQuestion by mutableStateOf(0)
 
+    // ── Vérification email/téléphone à la question "Contact" du parcours "nouvelle formule" :
+    // avant d'avancer, on vérifie qu'aucun client existant ne porte déjà cet email/téléphone
+    // (même recherche que le parcours "j'ai déjà une formule", voir searchCustomer). ──
+    var isCheckingContact by mutableStateOf(false)
+    var contactCheckError by mutableStateOf<String?>(null)
+
     // ── Notes selection state ──
     var selectedNoteSection by mutableStateOf("")
     var selectedTopNotes by mutableStateOf(setOf<String>())
     var selectedHeartNotes by mutableStateOf(setOf<String>())
     var selectedBaseNotes by mutableStateOf(setOf<String>())
+    // Boosters (coffret "Odyssée" uniquement, 4e famille) : quantité toujours fixe
+    // à 5ml, jamais dosée par l'IA ni éditable — pas de Map de quantités dédiée,
+    // voir suggestNoteQuantities/submitForm qui la calculent à la volée.
+    var selectedBoosterNotes by mutableStateOf(setOf<String>())
 
     // Bornes min/max de notes par famille (GET /api/ingredient-rules?rule_type=note_count),
     // chargées pour la taille de flacon (`quantity`) et le coffret (`selectedBoxSet`) choisis.
@@ -226,7 +236,7 @@ class FormViewModel(private val scope: CoroutineScope) {
                         return false
                     }
                     null -> {
-                        ApiClient.registerDevice(id, "Tablette Aglae")
+                        ApiClient.registerDevice(id, "Tablette SDP")
                         delay(1000)
                         val retry = ApiClient.verifyDevice(id)
                         when (retry.status) {
@@ -265,10 +275,18 @@ class FormViewModel(private val scope: CoroutineScope) {
     // resté dans AppContent (voir note de design en tête de fichier) : le catalogue doit être
     // rechargé aussi bien sur un retry manuel (catalogReloadKey) que sur un changement de
     // coffret.
+    //
+    // Les boosters n'appartiennent à aucun coffret côté back (box_sets = null en base) : le
+    // filtre `?box_set=...` les exclut donc systématiquement de l'appel ci-dessus, quel que soit
+    // le coffret choisi. On les récupère via un second appel non filtré, dont on ne garde que les
+    // items type="booster" (les autres familles restent celles de l'appel filtré, pour ne pas
+    // proposer de notes hors coffret par erreur).
     suspend fun loadIngredients(strings: Strings) {
         catalogError = null
         try {
-            ingredients = ApiClient.fetchIngredients(boxSet = selectedBoxSet)
+            val filtered = ApiClient.fetchIngredients(boxSet = selectedBoxSet)
+            val boosters = ApiClient.fetchIngredients(boxSet = null).filter { it.type == "booster" }
+            ingredients = filtered + boosters
         } catch (e: Exception) {
             catalogError = e.message ?: strings.networkError
         }
@@ -359,12 +377,13 @@ class FormViewModel(private val scope: CoroutineScope) {
     }
 
     // ── Liste des coffrets disponibles (écran affiché juste après "Commencer") ──
+    // "Classic" est volontairement masqué de cet écran (coffret non proposé au choix ici).
     fun loadBoxSets(strings: Strings) {
         boxSetsLoading = true
         boxSetsError = null
         scope.launch {
             try {
-                boxSets = ApiClient.fetchBoxSets()
+                boxSets = ApiClient.fetchBoxSets().filterNot { it.name.equals("Classic", ignoreCase = true) }
             } catch (e: Exception) {
                 boxSetsError = e.message ?: strings.networkError
             } finally {
@@ -407,6 +426,7 @@ class FormViewModel(private val scope: CoroutineScope) {
         selectedTopNotes = emptySet()
         selectedHeartNotes = emptySet()
         selectedBaseNotes = emptySet()
+        selectedBoosterNotes = emptySet()
         noteCountBounds = null
         noteCountError = null
         ingredientRules = emptyList()
@@ -462,7 +482,9 @@ class FormViewModel(private val scope: CoroutineScope) {
         lastName = customer.lastName ?: ""
         email = searchEmail.ifBlank { email }
         phone = searchPhone.ifBlank { phone }
-        currentQuestion = 6
+        // Démarre directement à la question légale (index 2) : les pages "Vos informations"
+        // (index 0) et "Coordonnées" (index 1) ne sont jamais posées pour un client déjà connu.
+        currentQuestion = 2
         screen = "questionnaire"
         scope.launch {
             try {
@@ -578,6 +600,33 @@ class FormViewModel(private val scope: CoroutineScope) {
         }
     }
 
+    // ── Vérifie qu'aucun client existant ne porte déjà cet email/téléphone avant d'avancer
+    // depuis la question "Contact" du parcours "nouvelle formule" (voir note de design plus
+    // haut). Si un client existe déjà, on bloque avec `contactCheckError` plutôt que d'avancer :
+    // le client doit repartir par "j'ai déjà une formule" à l'accueil. ──
+    fun checkContactThenAdvance(strings: Strings) {
+        if (isCheckingContact) return
+        isCheckingContact = true
+        contactCheckError = null
+        scope.launch {
+            try {
+                val result = ApiClient.searchCustomer(
+                    email = email.trim().ifBlank { null },
+                    phone = phone.trim().ifBlank { null }
+                )
+                if (result != null) {
+                    contactCheckError = strings.contactAlreadyExists
+                } else {
+                    currentQuestion++
+                }
+            } catch (e: Exception) {
+                contactCheckError = e.message ?: strings.contactCheckError
+            } finally {
+                isCheckingContact = false
+            }
+        }
+    }
+
     // ── Soumission finale du formulaire ──
     fun submitForm(strings: Strings) {
         if (isSubmitting) return
@@ -605,7 +654,8 @@ class FormViewModel(private val scope: CoroutineScope) {
                     supervisorId = supervisorUser?.id,
                     topNotes = selectedTopNotes.map { TabletNote(name = it, quantity = topNoteQuantities[it]?.ifBlank { null }) },
                     heartNotes = selectedHeartNotes.map { TabletNote(name = it, quantity = heartNoteQuantities[it]?.ifBlank { null }) },
-                    baseNotes = selectedBaseNotes.map { TabletNote(name = it, quantity = baseNoteQuantities[it]?.ifBlank { null }) }
+                    baseNotes = selectedBaseNotes.map { TabletNote(name = it, quantity = baseNoteQuantities[it]?.ifBlank { null }) },
+                    boosterNotes = selectedBoosterNotes.map { TabletNote(name = it, quantity = "5") }
                 )
                 submissionResult = ApiClient.submitForm(submission)
                 currentSessionId?.let { sid ->

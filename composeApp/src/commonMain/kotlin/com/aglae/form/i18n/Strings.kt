@@ -88,9 +88,14 @@ interface Strings {
 
     // ── Questionnaire ──
     fun questionCounter(current: Int, total: Int): String
+    val questionIdentityTitle: String
+    val identitySectionLabel: String
+    val birthSectionLabel: String
+    val contactSectionLabel: String
     val questionGenderTitle: String
     val genderMale: String
     val genderFemale: String
+    val genderUnspecified: String
     val questionNameTitle: String
     val firstNameLabel: String
     val lastNameLabel: String
@@ -107,7 +112,10 @@ interface Strings {
     val countryLabel: String
     val cityLabel: String
     val questionContactTitle: String
+    val phoneError: String
     val emailError: String
+    val contactAlreadyExists: String
+    val contactCheckError: String
     val questionLegalTitle: String
     val legalNotice: String
     val allergyQuestion: String
@@ -120,11 +128,17 @@ interface Strings {
     val notesSelectionTitle: String
     val notesSelectionSubtitle: String
     val topNotesName: String
+    val topNotesShortName: String
     val topNotesDescription: String
     val heartNotesName: String
+    val heartNotesShortName: String
     val heartNotesDescription: String
     val baseNotesName: String
+    val baseNotesShortName: String
     val baseNotesDescription: String
+    val boosterNotesName: String
+    val boosterNotesShortName: String
+    val boosterNotesDescription: String
     fun noteSelectedCount(count: Int): String
     val openContentDescription: String
     val validateMyFormula: String
