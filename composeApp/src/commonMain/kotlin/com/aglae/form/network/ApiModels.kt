@@ -5,17 +5,48 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class NoteItem(
-    val code: String,
-    val name: String
+    val id: Int,
+    val name: String,
+    val code: String? = null
 )
 
-// ── Coffrets (GET /api/box-sets) ──
+// ── Ateliers (GET /api/ateliers) ──
+// Remplace l'ancien choix de coffret (BoxSetItem/GET /api/box-sets) : l'utilisateur choisit
+// désormais un atelier, qui détermine à la fois le coffret (coffretId, pour filtrer les notes
+// via GET /api/ingredients?coffret_id=...) et le volume de flacon (volumeMl, plus de choix de
+// taille dans le questionnaire).
 
 @Serializable
-data class BoxSetItem(
-    val name: String,
-    @SerialName("ingredient_count") val ingredientCount: Int
+data class AtelierTranslations(
+    val fr: String? = null,
+    val en: String? = null,
+    val es: String? = null,
+    val pt: String? = null
 )
+
+@Serializable
+data class AtelierItem(
+    val id: Int,
+    @SerialName("coffret_id") val coffretId: Int,
+    val description: String? = null,
+    @SerialName("image_url") val imageUrl: String? = null,
+    @SerialName("volume_ml") val volumeMl: Int? = null,
+    @SerialName("is_active") val isActive: Boolean = true,
+    val translations: AtelierTranslations = AtelierTranslations()
+)
+
+private fun AtelierTranslations.forLanguageCode(languageCode: String): String {
+    val byCode = when (languageCode) {
+        "fr" -> fr
+        "en" -> en
+        "es" -> es
+        "pt" -> pt
+        else -> null
+    }
+    return byCode ?: fr ?: en ?: ""
+}
+
+fun AtelierItem.displayName(languageCode: String): String = translations.forLanguageCode(languageCode)
 
 @Serializable
 data class NotesCatalog(
@@ -41,6 +72,7 @@ data class IngredientTranslations(
 data class IngredientItem(
     val id: Int,
     val type: String,
+    val code: String? = null,
     val translations: IngredientTranslations
 )
 
@@ -57,7 +89,7 @@ private fun IngredientTranslations.forLanguageCode(languageCode: String): String
 
 fun List<IngredientItem>.toNotesCatalog(languageCode: String): NotesCatalog {
     fun ofType(type: String) = filter { it.type == type }
-        .map { NoteItem(code = it.id.toString(), name = it.translations.forLanguageCode(languageCode)) }
+        .map { NoteItem(id = it.id, name = it.translations.forLanguageCode(languageCode), code = it.code) }
 
     return NotesCatalog(
         topNotes = ofType("top"),
@@ -81,9 +113,10 @@ fun List<IngredientItem>.toNotesCatalog(languageCode: String): NotesCatalog {
 //     min/max par famille (top/heart/base) — voir toNoteCountBounds().
 //   - "recommendation" : dirigée, source_ingredient_id -> target_ingredient_ids. Si la note source
 //     est choisie, on suggère (positif, non bloquant) les notes cibles. Ce n'est pas symétrique.
-// Champs communs : box_set (null = tous coffrets), intensity ("toutes" ou une valeur précise),
-// bottle_sizes ([] = toutes tailles), is_active (false = règle désactivée, à ignorer), note
-// (texte libre interne admin, pas un message formaté pour l'utilisateur final).
+// Champs communs : box_set_id (null = tous coffrets ; number, id du coffret depuis la migration
+// 024_rule_box_set_id.sql — remplace l'ancien box_set en texte libre), intensity ("toutes" ou une
+// valeur précise), bottle_sizes ([] = toutes tailles), is_active (false = règle désactivée, à
+// ignorer), note (texte libre interne admin, pas un message formaté pour l'utilisateur final).
 
 @Serializable
 data class IngredientRule(
@@ -92,7 +125,7 @@ data class IngredientRule(
     @SerialName("rule_type") val ruleType: String,
     @SerialName("max_ml") val maxMl: Double? = null,
     @SerialName("max_choices") val maxChoices: Int? = null,
-    @SerialName("box_set") val boxSet: String? = null,
+    @SerialName("box_set_id") val boxSetId: Int? = null,
     val intensity: String? = null,
     @SerialName("min_top") val minTop: Int? = null,
     @SerialName("max_top") val maxTop: Int? = null,
@@ -154,11 +187,11 @@ fun isCountWithinBounds(count: Int, min: Int?, max: Int?): Boolean =
 //
 // `selected` et `clickedName` sont les noms traduits affichés/stockés côté formulaire (mêmes
 // valeurs que `selectedTopNotes`/`onToggle(note.name)`) ; `catalog` sert à retrouver l'id
-// ingrédient (NoteItem.code) correspondant à un nom, car les règles raisonnent en ids alors que
+// ingrédient (NoteItem.id) correspondant à un nom, car les règles raisonnent en ids alors que
 // la sélection du questionnaire raisonne en noms traduits.
 
-private fun List<NoteItem>.idFor(name: String): Int? = find { it.name == name }?.code?.toIntOrNull()
-private fun List<NoteItem>.nameFor(id: Int): String? = find { it.code.toIntOrNull() == id }?.name
+private fun List<NoteItem>.idFor(name: String): Int? = find { it.name == name }?.id
+private fun List<NoteItem>.nameFor(id: Int): String? = find { it.id == id }?.name
 
 // Résultat d'un clic sur une note, une fois les règles évaluées : au plus une alerte bloquante
 // (incompatibility ou group_limit, l'utilisateur tranche par Oui/Non) et une liste de suggestions
@@ -280,6 +313,8 @@ data class TabletSubmission(
     @SerialName("liability_accepted") val liabilityAccepted: Boolean? = null,
     @SerialName("rgpd_consent") val rgpdConsent: Boolean,
     val quantity: String? = null,
+    @SerialName("atelier_id") val atelierId: Int? = null,
+    @SerialName("atelier_name") val atelierName: String? = null,
     @SerialName("perfume_name") val perfumeName: String? = null,
     @SerialName("perfume_intensity") val perfumeIntensity: String? = null,
     @SerialName("top_notes") val topNotes: List<TabletNote> = emptyList(),
@@ -294,6 +329,11 @@ data class SubmissionResult(
     @SerialName("formula_id") val formulaId: Int,
     @SerialName("customer_was_existing") val customerWasExisting: Boolean,
     @SerialName("matched_by") val matchedBy: String? = null
+)
+
+@Serializable
+data class PyramidEmailRequest(
+    @SerialName("formula_id") val formulaId: Int
 )
 
 @Serializable
@@ -323,7 +363,9 @@ data class FormulaDetail(
     @SerialName("top_notes") val topNotes: List<TabletNote> = emptyList(),
     @SerialName("heart_notes") val heartNotes: List<TabletNote> = emptyList(),
     @SerialName("base_notes") val baseNotes: List<TabletNote> = emptyList(),
-    @SerialName("booster_notes") val boosterNotes: List<TabletNote> = emptyList()
+    @SerialName("booster_notes") val boosterNotes: List<TabletNote> = emptyList(),
+    @SerialName("atelier_id") val atelierId: Int? = null,
+    @SerialName("atelier_name") val atelierName: String? = null
 )
 
 @Serializable
@@ -375,32 +417,6 @@ data class SingleAnswerPayload(
 @Serializable
 data class AnswersUpdatePayload(
     val answers: List<AnswerEntry>
-)
-
-@Serializable
-data class DeviceRegisterRequest(
-    @SerialName("device_id") val deviceId: String,
-    @SerialName("device_name") val deviceName: String? = null
-)
-
-@Serializable
-data class DeviceRegisterResponse(
-    val id: Int,
-    @SerialName("device_id") val deviceId: String,
-    @SerialName("device_name") val deviceName: String? = null,
-    val status: String = "pending"
-)
-
-@Serializable
-data class DeviceVerifyRequest(
-    @SerialName("device_id") val deviceId: String
-)
-
-@Serializable
-data class DeviceVerifyResponse(
-    val authorized: Boolean,
-    @SerialName("device_id") val deviceId: String,
-    val status: String? = null
 )
 
 @Serializable

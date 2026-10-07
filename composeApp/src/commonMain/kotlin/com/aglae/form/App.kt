@@ -25,12 +25,10 @@ import com.aglae.form.i18n.stringsFor
 import com.aglae.form.network.ApiClient
 import com.aglae.form.network.toNotesCatalog
 import com.aglae.form.screens.AccountCheckScreen
-import com.aglae.form.screens.BoxSetScreen
+import com.aglae.form.screens.AtelierScreen
 import com.aglae.form.screens.ContactSearchScreen
 import com.aglae.form.screens.CustomerFoundScreen
 import com.aglae.form.screens.CustomerNotFoundScreen
-import com.aglae.form.screens.DeviceCheckScreen
-import com.aglae.form.screens.DeviceLockedScreen
 import com.aglae.form.screens.FormulaChoiceScreen
 import com.aglae.form.screens.FormulaDetailModal
 import com.aglae.form.screens.FormulaHistoryScreen
@@ -44,7 +42,6 @@ import com.aglae.form.screens.PerfumeIntensityScreen
 import com.aglae.form.screens.PerfumeNameScreen
 import com.aglae.form.screens.QuestionnaireScreen
 import com.aglae.form.screens.RecapScreen
-import com.aglae.form.screens.ReuseSuccessScreen
 import com.aglae.form.screens.SuccessScreen
 import com.aglae.form.screens.SupervisorHomeScreen
 import com.aglae.form.screens.SupervisorSessionDetailScreen
@@ -59,6 +56,15 @@ import com.aglae.form.screens.SupervisorSessionDetailScreen
 fun App() {
     var language by remember { mutableStateOf(Language.default) }
 
+    // Enregistre le loader d'images Coil (moteur réseau Ktor), utilisé par AsyncImage pour les
+    // photos d'atelier (voir screens/AtelierScreen.kt). Idempotent : safe à rappeler à chaque
+    // recomposition de App().
+    coil3.compose.setSingletonImageLoaderFactory { context ->
+        coil3.ImageLoader.Builder(context)
+            .components { add(coil3.network.ktor3.KtorNetworkFetcherFactory()) }
+            .build()
+    }
+
     CompositionLocalProvider(
         LocalStrings provides stringsFor(language),
         LocalLanguage provides language
@@ -72,13 +78,6 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
     val strings = LocalStrings.current
     val scope = rememberCoroutineScope()
     val vm = remember { FormViewModel(scope) }
-
-    // ── Vérification de l'appareil au démarrage ──
-    // Le cycle de vie de cette coroutine reste lié à la composition (LaunchedEffect(Unit)), la
-    // logique elle-même vit dans FormViewModel.checkDeviceLoop().
-    LaunchedEffect(Unit) {
-        vm.checkDeviceLoop()
-    }
 
     // ── Chargement du catalogue d'ingrédients ──
     // Voir la note de design dans FormViewModel.kt : le LaunchedEffect reste ici (lié à la
@@ -117,12 +116,9 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
             contentAlignment = Alignment.Center
         ) {
             when (vm.screen) {
-                "deviceCheck" -> DeviceCheckScreen(vm.deviceChecking, vm.deviceStatus, vm.deviceError)
-                "deviceLocked" -> DeviceLockedScreen(vm.deviceStatus)
                 "home" -> HomeScreen(
                     onStart = {
-                        vm.screen = "boxSetChoice"
-                        vm.loadBoxSets(strings)
+                        vm.screen = "accountCheck"
                     },
                     onSupervisorVerified = { user ->
                         vm.supervisorUser = user
@@ -135,12 +131,17 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                 "printerSettings" -> PrinterSettingsScreen(
                     onBack = { vm.screen = "home" }
                 )
-                "boxSetChoice" -> BoxSetScreen(
-                    boxSets = vm.boxSets,
-                    isLoading = vm.boxSetsLoading,
-                    loadError = vm.boxSetsError,
-                    onRetry = { vm.loadBoxSets(strings) },
-                    onSelect = { boxSet -> vm.chooseBoxSet(boxSet.name) },
+                "atelierChoice" -> AtelierScreen(
+                    ateliers = vm.ateliers,
+                    isLoading = vm.ateliersLoading,
+                    loadError = vm.ateliersError,
+                    languageCode = language.code,
+                    onRetry = { vm.loadAteliers(strings) },
+                    onSelect = { atelier -> vm.chooseAtelier(atelier, language.code) },
+                    onBack = {
+                        vm.currentQuestion = 1
+                        vm.screen = "questionnaire"
+                    },
                     onGoHome = { vm.resetAll() }
                 )
                 "accountCheck" -> AccountCheckScreen(
@@ -203,10 +204,6 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                     onBack = { vm.screen = "formulaChoice" },
                     onGoHome = { vm.resetAll() }
                 )
-                "reuseSuccess" -> ReuseSuccessScreen(
-                    reuseCount = vm.reuseCountResult,
-                    onDone = { vm.resetAll() }
-                )
                 "questionnaire" -> QuestionnaireScreen(
                     gender = vm.gender,
                     onGenderChange = { vm.gender = it; vm.sendAnswer("gender", it) },
@@ -236,15 +233,13 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                     onLiabilityAnswerChange = { vm.liabilityAnswer = it; vm.sendAnswer("liabilityAccepted", it) },
                     rgpdAnswer = vm.rgpdAnswer,
                     onRgpdAnswerChange = { vm.rgpdAnswer = it; vm.sendAnswer("rgpdConsent", it) },
-                    quantity = vm.quantity,
-                    onQuantityChange = { vm.quantity = it; vm.sendAnswer("quantity", it) },
-                    boxSet = vm.selectedBoxSet,
                     currentQuestion = vm.currentQuestion,
                     onNextQuestion = {
-                        // Page "Coordonnées" (index 1, email/téléphone) : uniquement dans le
-                        // parcours "nouvelle formule" (hasExistingFormula == "Non"), on vérifie
-                        // qu'aucun client n'existe déjà avec cet email/téléphone avant d'avancer.
-                        if (vm.currentQuestion == 1 && vm.hasExistingFormula != "Oui") {
+                        // Page unique "Vos informations" (index 0, contient email/téléphone) :
+                        // uniquement dans le parcours "nouvelle formule" (hasExistingFormula ==
+                        // "Non"), on vérifie qu'aucun client n'existe déjà avec cet email/
+                        // téléphone avant d'avancer.
+                        if (vm.currentQuestion == 0 && vm.hasExistingFormula != "Oui") {
                             vm.checkContactThenAdvance(strings)
                         } else {
                             vm.currentQuestion++
@@ -253,20 +248,29 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                     onPreviousQuestion = {
                         // Client existant (parcours "j'ai déjà une formule" -> "nouvelle
                         // formule") : le questionnaire démarre directement à la question légale
-                        // (index 2, voir startQuestionnaireForExistingCustomer). Revenir en
+                        // (index 1, voir startQuestionnaireForExistingCustomer). Revenir en
                         // arrière depuis cette première question doit ramener à l'écran
-                        // "nouvelle formule ou réutiliser", pas décrémenter vers les pages
-                        // d'informations/coordonnées (jamais posées dans ce parcours).
-                        if (vm.hasExistingFormula == "Oui" && vm.currentQuestion == 2) {
+                        // "nouvelle formule ou réutiliser", pas décrémenter vers la page
+                        // d'informations (jamais posée dans ce parcours).
+                        if (vm.hasExistingFormula == "Oui" && vm.currentQuestion == 1) {
                             vm.screen = "formulaChoice"
                         } else if (vm.currentQuestion > 0) {
                             vm.currentQuestion--
                         }
                     },
                     onFinish = {
-                        vm.screen = "pyramidExplanation"
                         vm.currentQuestion = 0
                         vm.selectedNoteSection = ""
+                        val atelierToResume = vm.preselectedAtelierId
+                        if (atelierToResume != null) {
+                            // "Recommencer à partir d'une formule" : on resélectionne
+                            // automatiquement le même atelier (même coffret/volume) sans
+                            // repasser par l'écran de choix.
+                            vm.loadAteliersThenResume(atelierToResume, language.code, strings)
+                        } else {
+                            vm.screen = "atelierChoice"
+                            vm.loadAteliers(strings)
+                        }
                     },
                     onGoHome = { vm.resetAll() },
                     isCheckingContact = vm.isCheckingContact,
@@ -274,10 +278,7 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                 )
                 "pyramidExplanation" -> PyramidExplanationScreen(
                     onNext = { vm.screen = "notesSelection" },
-                    onBack = {
-                        vm.currentQuestion = 2
-                        vm.screen = "questionnaire"
-                    }
+                    onBack = { vm.screen = "atelierChoice" }
                 )
                 "notesSelection" -> NotesSelectionScreen(
                     selectedCounts = mapOf(
@@ -286,9 +287,11 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                         "Notes de fond" to vm.selectedBaseNotes.size,
                         "Notes booster" to vm.selectedBoosterNotes.size
                     ),
+                    selectedTopNotes = vm.selectedTopNotes,
+                    selectedHeartNotes = vm.selectedHeartNotes,
+                    selectedBaseNotes = vm.selectedBaseNotes,
+                    selectedBoosterNotes = vm.selectedBoosterNotes,
                     bounds = vm.noteCountBounds,
-                    showBoosterSection = vm.selectedBoxSet.equals("Odyssée", ignoreCase = true) ||
-                        vm.selectedBoxSet.equals("Odyssee", ignoreCase = true),
                     onSectionClick = { section ->
                         vm.selectedNoteSection = section
                         vm.noteCountError = null
@@ -321,7 +324,7 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                     topQuantities = vm.topNoteQuantities,
                     heartQuantities = vm.heartNoteQuantities,
                     baseQuantities = vm.baseNoteQuantities,
-                    boosterQuantities = vm.selectedBoosterNotes.associateWith { "5" },
+                    boosterQuantities = vm.selectedBoosterNotes.associateWith { FormViewModel.BOOSTER_QUANTITY_ML.toInt().toString() },
                     isLoadingSuggestions = vm.isSuggestingQuantities,
                     suggestionsFailed = vm.suggestQuantitiesError != null,
                     onTopQuantityChange = { name, qty ->
@@ -412,6 +415,7 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                         noteRecommendationSource = vm.noteRecommendationSource,
                         noteRecommendation = vm.noteRecommendation,
                         onDismissRecommendation = { vm.noteRecommendation = null; vm.noteRecommendationSource = null },
+                        bounds = vm.noteCountBounds,
                         onBack = { vm.screen = "notesSelection" },
                         onGoHome = { vm.resetAll() }
                     )
@@ -425,7 +429,7 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                     topNotes = vm.selectedTopNotes.map { name -> vm.topNoteQuantities[name]?.takeIf { it.isNotBlank() }?.let { "$name ($it ml)" } ?: name },
                     heartNotes = vm.selectedHeartNotes.map { name -> vm.heartNoteQuantities[name]?.takeIf { it.isNotBlank() }?.let { "$name ($it ml)" } ?: name },
                     baseNotes = vm.selectedBaseNotes.map { name -> vm.baseNoteQuantities[name]?.takeIf { it.isNotBlank() }?.let { "$name ($it ml)" } ?: name },
-                    boosterNotes = vm.selectedBoosterNotes.map { name -> "$name (5 ml)" },
+                    boosterNotes = vm.selectedBoosterNotes.map { name -> "$name (${FormViewModel.BOOSTER_QUANTITY_ML.toInt()} ml)" },
                     perfumeName = vm.perfumeName,
                     isSubmitting = vm.isSubmitting,
                     submitError = vm.submitError,
@@ -458,12 +462,13 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                     detail = vm.selectedFormulaDetail,
                     isLoading = vm.isLoadingDetail,
                     error = vm.detailError,
-                    isReusing = vm.isReusing,
                     onDismiss = {
                         vm.selectedFormulaDetail = null
                         vm.detailError = null
                     },
-                    onUseFormula = { formula -> vm.confirmReuseFormula(formula.id, strings) }
+                    onUseFormula = { formula ->
+                        vm.foundCustomer?.let { customer -> vm.startQuestionnaireFromFormula(customer, formula) }
+                    }
                 )
             }
         }

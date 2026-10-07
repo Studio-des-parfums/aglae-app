@@ -4,10 +4,8 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.request.get
-import io.ktor.client.request.header
 import io.ktor.client.request.patch
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
@@ -28,7 +26,6 @@ private const val ingredientsBaseUrl = "https://sdp-dashboard-back-production.up
 
 object ApiClient {
     var baseUrl: String = defaultApiBaseUrl
-    var deviceId: String? = null
 
     private val client = HttpClient {
         install(ContentNegotiation) {
@@ -42,32 +39,34 @@ object ApiClient {
             requestTimeoutMillis = 30_000
             connectTimeoutMillis = 10_000
         }
-        defaultRequest {
-            deviceId?.let { header("X-Device-ID", it) }
-        }
     }
 
-    // Coffret optionnel : filtre les ingrédients à ceux qui portent ce tag ("box_set").
-    // Laisser à null (ou blanc) renvoie le catalogue complet, non filtré.
-    suspend fun fetchIngredients(boxSet: String? = null): List<IngredientItem> =
+    // Coffret optionnel : filtre les ingrédients à ceux qui appartiennent à ce coffret
+    // (coffret_id). Laisser à null renvoie le catalogue complet, non filtré.
+    suspend fun fetchIngredients(coffretId: Int? = null): List<IngredientItem> =
         client.get("$ingredientsBaseUrl/api/ingredients") {
-            if (!boxSet.isNullOrBlank()) parameter("box_set", boxSet)
+            parameter("active_only", "true")
+            if (coffretId != null) parameter("coffret_id", coffretId)
         }.body()
 
-    suspend fun fetchBoxSets(): List<BoxSetItem> =
-        client.get("$ingredientsBaseUrl/api/box-sets").body()
+    // Liste des ateliers proposés au client, chacun rattaché à un coffret (coffretId) et un
+    // volume de flacon fixe (volumeMl) — remplace l'ancien choix de coffret (fetchBoxSets).
+    suspend fun fetchAteliers(): List<AtelierItem> =
+        client.get("$ingredientsBaseUrl/api/ateliers") {
+            parameter("active_only", "true")
+        }.body()
 
     // Règles de nombre min/max de notes par famille (tête/cœur/fond) pour une combinaison
-    // taille de flacon / coffret / intensité donnée. `bottleSize` et `boxSet` restent optionnels
+    // taille de flacon / coffret / intensité donnée. `bottleSize` et `boxSetId` restent optionnels
     // (non transmis si vides) ; l'intensité n'est volontairement pas filtrée ici car elle n'est
     // choisie par le client qu'à l'écran suivant ("perfumeIntensity"), après la sélection des
     // notes — on récupère donc les règles "toutes intensités" pertinentes pour la taille/coffret.
-    suspend fun fetchNoteCountRules(bottleSize: String? = null, boxSet: String? = null): List<IngredientRule> =
+    suspend fun fetchNoteCountRules(bottleSize: String? = null, boxSetId: Int? = null): List<IngredientRule> =
         client.get("$ingredientsBaseUrl/api/ingredient-rules") {
             parameter("rule_type", "note_count")
             parameter("active_only", "true")
             if (!bottleSize.isNullOrBlank()) parameter("bottle_size", bottleSize)
-            if (!boxSet.isNullOrBlank()) parameter("box_set", boxSet)
+            if (boxSetId != null) parameter("box_set_id", boxSetId)
         }.body()
 
     // Toutes les règles ingrédients (incompatibility, max_dosage, group_limit, note_count,
@@ -75,11 +74,11 @@ object ApiClient {
     // flacon / coffret donnée. Utilisée pour évaluer incompatibility/group_limit/recommendation
     // au clic sur une note (voir List<IngredientRule>.evaluateNoteClick dans ApiModels.kt) ;
     // note_count continue d'être chargée séparément par fetchNoteCountRules ci-dessus.
-    suspend fun fetchIngredientRules(bottleSize: String? = null, boxSet: String? = null): List<IngredientRule> =
+    suspend fun fetchIngredientRules(bottleSize: String? = null, boxSetId: Int? = null): List<IngredientRule> =
         client.get("$ingredientsBaseUrl/api/ingredient-rules") {
             parameter("active_only", "true")
             if (!bottleSize.isNullOrBlank()) parameter("bottle_size", bottleSize)
-            if (!boxSet.isNullOrBlank()) parameter("box_set", boxSet)
+            if (boxSetId != null) parameter("box_set_id", boxSetId)
         }.body()
 
     // Calcule via l'IA la quantité en ml de chaque note choisie, selon l'intensité
@@ -95,6 +94,15 @@ object ApiClient {
             contentType(ContentType.Application.Json)
             setBody(submission)
         }.body()
+
+    // Envoie au client la pyramide olfactive de sa formule par email (avec logo SDP).
+    // Appelé automatiquement après soumission réussie ; échec non bloquant pour le parcours.
+    suspend fun sendFormulaEmail(formulaId: Int) {
+        client.post("$baseUrl/api/v1/emails/pyramid") {
+            contentType(ContentType.Application.Json)
+            setBody(PyramidEmailRequest(formulaId))
+        }
+    }
 
     // Retourne null si aucun client ne correspond (404), lève une exception pour toute autre erreur.
     suspend fun searchCustomer(email: String?, phone: String?): CustomerSearchResult? {
@@ -150,20 +158,6 @@ object ApiClient {
             setBody(AnswersUpdatePayload(answers))
         }
     }
-
-    // ── Device registration ──
-
-    suspend fun registerDevice(deviceId: String, deviceName: String? = null): DeviceRegisterResponse =
-        client.post("$baseUrl/api/v1/devices/register") {
-            contentType(ContentType.Application.Json)
-            setBody(DeviceRegisterRequest(deviceId, deviceName))
-        }.body()
-
-    suspend fun verifyDevice(deviceId: String): DeviceVerifyResponse =
-        client.post("$baseUrl/api/v1/devices/verify") {
-            contentType(ContentType.Application.Json)
-            setBody(DeviceVerifyRequest(deviceId))
-        }.body()
 
     // ── Supervisor verification ──
 

@@ -220,13 +220,14 @@ fun FormulaHistoryScreen(
     }
 }
 
-// ── Modal : détail d'une formule, avec bouton "Utiliser cette formule" ──
+// ── Modal : détail d'une formule, avec bouton "Recommencer à partir de cette formule" (pré-
+// sélectionne les notes de cette formule et démarre un nouveau questionnaire, voir
+// FormViewModel.startQuestionnaireFromFormula) ──
 @Composable
 fun FormulaDetailModal(
     detail: FormulaDetail?,
     isLoading: Boolean,
     error: String?,
-    isReusing: Boolean,
     onDismiss: () -> Unit,
     onUseFormula: (FormulaDetail) -> Unit
 ) {
@@ -268,19 +269,12 @@ fun FormulaDetailModal(
                         if (!detail.quantity.isNullOrBlank()) {
                             Text(text = strings.formulaDetailQuantity(detail.quantity), fontSize = 14.sp, color = OnSurfaceVariant)
                         }
-                        if (detail.reuseCount > 0) {
-                            Text(
-                                text = if (detail.reuseCount == 1) strings.formulaDetailReusedOnce() else strings.formulaDetailReusedTimes(detail.reuseCount),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Primary
-                            )
-                        }
 
                         listOf(
                             "🍋 ${strings.topNotesName}" to detail.topNotes,
                             "🌸 ${strings.heartNotesName}" to detail.heartNotes,
-                            "🪵 ${strings.baseNotesName}" to detail.baseNotes
+                            "🪵 ${strings.baseNotesName}" to detail.baseNotes,
+                            "✨ ${strings.boosterNotesName}" to detail.boosterNotes
                         ).forEach { (title, notes) ->
                             if (notes.isNotEmpty()) {
                                 Column {
@@ -301,22 +295,15 @@ fun FormulaDetailModal(
 
                         Button(
                             onClick = { onUseFormula(detail) },
-                            enabled = !isReusing,
                             modifier = Modifier.fillMaxWidth().height(52.dp),
                             shape = PillShape,
-                            border = BorderStroke(1.dp, Color(0xFF221007)),
                             colors = ButtonDefaults.buttonColors(
-                                backgroundColor = Color.Transparent,
-                                contentColor = Color(0xFFE5851A),
-                                disabledBackgroundColor = OnSurface.copy(alpha = 0.12f),
-                                disabledContentColor = OnSurface.copy(alpha = 0.38f)
-                            )
+                                backgroundColor = Color(0xFFE5851A),
+                                contentColor = Color.White
+                            ),
+                            elevation = ButtonDefaults.elevation(defaultElevation = 2.dp, pressedElevation = 4.dp)
                         ) {
-                            if (isReusing) {
-                                CircularProgressIndicator(color = Color(0xFFE5851A), strokeWidth = 2.dp, modifier = Modifier.size(22.dp))
-                            } else {
-                                Text(text = strings.formulaDetailUseFormula, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                            }
+                            Text(text = strings.formulaDetailUseFormula, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.3.sp)
                         }
 
                         TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
@@ -329,56 +316,3 @@ fun FormulaDetailModal(
     }
 }
 
-// ── Écran de succès après réutilisation d'une formule existante ──
-@Composable
-fun ReuseSuccessScreen(
-    reuseCount: Int?,
-    onDone: () -> Unit
-) {
-    val strings = LocalStrings.current
-    val (floatA, floatB, dotAlpha) = rememberFloatingBackground()
-
-    Box(
-        modifier = Modifier.fillMaxSize().clipToBounds().background(Surface),
-        contentAlignment = Alignment.Center
-    ) {
-        AtmosphericBackground(floatA = floatA, floatB = floatB, dotAlpha = dotAlpha)
-
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier
-                .fillMaxWidth()
-                .widthIn(max = 560.dp)
-                .padding(horizontal = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
-        ) {
-            Surface(shape = CircleShape, color = Primary, modifier = Modifier.size(88.dp)) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.Check, contentDescription = null, tint = OnPrimary, modifier = Modifier.size(48.dp))
-                }
-            }
-
-            Text(text = strings.reuseSuccessTitle, fontSize = 40.sp, fontWeight = FontWeight.Bold, color = Primary, textAlign = TextAlign.Center)
-
-            Text(
-                text = if (reuseCount != null && reuseCount > 1)
-                    strings.reuseSuccessMessageWithCount(reuseCount)
-                else
-                    strings.reuseSuccessMessage,
-                fontSize = 18.sp,
-                color = OnSurfaceVariant,
-                textAlign = TextAlign.Center,
-                lineHeight = 28.sp
-            )
-
-            Button(
-                onClick = onDone,
-                modifier = Modifier.fillMaxWidth(0.8f).widthIn(max = 320.dp).height(56.dp),
-                shape = PillShape,
-                border = BorderStroke(1.dp, Color(0xFF221007)), colors = ButtonDefaults.buttonColors(backgroundColor = Color.Transparent, contentColor = Color(0xFFE5851A))
-            ) {
-                Text(text = strings.finish, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-            }
-        }
-    }
-}

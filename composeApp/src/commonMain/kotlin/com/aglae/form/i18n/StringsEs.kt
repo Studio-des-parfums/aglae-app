@@ -27,13 +27,14 @@ object StringsEs : Strings {
     override val supervisorDialogInvalidCode = "Identificador no válido"
     override val supervisorDialogConnectionError = "Error de conexión"
 
-    override val boxSetTitle = "Elige tu estuche"
-    override val boxSetSubtitle = "Las notas propuestas a continuación dependerán del estuche seleccionado."
-    override val boxSetLoadErrorPrefix = "Error: "
-    override val boxSetEmpty = "No hay ningún estuche disponible por el momento."
-    override fun boxSetIngredientCount(count: Int) = if (count == 1) "1 nota" else "$count notas"
+    override val atelierTitle = "Elige tu taller"
+    override val atelierSubtitle = "Las notas propuestas a continuación dependerán del taller seleccionado."
+    override val atelierLoadErrorPrefix = "Error: "
+    override val atelierEmpty = "No hay ningún taller disponible por el momento."
 
     override val accountCheckTitle = "¿Ya tienes una fórmula con nosotros?"
+    override val accountCheckYes = "Sí, ya tengo una fórmula"
+    override val accountCheckNo = "No, es la primera vez"
 
     override val contactSearchTitle = "Encontremos tu fórmula"
     override val contactSearchSubtitle = "Indica tu email o tu número de teléfono"
@@ -54,7 +55,7 @@ object StringsEs : Strings {
 
     override val formulaChoiceTitle = "¿Qué te gustaría hacer?"
     override val formulaChoiceNew = "Crear una nueva fórmula"
-    override val formulaChoiceReuse = "Reutilizar una fórmula existente"
+    override val formulaChoiceReuse = "Empezar de nuevo a partir de una fórmula"
 
     override val formulaHistoryTitle = "Tus fórmulas"
     override val formulaHistoryLoadError = "No se pudieron cargar tus fórmulas.\nComprueba la conexión con el servidor."
@@ -66,14 +67,7 @@ object StringsEs : Strings {
     override val formulaDetailErrorPrefix = "Error: "
     override fun formulaDetailCreatedOn(date: String) = "Creada el $date"
     override fun formulaDetailQuantity(quantity: String) = "Cantidad: $quantity"
-    override fun formulaDetailReusedOnce() = "Ya reutilizada 1 vez"
-    override fun formulaDetailReusedTimes(count: Int) = "Ya reutilizada $count veces"
-    override val formulaDetailUseFormula = "Usar esta fórmula"
-
-    override val reuseSuccessTitle = "¡Anotado!"
-    override val reuseSuccessMessage = "Nuestro equipo preparará tu fórmula habitual."
-    override fun reuseSuccessMessageWithCount(count: Int) =
-        "Nuestro equipo preparará tu fórmula habitual.\nYa la has usado $count veces."
+    override val formulaDetailUseFormula = "Empezar de nuevo a partir de esta fórmula"
 
     override fun questionCounter(current: Int, total: Int) = "Pregunta $current/$total"
     override val questionIdentityTitle = "Tu información"
@@ -83,11 +77,12 @@ object StringsEs : Strings {
     override val questionGenderTitle = "¿Cuál es tu género?"
     override val genderMale = "Hombre"
     override val genderFemale = "Mujer"
-    override val genderUnspecified = "Prefiero no decirlo"
+    override val genderChild = "Niño/a"
     override val questionNameTitle = "¿Cuál es tu nombre y apellido?"
     override val firstNameLabel = "Nombre"
     override val lastNameLabel = "Apellido"
     override val questionBirthDateTitle = "¿Cuál es tu fecha de nacimiento?"
+    override val birthDateLabel = "Fecha de nacimiento"
     override val dayLabel = "Día"
     override val monthLabel = "Mes"
     override val yearLabel = "Año"
@@ -109,7 +104,6 @@ object StringsEs : Strings {
     override val allergyQuestion = "¿Tienes alguna alergia relacionada con perfumes o alergia cutánea?"
     override val liabilityQuestion = "En caso afirmativo, ¿deseas continuar eximiéndonos de responsabilidad?"
     override val rgpdQuestion = "En el marco del RGPD, ¿podemos conservar tu fórmula?"
-    override val questionQuantityTitle = "Antes de empezar, elige la cantidad deseada"
     override val questionnaireChooseNotes = "Elegir mis notas"
 
     override val notesSelectionTitle = "Elige tus notas"
@@ -134,6 +128,8 @@ object StringsEs : Strings {
         "$familyName: elige al menos $min."
     override fun noteCountTooMany(familyName: String, max: Int) =
         "$familyName: elige como máximo $max."
+    override fun noteCountTooManyRemove(familyName: String, max: Int, count: Int) =
+        "$familyName: tienes $count notas, máximo $max. Elimina ${count - max} nota(s) antes de confirmar."
     override fun noteCountExactly(count: Int) = "$count nota(s) a elegir"
     override fun noteCountBetween(min: Int, max: Int) = "Entre $min y $max notas"
     override fun noteCountAtLeast(min: Int) = "Al menos $min nota(s)"
@@ -178,13 +174,6 @@ object StringsEs : Strings {
     override val successMessageNew = "Tu fórmula se ha guardado correctamente."
     override val successMessageExisting = "Tu fórmula se ha guardado correctamente\ny añadido a tu perfil existente."
 
-    override val deviceCheckingTitle = "Verificando dispositivo..."
-    override val deviceRejectedTitle = "Dispositivo no autorizado"
-    override val deviceRejectedMessage = "Este dispositivo ha sido desactivado.\nContacta con tu administrador."
-    override val devicePendingTitle = "Esperando aprobación"
-    override val devicePendingMessage = "Tu dispositivo está esperando la validación de un administrador.\nInténtalo de nuevo más tarde."
-    override val deviceErrorTitle = "Error de conexión"
-    override val deviceErrorMessage = "No se pudo contactar con el servidor.\nComprueba tu conexión."
 
     override val languageSelectorContentDescription = "Cambiar idioma"
 }

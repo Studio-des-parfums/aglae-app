@@ -30,15 +30,16 @@ interface Strings {
     val supervisorDialogInvalidCode: String
     val supervisorDialogConnectionError: String
 
-    // ── Box set choice screen ──
-    val boxSetTitle: String
-    val boxSetSubtitle: String
-    val boxSetLoadErrorPrefix: String
-    val boxSetEmpty: String
-    fun boxSetIngredientCount(count: Int): String
+    // ── Atelier choice screen ──
+    val atelierTitle: String
+    val atelierSubtitle: String
+    val atelierLoadErrorPrefix: String
+    val atelierEmpty: String
 
     // ── Account check screen ──
     val accountCheckTitle: String
+    val accountCheckYes: String
+    val accountCheckNo: String
 
     // ── Contact search screen ──
     val contactSearchTitle: String
@@ -77,14 +78,7 @@ interface Strings {
     val formulaDetailErrorPrefix: String
     fun formulaDetailCreatedOn(date: String): String
     fun formulaDetailQuantity(quantity: String): String
-    fun formulaDetailReusedOnce(): String
-    fun formulaDetailReusedTimes(count: Int): String
     val formulaDetailUseFormula: String
-
-    // ── Reuse success screen ──
-    val reuseSuccessTitle: String
-    val reuseSuccessMessage: String
-    fun reuseSuccessMessageWithCount(count: Int): String
 
     // ── Questionnaire ──
     fun questionCounter(current: Int, total: Int): String
@@ -95,11 +89,12 @@ interface Strings {
     val questionGenderTitle: String
     val genderMale: String
     val genderFemale: String
-    val genderUnspecified: String
+    val genderChild: String
     val questionNameTitle: String
     val firstNameLabel: String
     val lastNameLabel: String
     val questionBirthDateTitle: String
+    val birthDateLabel: String
     val dayLabel: String
     val monthLabel: String
     val yearLabel: String
@@ -121,7 +116,6 @@ interface Strings {
     val allergyQuestion: String
     val liabilityQuestion: String
     val rgpdQuestion: String
-    val questionQuantityTitle: String
     val questionnaireChooseNotes: String
 
     // ── Notes selection screen ──
@@ -145,6 +139,7 @@ interface Strings {
     val backToHome: String
     fun noteCountTooFew(familyName: String, min: Int): String
     fun noteCountTooMany(familyName: String, max: Int): String
+    fun noteCountTooManyRemove(familyName: String, max: Int, count: Int): String
     fun noteCountExactly(count: Int): String
     fun noteCountBetween(min: Int, max: Int): String
     fun noteCountAtLeast(min: Int): String
@@ -192,15 +187,6 @@ interface Strings {
     val successTitle: String
     val successMessageNew: String
     val successMessageExisting: String
-
-    // ── Device check screens ──
-    val deviceCheckingTitle: String
-    val deviceRejectedTitle: String
-    val deviceRejectedMessage: String
-    val devicePendingTitle: String
-    val devicePendingMessage: String
-    val deviceErrorTitle: String
-    val deviceErrorMessage: String
 
     // ── Language selector ──
     val languageSelectorContentDescription: String

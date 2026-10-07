@@ -49,23 +49,23 @@ fun LanguageSelector(
             modifier = Modifier
                 .clip(RoundedCornerShape(9999.dp))
                 .clickable { expanded = true }
-                .padding(horizontal = 12.dp, vertical = 6.dp),
+                .padding(horizontal = 20.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Icon(
                 imageVector = Icons.Filled.Language,
                 contentDescription = strings.languageSelectorContentDescription,
                 tint = contentColor,
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(24.dp)
             )
             Text(
                 text = language.flag,
-                fontSize = 14.sp
+                fontSize = 22.sp
             )
             Text(
                 text = language.code.uppercase(),
-                fontSize = 13.sp,
+                fontSize = 18.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = contentColor
             )
@@ -82,10 +82,11 @@ fun LanguageSelector(
                         expanded = false
                     }
                 ) {
-                    Text(text = lang.flag, fontSize = 16.sp)
-                    androidx.compose.foundation.layout.Spacer(modifier = Modifier.size(8.dp))
+                    Text(text = lang.flag, fontSize = 22.sp)
+                    androidx.compose.foundation.layout.Spacer(modifier = Modifier.size(10.dp))
                     Text(
                         text = lang.displayName,
+                        fontSize = 17.sp,
                         fontWeight = if (lang == language) FontWeight.Bold else FontWeight.Normal
                     )
                 }

@@ -48,7 +48,7 @@ fun AccountCheckScreen(
                 listOf("Oui", "Non").forEach { option ->
                     Box(modifier = Modifier.weight(1f)) {
                         QuestionOptionCard(
-                            text = if (option == "Oui") strings.yes else strings.no,
+                            text = if (option == "Oui") strings.accountCheckYes else strings.accountCheckNo,
                             isSelected = answer == option,
                             onClick = { onAnswerChange(option) }
                         )

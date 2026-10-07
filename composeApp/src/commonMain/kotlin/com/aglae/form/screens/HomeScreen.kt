@@ -11,6 +11,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -217,7 +218,7 @@ fun HomeScreen(
     var mouseX by remember { mutableStateOf(0f) }
     var mouseY by remember { mutableStateOf(0f) }
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .clipToBounds()
@@ -238,6 +239,10 @@ fun HomeScreen(
             },
         contentAlignment = Alignment.Center
     ) {
+        // Portrait (plus haut que large) : le flacon est réduit et le sélecteur de langue passe
+        // sous le logo, pour laisser toute la largeur au bouton "Commencer" en bas. Paysage : mise
+        // en page d'origine (flacon plein format à droite, sélecteur de langue à sa gauche).
+        val isPortrait = maxHeight > maxWidth
         // Image de fond (identique aux écrans "question")
         Image(
             painter = painterResource(Res.drawable.question_background),
@@ -289,24 +294,15 @@ fun HomeScreen(
                 )
             }
         }
-        // Sélecteur de langue en haut à gauche
-        LanguageSelector(
-            language = language,
-            onLanguageChange = onLanguageChange,
-            contentColor = Primary,
-            borderColor = Primary.copy(alpha = 0.3f),
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(top = 16.dp, start = 16.dp)
-        )
-
         // Parallax content
         val deltaX = (mouseX - 400f) / 80f
         val deltaY = (mouseY - 350f) / 80f
 
-        // Logo SDP en haut de page
-        Box(
-            contentAlignment = Alignment.Center,
+        // Logo SDP en haut de page, avec le sélecteur de langue juste en dessous (portrait comme
+        // paysage).
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .padding(top = 32.dp)
@@ -316,9 +312,16 @@ fun HomeScreen(
                 }
         ) {
             SdpLogoTitle()
+            LanguageSelector(
+                language = language,
+                onLanguageChange = onLanguageChange,
+                contentColor = Primary,
+                borderColor = Primary.copy(alpha = 0.3f)
+            )
         }
 
-        // Image fiole, entre le titre et le bouton — animation de flottement
+        // Image fiole, entre le titre et le bouton — animation de flottement. Plus petite en
+        // portrait pour ne pas chevaucher le bouton "Commencer" en bas d'écran.
         val fioleFloatTransition = rememberInfiniteTransition(label = "fioleFloat")
         val fioleFloatOffset by fioleFloatTransition.animateFloat(
             initialValue = -12f,
@@ -333,8 +336,11 @@ fun HomeScreen(
             painter = painterResource(Res.drawable.fiole),
             contentDescription = null,
             modifier = Modifier
-                .align(Alignment.TopEnd)
-                .offset(x = 60.dp, y = 95.dp)
+                .align(if (isPortrait) Alignment.BottomCenter else Alignment.BottomEnd)
+                .offset(
+                    x = if (isPortrait) 0.dp else 60.dp,
+                    y = 40.dp
+                )
                 .width(649.dp)
                 .height(691.dp)
                 .graphicsLayer {
@@ -413,36 +419,5 @@ fun HomeScreen(
             }
         }
 
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 48.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .width(48.dp)
-                        .height(1.dp)
-                        .background(OutlineVariant)
-                )
-                Text(
-                    text = "Le Studio des Parfums",
-                    color = Color.White,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    letterSpacing = 2.sp
-                )
-                Box(
-                    modifier = Modifier
-                        .width(48.dp)
-                        .height(1.dp)
-                        .background(OutlineVariant)
-                )
-            }
-        }
     }
 }

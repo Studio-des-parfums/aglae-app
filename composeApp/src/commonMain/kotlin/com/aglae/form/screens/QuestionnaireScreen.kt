@@ -104,23 +104,22 @@ sealed class QuestionData {
         val onOptionSelected: (String) -> Unit
     ) : QuestionData()
 
-    data class TextQuestion(
-        override val title: String,
-        val fields: List<TextFieldData>,
-        val isComplete: Boolean
-    ) : QuestionData()
-
-    // Page "Vos informations" : genre + identité + naissance, regroupés pour tenir sans
-    // scroll sur petite tablette — voir le rendu dédié dans QuestionnaireScreen (bloc
-    // IdentityQuestion). Les coordonnées (pays/ville/tél/email) sont sur une page séparée
-    // (question TextQuestion suivante), pas ici.
+    // Page unique "Vos informations" : genre + nom/prénom + naissance/pays/ville +
+    // téléphone/email + métier, tout regroupé sur une seule page (voir demande design — rendu
+    // dédié dans QuestionnaireScreen, bloc IdentityQuestion).
     data class IdentityQuestion(
         override val title: String,
         val genderOptions: List<String>,
         val selectedGender: String,
         val onGenderSelected: (String) -> Unit,
-        val identityFields: List<TextFieldData>,
-        val birthFields: List<TextFieldData>,
+        val identityFields: List<TextFieldData>, // nom, prénom
+        val birthFields: List<TextFieldData>, // pays, ville (affichés à côté de la date de naissance)
+        val contactFields: List<TextFieldData>, // téléphone, email
+        val professionField: TextFieldData,
+        val day: String,
+        val month: String,
+        val year: String,
+        val onDateSelected: (day: Int, month: Int, year: Int) -> Unit,
         val isComplete: Boolean
     ) : QuestionData()
 
@@ -147,15 +146,6 @@ data class TextFieldData(
     val errorMessage: String? = null,
     val isError: Boolean = false
 )
-
-// ── Tailles de flacon (ml) proposées selon le coffret choisi ──
-// Odyssée : uniquement 30ml. Classic : toutes les tailles, y compris 10 et 15ml.
-// Coffret inconnu / non renseigné : tailles par défaut (30/50/100ml).
-fun quantityOptionsForBoxSet(boxSet: String?): List<String> = when {
-    boxSet.equals("Odyssée", ignoreCase = true) || boxSet.equals("Odyssee", ignoreCase = true) -> listOf("30ml")
-    boxSet.equals("Classic", ignoreCase = true) -> listOf("10ml", "15ml", "30ml", "50ml", "100ml")
-    else -> listOf("30ml", "50ml", "100ml")
-}
 
 @Composable
 fun QuestionnaireScreen(
@@ -187,16 +177,13 @@ fun QuestionnaireScreen(
     onLiabilityAnswerChange: (String) -> Unit,
     rgpdAnswer: String,
     onRgpdAnswerChange: (String) -> Unit,
-    quantity: String,
-    onQuantityChange: (String) -> Unit,
     currentQuestion: Int,
     onNextQuestion: () -> Unit,
     onPreviousQuestion: () -> Unit,
     onFinish: () -> Unit,
     onGoHome: () -> Unit,
     isCheckingContact: Boolean = false,
-    contactCheckError: String? = null,
-    boxSet: String? = null
+    contactCheckError: String? = null
 ) {
     val strings = LocalStrings.current
     val bodyFont = questionBodyFont()
@@ -206,87 +193,32 @@ fun QuestionnaireScreen(
         "Non" -> strings.no
         "Homme" -> strings.genderMale
         "Femme" -> strings.genderFemale
-        "Non précisé" -> strings.genderUnspecified
+        "Enfant" -> strings.genderChild
         else -> value // ex: "30ml" reste identique dans toutes les langues
     }
 
     val questions = listOf(
-        // Page unique "Vos informations" : genre (select) + identité + naissance + métier +
-        // localisation + contact, tout regroupé pour tenir sans scroll sur petite tablette
-        // (voir demande design — rendu compact dédié dans le bloc IdentityQuestion ci-dessous).
+        // Page unique "Vos informations" : genre, nom/prénom, naissance/pays/ville,
+        // téléphone/email, métier — tout regroupé sur une seule page (voir demande design,
+        // rendu dédié dans le bloc IdentityQuestion ci-dessous).
         QuestionData.IdentityQuestion(
             title = strings.questionIdentityTitle,
-            genderOptions = listOf("Homme", "Femme", "Non précisé"),
+            genderOptions = listOf("Homme", "Femme", "Enfant"),
             selectedGender = gender,
             onGenderSelected = onGenderChange,
             identityFields = listOf(
-                TextFieldData(
-                    label = strings.firstNameLabel,
-                    value = firstName,
-                    onValueChange = onFirstNameChange
-                ),
                 TextFieldData(
                     label = strings.lastNameLabel,
                     value = lastName,
                     onValueChange = onLastNameChange
                 ),
                 TextFieldData(
-                    label = strings.professionLabel,
-                    value = profession,
-                    onValueChange = onProfessionChange
+                    label = strings.firstNameLabel,
+                    value = firstName,
+                    onValueChange = onFirstNameChange
                 )
             ),
             birthFields = listOf(
-                TextFieldData(
-                    label = strings.dayLabel,
-                    value = day,
-                    onValueChange = { newValue ->
-                        if (newValue.all { it.isDigit() } && newValue.length <= 2) {
-                            onDayChange(newValue)
-                        }
-                    },
-                    keyboardType = KeyboardType.Number,
-                    width = 100,
-                    isError = day.isNotEmpty() && !isValidDay(day),
-                    errorMessage = if (day.isNotEmpty() && !isValidDay(day)) strings.dayError else null
-                ),
-                TextFieldData(
-                    label = strings.monthLabel,
-                    value = month,
-                    onValueChange = { newValue ->
-                        if (newValue.all { it.isDigit() } && newValue.length <= 2) {
-                            onMonthChange(newValue)
-                        }
-                    },
-                    keyboardType = KeyboardType.Number,
-                    width = 100,
-                    isError = month.isNotEmpty() && !isValidMonth(month),
-                    errorMessage = if (month.isNotEmpty() && !isValidMonth(month)) strings.monthError else null
-                ),
-                TextFieldData(
-                    label = strings.yearLabel,
-                    value = year,
-                    onValueChange = { newValue ->
-                        if (newValue.all { it.isDigit() } && newValue.length <= 4) {
-                            onYearChange(newValue)
-                        }
-                    },
-                    keyboardType = KeyboardType.Number,
-                    width = 120,
-                    isError = year.isNotEmpty() && !isValidYear(year),
-                    errorMessage = if (year.isNotEmpty() && !isValidYear(year)) strings.yearError else null
-                )
-            ),
-            isComplete = gender.isNotBlank() && firstName.isNotBlank() && lastName.isNotBlank() &&
-                    day.isNotBlank() && month.isNotBlank() && year.isNotBlank() &&
-                    isValidDay(day) && isValidMonth(month) && isValidYear(year) &&
-                    profession.isNotBlank()
-        ),
-        // Page "Coordonnées" séparée (pays/ville/téléphone/email) : rendue en grille par
-        // TextQuestion (déjà générique, > 2 champs => disposition en ligne automatique).
-        QuestionData.TextQuestion(
-            title = strings.contactSectionLabel,
-            fields = listOf(
                 TextFieldData(
                     label = strings.countryLabel,
                     value = country,
@@ -296,7 +228,9 @@ fun QuestionnaireScreen(
                     label = strings.cityLabel,
                     value = city,
                     onValueChange = onCityChange
-                ),
+                )
+            ),
+            contactFields = listOf(
                 TextFieldData(
                     label = strings.phoneLabel,
                     value = phone,
@@ -320,7 +254,24 @@ fun QuestionnaireScreen(
                     errorMessage = if (email.isNotEmpty() && !isValidEmail(email)) strings.emailError else null
                 )
             ),
-            isComplete = country.isNotBlank() && city.isNotBlank() &&
+            professionField = TextFieldData(
+                label = strings.professionLabel,
+                value = profession,
+                onValueChange = onProfessionChange
+            ),
+            day = day,
+            month = month,
+            year = year,
+            onDateSelected = { d, m, y ->
+                onDayChange(d.toString())
+                onMonthChange(m.toString())
+                onYearChange(y.toString())
+            },
+            isComplete = gender.isNotBlank() && firstName.isNotBlank() && lastName.isNotBlank() &&
+                    day.isNotBlank() && month.isNotBlank() && year.isNotBlank() &&
+                    isValidDay(day) && isValidMonth(month) && isValidYear(year) &&
+                    profession.isNotBlank() &&
+                    country.isNotBlank() && city.isNotBlank() &&
                     phone.isNotBlank() && isValidPhone(phone, country) &&
                     email.isNotBlank() && isValidEmail(email)
         ),
@@ -346,12 +297,6 @@ fun QuestionnaireScreen(
             ),
             isComplete = allergyAnswer.isNotBlank() && rgpdAnswer.isNotBlank() &&
                     (allergyAnswer != "Oui" || liabilityAnswer.isNotBlank())
-        ),
-        QuestionData.OptionQuestion(
-            title = strings.questionQuantityTitle,
-            options = quantityOptionsForBoxSet(boxSet),
-            selectedOption = quantity,
-            onOptionSelected = onQuantityChange
         )
     )
 
@@ -363,9 +308,13 @@ fun QuestionnaireScreen(
 
     QuestionScreenScaffold(
         onBack = if (currentQuestion >= 1) onPreviousQuestion else null,
-        onGoHome = onGoHome,
-        showTitle = false
+        onGoHome = onGoHome
     ) {
+        // Détection portrait/paysage locale à cet écran : la page réglementation (NoticeQuestion)
+        // a besoin d'une mise en page plus compacte en portrait pour tenir sans scroll (voir
+        // demande design).
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val isPortrait = maxHeight > maxWidth
         AnimatedContent(
             targetState = currentQuestion,
             transitionSpec = {
@@ -393,7 +342,7 @@ fun QuestionnaireScreen(
         ) { _ ->
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(32.dp),
+                verticalArrangement = Arrangement.spacedBy(if (isPortrait) 16.dp else 32.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = 640.dp)
@@ -437,23 +386,9 @@ fun QuestionnaireScreen(
                         )
                     }
                     is QuestionData.IdentityQuestion -> {
-                        // Page compacte : genre en select (au lieu de 3 boutons empilés) +
-                        // 2 sections labellisées (identité / naissance), chacune sur sa propre
-                        // ligne pleine largeur. Les coordonnées sont sur une page séparée
-                        // (question TextQuestion suivante, voir plus bas dans le when).
-                        @Composable
-                        fun SectionLabel(text: String) {
-                            Text(
-                                text = text.uppercase(),
-                                fontFamily = bodyFont,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                letterSpacing = 1.5.sp,
-                                color = QuestionOnSurfaceVariant,
-                                modifier = Modifier.fillMaxWidth().padding(start = 4.dp)
-                            )
-                        }
-
+                        // Page unique : genre/nom/prénom, naissance/pays/ville, téléphone/email,
+                        // métier — toutes les infos personnelles regroupées sur une seule page
+                        // (voir demande design).
                         @Composable
                         fun FieldsRow(fields: List<TextFieldData>) {
                             Row(
@@ -474,58 +409,59 @@ fun QuestionnaireScreen(
                             verticalArrangement = Arrangement.spacedBy(18.dp),
                             modifier = Modifier.fillMaxWidth().widthIn(max = 720.dp)
                         ) {
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                                SectionLabel(strings.identitySectionLabel)
-                                GenderSelectField(
-                                    selected = question.selectedGender,
-                                    options = question.genderOptions,
-                                    optionLabel = ::translateOption,
-                                    onSelected = question.onGenderSelected
-                                )
-                                FieldsRow(question.identityFields)
-                            }
-
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                                SectionLabel(strings.birthSectionLabel)
-                                FieldsRow(question.birthFields)
-                            }
-                        }
-
-                        QuestionActionButton(
-                            text = strings.next,
-                            onClick = onNextQuestion,
-                            enabled = question.isComplete
-                        )
-                    }
-                    is QuestionData.TextQuestion -> {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(16.dp),
-                            modifier = Modifier.fillMaxWidth().widthIn(max = 480.dp)
-                        ) {
-                            if (question.fields.size <= 2) {
-                                question.fields.forEach { field ->
-                                    QuestionTextField(field)
+                            // Ligne 1 : genre, nom, prénom
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                Box(modifier = Modifier.weight(1f)) {
+                                    GenderSelectField(
+                                        selected = question.selectedGender,
+                                        options = question.genderOptions,
+                                        optionLabel = ::translateOption,
+                                        onSelected = question.onGenderSelected
+                                    )
                                 }
-                            } else {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                    verticalAlignment = Alignment.Top
-                                ) {
-                                    question.fields.forEach { field ->
-                                        Box(modifier = Modifier.weight(1f)) {
-                                            QuestionTextField(field, fillAvailableWidth = true)
-                                        }
+                                question.identityFields.forEach { field ->
+                                    Box(modifier = Modifier.weight(1f)) {
+                                        QuestionTextField(field, compact = true, fillAvailableWidth = true)
                                     }
                                 }
                             }
+
+                            // Ligne 2 : naissance (calendrier), pays, ville
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                Box(modifier = Modifier.weight(1f)) {
+                                    BirthDatePickerField(
+                                        day = question.day,
+                                        month = question.month,
+                                        year = question.year,
+                                        onDateSelected = question.onDateSelected,
+                                        label = strings.birthDateLabel,
+                                        isError = question.day.isNotEmpty() && !isValidDay(question.day),
+                                        errorMessage = if (question.day.isNotEmpty() && !isValidDay(question.day)) strings.dayError else null
+                                    )
+                                }
+                                question.birthFields.forEach { field ->
+                                    Box(modifier = Modifier.weight(1f)) {
+                                        QuestionTextField(field, compact = true, fillAvailableWidth = true)
+                                    }
+                                }
+                            }
+
+                            // Ligne 3 : téléphone, email
+                            FieldsRow(question.contactFields)
+
+                            // Ligne 4 : métier
+                            QuestionTextField(question.professionField, compact = true)
                         }
 
-                        // Page "Coordonnées" (pays/ville/téléphone/email) : le check anti-doublon
-                        // email/téléphone se déclenche au clic "Suivant" de cette page précise.
-                        val isContactQuestion = question.title == strings.contactSectionLabel
-                        if (isContactQuestion && contactCheckError != null) {
+                        if (contactCheckError != null) {
                             Text(
                                 text = contactCheckError,
                                 fontFamily = bodyFont,
@@ -535,7 +471,7 @@ fun QuestionnaireScreen(
                                 modifier = Modifier.fillMaxWidth().widthIn(max = 480.dp).padding(top = 8.dp)
                             )
                         }
-                        if (isContactQuestion && isCheckingContact) {
+                        if (isCheckingContact) {
                             androidx.compose.material.CircularProgressIndicator(
                                 color = QuestionPrimary,
                                 strokeWidth = 2.dp,
@@ -550,9 +486,20 @@ fun QuestionnaireScreen(
                         }
                     }
                     is QuestionData.NoticeQuestion -> {
+                        // En portrait, la page doit tenir sans scroll : cartes/textes/espacements
+                        // resserrés par rapport au paysage (voir demande design).
+                        val cardPadding = if (isPortrait) 12.dp else 20.dp
+                        val sectionSpacing = if (isPortrait) 10.dp else 20.dp
+                        val noticeFontSize = if (isPortrait) 13.sp else 15.sp
+                        val subQuestionFontSize = if (isPortrait) 14.sp else 16.sp
+                        val optionFontSize = if (isPortrait) 13.sp else 15.sp
+                        val optionPaddingH = if (isPortrait) 14.dp else 20.dp
+                        val optionPaddingV = if (isPortrait) 8.dp else 12.dp
+                        val innerSpacing = if (isPortrait) 6.dp else 12.dp
+
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(20.dp),
+                            verticalArrangement = Arrangement.spacedBy(sectionSpacing),
                             modifier = Modifier.fillMaxWidth().widthIn(max = 560.dp)
                         ) {
                             Surface(
@@ -565,10 +512,10 @@ fun QuestionnaireScreen(
                                 Text(
                                     text = question.notice,
                                     fontFamily = bodyFont,
-                                    fontSize = 15.sp,
+                                    fontSize = noticeFontSize,
                                     color = QuestionOnSurfaceVariant,
                                     textAlign = TextAlign.Start,
-                                    modifier = Modifier.padding(20.dp)
+                                    modifier = Modifier.padding(cardPadding)
                                 )
                             }
 
@@ -580,17 +527,17 @@ fun QuestionnaireScreen(
                                     elevation = 0.dp,
                                     border = BorderStroke(1.dp, QuestionOutlineVariant.copy(alpha = 0.5f))
                                 ) {
-                                    Column(modifier = Modifier.padding(20.dp)) {
+                                    Column(modifier = Modifier.padding(cardPadding)) {
                                         Text(
                                             text = sub.question,
                                             fontFamily = bodyFont,
-                                            fontSize = 16.sp,
+                                            fontSize = subQuestionFontSize,
                                             fontWeight = FontWeight.SemiBold,
                                             color = QuestionPrimary
                                         )
-                                        Spacer(modifier = Modifier.height(12.dp))
+                                        Spacer(modifier = Modifier.height(innerSpacing))
                                         Row(
-                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                            horizontalArrangement = Arrangement.spacedBy(innerSpacing)
                                         ) {
                                             listOf("Oui", "Non").forEach { option ->
                                                 val optionLabel = translateOption(option)
@@ -608,8 +555,8 @@ fun QuestionnaireScreen(
                                                 ) {
                                                     Row(
                                                         modifier = Modifier.padding(
-                                                            horizontal = 20.dp,
-                                                            vertical = 12.dp
+                                                            horizontal = optionPaddingH,
+                                                            vertical = optionPaddingV
                                                         ),
                                                         verticalAlignment = Alignment.CenterVertically,
                                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -625,7 +572,7 @@ fun QuestionnaireScreen(
                                                         Text(
                                                             text = optionLabel,
                                                             fontFamily = bodyFont,
-                                                            fontSize = 15.sp,
+                                                            fontSize = optionFontSize,
                                                             fontWeight = FontWeight.Medium,
                                                             color = if (isSel) QuestionOnSurface else QuestionPrimary
                                                         )
@@ -638,14 +585,16 @@ fun QuestionnaireScreen(
                             }
                         }
 
+                        val isLastQuestion = currentQuestion == totalQuestions - 1
                         QuestionActionButton(
-                            text = strings.next,
-                            onClick = onNextQuestion,
+                            text = if (isLastQuestion) strings.questionnaireChooseNotes else strings.next,
+                            onClick = if (isLastQuestion) onFinish else onNextQuestion,
                             enabled = question.isComplete
                         )
                     }
                 }
             }
+        }
         }
     }
 }

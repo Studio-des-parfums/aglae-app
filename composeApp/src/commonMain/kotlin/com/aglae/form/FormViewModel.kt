@@ -5,8 +5,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.aglae.form.i18n.Strings
 import com.aglae.form.network.ApiClient
-import com.aglae.form.network.BoxSetItem
+import com.aglae.form.network.AtelierItem
 import com.aglae.form.network.CustomerSearchResult
+import com.aglae.form.network.displayName
 import com.aglae.form.network.FormulaDetail
 import com.aglae.form.network.FormulaHistoryItem
 import com.aglae.form.network.IngredientItem
@@ -22,7 +23,6 @@ import com.aglae.form.network.TabletSubmission
 import com.aglae.form.network.evaluateNoteClick
 import com.aglae.form.network.toNoteCountBounds
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 // ── FormViewModel ──
@@ -72,23 +72,35 @@ import kotlinx.coroutines.launch
 // pour toujours utiliser les strings de la langue courante au moment de l'appel plutôt qu'une
 // copie potentiellement obsolète capturée à la création du ViewModel.
 //
-// Choix du coffret ("box set") : ajouté entre l'écran d'accueil et `accountCheck`. L'utilisateur
-// choisit un coffret parmi ceux renvoyés par GET /api/box-sets (`loadBoxSets`), et
-// `selectedBoxSet` est ensuite transmis à chaque appel `GET /api/ingredients?box_set=...` (voir
-// `loadIngredients`), ce qui restreint les notes proposées aux écrans "notesDetail" à celles qui
-// portent ce tag. `chooseBoxSet` incrémente `catalogReloadKey` pour forcer un rechargement du
-// catalogue avec le nouveau filtre (au cas où des ingrédients auraient déjà été chargés sans
-// filtre, ex. après un retour arrière puis un autre choix de coffret).
+// Choix de l'atelier : ajouté après le questionnaire d'informations personnelles, juste avant
+// l'explication de la pyramide olfactive. L'utilisateur choisit un atelier parmi ceux renvoyés
+// par GET /api/ateliers (`loadAteliers`) ; chaque atelier détermine à la fois le coffret
+// (`selectedBoxSetId`, transmis à `GET /api/ingredients?coffret_id=...` et
+// `GET /api/ingredient-rules?box_set_id=...`) et le volume de flacon (`quantity`, dérivé de
+// `volume_ml` — il n'y a plus de choix de taille dans le questionnaire). `chooseAtelier`
+// incrémente `catalogReloadKey` pour forcer un rechargement du catalogue avec le nouveau filtre.
 class FormViewModel(private val scope: CoroutineScope) {
+
+    companion object {
+        // Quantité fixe (ml) de chaque booster sélectionné : jamais dosée par l'IA ni éditable.
+        const val BOOSTER_QUANTITY_ML = 5.0
+    }
 
     // ── Session / navigation superviseur ──
     var currentSessionId by mutableStateOf<Int?>(null)
 
-    // ── Choix du coffret (avant le questionnaire) ──
-    var boxSets by mutableStateOf<List<BoxSetItem>?>(null)
-    var boxSetsLoading by mutableStateOf(false)
-    var boxSetsError by mutableStateOf<String?>(null)
-    var selectedBoxSet by mutableStateOf<String?>(null)
+    // ── Choix de l'atelier (après le questionnaire, avant la pyramide olfactive) ──
+    var ateliers by mutableStateOf<List<AtelierItem>?>(null)
+    var ateliersLoading by mutableStateOf(false)
+    var ateliersError by mutableStateOf<String?>(null)
+    var selectedAtelierId by mutableStateOf<Int?>(null)
+    // Non-null uniquement dans le parcours "Recommencer à partir d'une formule" : l'atelier de
+    // la formule d'origine, à resélectionner automatiquement (sans repasser par l'écran de
+    // choix) une fois le questionnaire terminé — voir startQuestionnaireFromFormula et l'usage
+    // dans App.kt (onFinish du questionnaire).
+    var preselectedAtelierId by mutableStateOf<Int?>(null)
+    var selectedBoxSetId by mutableStateOf<Int?>(null)
+    var selectedBoxSetName by mutableStateOf<String?>(null)
 
     // ── Questionnaire : identité, coordonnées, consentement ──
     var gender by mutableStateOf("")
@@ -105,6 +117,9 @@ class FormViewModel(private val scope: CoroutineScope) {
     var allergyAnswer by mutableStateOf("")
     var liabilityAnswer by mutableStateOf("")
     var rgpdAnswer by mutableStateOf("")
+    // Taille de flacon : plus de choix utilisateur, dérivée de `AtelierItem.volumeMl` au moment
+    // de `chooseAtelier` (ex. "30ml"). Reste utilisée telle quelle par loadNoteCountBounds,
+    // suggestNoteQuantities, submitForm et le récap.
     var quantity by mutableStateOf("")
     var currentQuestion by mutableStateOf(0)
 
@@ -119,13 +134,13 @@ class FormViewModel(private val scope: CoroutineScope) {
     var selectedTopNotes by mutableStateOf(setOf<String>())
     var selectedHeartNotes by mutableStateOf(setOf<String>())
     var selectedBaseNotes by mutableStateOf(setOf<String>())
-    // Boosters (coffret "Odyssée" uniquement, 4e famille) : quantité toujours fixe
-    // à 5ml, jamais dosée par l'IA ni éditable — pas de Map de quantités dédiée,
+    // Boosters (4e famille, toujours affichée) : quantité toujours fixe à
+    // BOOSTER_QUANTITY_ML, jamais dosée par l'IA ni éditable — pas de Map de quantités dédiée,
     // voir suggestNoteQuantities/submitForm qui la calculent à la volée.
     var selectedBoosterNotes by mutableStateOf(setOf<String>())
 
     // Bornes min/max de notes par famille (GET /api/ingredient-rules?rule_type=note_count),
-    // chargées pour la taille de flacon (`quantity`) et le coffret (`selectedBoxSet`) choisis.
+    // chargées pour la taille de flacon (`quantity`) et le coffret (`selectedBoxSetId`) choisis.
     // L'utilisateur reste libre de sélectionner autant de notes qu'il veut dans notesDetail ; ces
     // bornes ne sont vérifiées qu'au clic sur "Valider ma formule" (voir `validateNoteCounts`).
     var noteCountBounds by mutableStateOf<NoteCountBounds?>(null)
@@ -195,98 +210,24 @@ class FormViewModel(private val scope: CoroutineScope) {
     var selectedFormulaDetail by mutableStateOf<FormulaDetail?>(null)
     var isLoadingDetail by mutableStateOf(false)
     var detailError by mutableStateOf<String?>(null)
-    var isReusing by mutableStateOf(false)
-    var reuseCountResult by mutableStateOf<Int?>(null)
 
     // ── Mode superviseur ──
     var selectedSupervisorSessionId by mutableStateOf<Int?>(null)
     var supervisorUser by mutableStateOf<SupervisorIdentifierResponse?>(null)
 
-    // ── Device check (écran de démarrage) ──
-    var screen by mutableStateOf("deviceCheck")
-    var deviceChecking by mutableStateOf(true)
-    var deviceStatus by mutableStateOf<String?>(null)
-    var deviceError by mutableStateOf<String?>(null)
-
-    // Lance la vérification de l'appareil auprès du back, avec ré-essai automatique tant que le
-    // statut est "pending". Appelée depuis un LaunchedEffect(Unit) resté dans AppContent, pour
-    // que le cycle de vie de cette coroutine reste lié à la composition (comportement identique
-    // à l'ancien LaunchedEffect(Unit) de App.kt).
-    suspend fun checkDeviceLoop() {
-        val id = getDeviceId()
-        ApiClient.deviceId = id
-
-        suspend fun checkDevice(): Boolean {
-            try {
-                val verification = ApiClient.verifyDevice(id)
-                when (verification.status) {
-                    "approved" -> {
-                        deviceStatus = "approved"
-                        screen = "home"
-                        return true
-                    }
-                    "rejected" -> {
-                        deviceStatus = "rejected"
-                        screen = "deviceLocked"
-                        return true
-                    }
-                    "pending" -> {
-                        deviceStatus = "pending"
-                        screen = "deviceLocked"
-                        return false
-                    }
-                    null -> {
-                        ApiClient.registerDevice(id, "Tablette SDP")
-                        delay(1000)
-                        val retry = ApiClient.verifyDevice(id)
-                        when (retry.status) {
-                            "approved" -> {
-                                deviceStatus = "approved"
-                                screen = "home"
-                                return true
-                            }
-                            else -> {
-                                deviceStatus = retry.status
-                                screen = "deviceLocked"
-                                return false
-                            }
-                        }
-                    }
-                    else -> return false
-                }
-            } catch (e: Exception) {
-                deviceError = e.message
-                deviceStatus = "approved"
-                screen = "home"
-                return true
-            }
-        }
-
-        deviceChecking = false
-        var done = checkDevice()
-        while (!done) {
-            delay(10000)
-            done = checkDevice()
-        }
-    }
+    var screen by mutableStateOf("home")
 
     // Charge le catalogue d'ingrédients depuis le back, filtré sur le coffret sélectionné
-    // (`selectedBoxSet`). Appelée depuis un LaunchedEffect(catalogReloadKey, selectedBoxSet)
+    // (`selectedBoxSetId`). Appelée depuis un LaunchedEffect(catalogReloadKey, selectedBoxSetId)
     // resté dans AppContent (voir note de design en tête de fichier) : le catalogue doit être
-    // rechargé aussi bien sur un retry manuel (catalogReloadKey) que sur un changement de
-    // coffret.
+    // rechargé aussi bien sur un retry manuel (catalogReloadKey) que sur un changement d'atelier.
     //
-    // Les boosters n'appartiennent à aucun coffret côté back (box_sets = null en base) : le
-    // filtre `?box_set=...` les exclut donc systématiquement de l'appel ci-dessus, quel que soit
-    // le coffret choisi. On les récupère via un second appel non filtré, dont on ne garde que les
-    // items type="booster" (les autres familles restent celles de l'appel filtré, pour ne pas
-    // proposer de notes hors coffret par erreur).
+    // Le back inclut déjà les boosters (coffret_id = null en base) dans toute réponse filtrée par
+    // coffret_id, pas besoin d'un second appel pour les récupérer séparément.
     suspend fun loadIngredients(strings: Strings) {
         catalogError = null
         try {
-            val filtered = ApiClient.fetchIngredients(boxSet = selectedBoxSet)
-            val boosters = ApiClient.fetchIngredients(boxSet = null).filter { it.type == "booster" }
-            ingredients = filtered + boosters
+            ingredients = ApiClient.fetchIngredients(coffretId = selectedBoxSetId)
         } catch (e: Exception) {
             catalogError = e.message ?: strings.networkError
         }
@@ -294,20 +235,20 @@ class FormViewModel(private val scope: CoroutineScope) {
     }
 
     // Charge les bornes min/max de notes par famille pour la taille de flacon (`quantity`) et le
-    // coffret (`selectedBoxSet`) actuellement choisis. Appelée avec `loadIngredients` (mêmes
+    // coffret (`selectedBoxSetId`) actuellement choisis. Appelée avec `loadIngredients` (mêmes
     // dépendances : coffret + rechargement de catalogue). Échec silencieux : si les règles ne
     // peuvent pas être chargées, on ne bloque pas le parcours (`noteCountBounds` reste `null` et
     // `validateNoteCounts` laisse alors passer sans contrainte).
     private suspend fun loadNoteCountBounds() {
         val bottleSize = quantity.takeIf { it.isNotBlank() && it.endsWith("ml") }
         try {
-            val rules = ApiClient.fetchNoteCountRules(bottleSize = bottleSize, boxSet = selectedBoxSet)
+            val rules = ApiClient.fetchNoteCountRules(bottleSize = bottleSize, boxSetId = selectedBoxSetId)
             noteCountBounds = rules.toNoteCountBounds()
         } catch (_: Exception) {
             noteCountBounds = null
         }
         try {
-            ingredientRules = ApiClient.fetchIngredientRules(bottleSize = bottleSize, boxSet = selectedBoxSet)
+            ingredientRules = ApiClient.fetchIngredientRules(bottleSize = bottleSize, boxSetId = selectedBoxSetId)
         } catch (_: Exception) {
             // Échec silencieux, comme pour noteCountBounds : si les règles ne peuvent pas être
             // chargées, on ne bloque pas le parcours, on n'affiche simplement aucune alerte.
@@ -357,10 +298,6 @@ class FormViewModel(private val scope: CoroutineScope) {
     // true (et vide `noteCountError`) si tout est valide ou si aucune borne n'est connue.
     fun validateNoteCounts(strings: Strings): Boolean {
         val bounds = noteCountBounds
-        if (bounds == null) {
-            noteCountError = null
-            return true
-        }
 
         fun checkFamily(count: Int, min: Int?, max: Int?, familyName: String): String? = when {
             min != null && count < min -> strings.noteCountTooFew(familyName, min)
@@ -368,44 +305,82 @@ class FormViewModel(private val scope: CoroutineScope) {
             else -> null
         }
 
-        val error = checkFamily(selectedTopNotes.size, bounds.minTop, bounds.maxTop, strings.topNotesName)
-            ?: checkFamily(selectedHeartNotes.size, bounds.minHeart, bounds.maxHeart, strings.heartNotesName)
-            ?: checkFamily(selectedBaseNotes.size, bounds.minBase, bounds.maxBase, strings.baseNotesName)
+        // Boosters : bornes UI fixes (1 à 2), indépendantes des règles serveur (`bounds`), donc
+        // vérifiées même si celles-ci n'ont pas pu être chargées.
+        val error = (if (bounds != null) {
+            checkFamily(selectedTopNotes.size, bounds.minTop, bounds.maxTop, strings.topNotesName)
+                ?: checkFamily(selectedHeartNotes.size, bounds.minHeart, bounds.maxHeart, strings.heartNotesName)
+                ?: checkFamily(selectedBaseNotes.size, bounds.minBase, bounds.maxBase, strings.baseNotesName)
+        } else null)
+            ?: checkFamily(selectedBoosterNotes.size, 1, 2, strings.boosterNotesName)
 
         noteCountError = error
         return error == null
     }
 
-    // ── Liste des coffrets disponibles (écran affiché juste après "Commencer") ──
-    // "Classic" est volontairement masqué de cet écran (coffret non proposé au choix ici).
-    fun loadBoxSets(strings: Strings) {
-        boxSetsLoading = true
-        boxSetsError = null
+    // ── Liste des ateliers disponibles (écran affiché après le questionnaire) ──
+    fun loadAteliers(strings: Strings) {
+        ateliersLoading = true
+        ateliersError = null
         scope.launch {
             try {
-                boxSets = ApiClient.fetchBoxSets().filterNot { it.name.equals("Classic", ignoreCase = true) }
+                ateliers = ApiClient.fetchAteliers()
             } catch (e: Exception) {
-                boxSetsError = e.message ?: strings.networkError
+                ateliersError = e.message ?: strings.networkError
             } finally {
-                boxSetsLoading = false
+                ateliersLoading = false
             }
         }
     }
 
-    // Sélectionne le coffret, force un rechargement du catalogue de notes filtré dessus, et
-    // avance vers la suite du parcours (accountCheck).
-    fun chooseBoxSet(boxSetName: String) {
-        selectedBoxSet = boxSetName
+    // ── "Recommencer à partir d'une formule" : charge la liste des ateliers puis resélectionne
+    // automatiquement celui de la formule d'origine (mémorisé dans preselectedAtelierId), sans
+    // jamais afficher l'écran de choix. Si l'atelier n'existe plus (désactivé/supprimé côté
+    // back), on retombe sur l'écran de choix normal plutôt que de bloquer le parcours. ──
+    fun loadAteliersThenResume(atelierId: Int, languageCode: String, strings: Strings) {
+        ateliersLoading = true
+        ateliersError = null
+        scope.launch {
+            try {
+                val result = ApiClient.fetchAteliers()
+                ateliers = result
+                val atelier = result.find { it.id == atelierId }
+                if (atelier != null) {
+                    chooseAtelier(atelier, languageCode)
+                } else {
+                    screen = "atelierChoice"
+                }
+            } catch (e: Exception) {
+                ateliersError = e.message ?: strings.networkError
+                screen = "atelierChoice"
+            } finally {
+                ateliersLoading = false
+            }
+        }
+    }
+
+    // Sélectionne l'atelier, ce qui détermine le coffret (notes proposées) et le volume de
+    // flacon (plus de choix de taille dans le questionnaire), force un rechargement du catalogue
+    // de notes filtré dessus, et avance vers la suite du parcours (pyramidExplanation).
+    fun chooseAtelier(atelier: AtelierItem, languageCode: String) {
+        selectedAtelierId = atelier.id
+        preselectedAtelierId = null
+        selectedBoxSetId = atelier.coffretId
+        selectedBoxSetName = atelier.displayName(languageCode)
+        quantity = atelier.volumeMl?.let { "${it}ml" } ?: ""
         catalogReloadKey++
-        screen = "accountCheck"
+        screen = "pyramidExplanation"
     }
 
     // ── Réinitialisation complète du parcours (retour à l'accueil) ──
     fun resetAll() {
         screen = "home"
-        selectedBoxSet = null
-        boxSets = null
-        boxSetsError = null
+        selectedAtelierId = null
+        preselectedAtelierId = null
+        selectedBoxSetId = null
+        selectedBoxSetName = null
+        ateliers = null
+        ateliersError = null
         gender = ""
         firstName = ""
         lastName = ""
@@ -453,8 +428,6 @@ class FormViewModel(private val scope: CoroutineScope) {
         selectedFormulaDetail = null
         isLoadingDetail = false
         detailError = null
-        isReusing = false
-        reuseCountResult = null
         val sid = currentSessionId
         currentSessionId = null
         if (sid != null) {
@@ -482,9 +455,9 @@ class FormViewModel(private val scope: CoroutineScope) {
         lastName = customer.lastName ?: ""
         email = searchEmail.ifBlank { email }
         phone = searchPhone.ifBlank { phone }
-        // Démarre directement à la question légale (index 2) : les pages "Vos informations"
-        // (index 0) et "Coordonnées" (index 1) ne sont jamais posées pour un client déjà connu.
-        currentQuestion = 2
+        // Démarre directement à la question légale (index 1) : la page "Vos informations"
+        // (index 0) n'est jamais posée pour un client déjà connu.
+        currentQuestion = 1
         screen = "questionnaire"
         scope.launch {
             try {
@@ -525,21 +498,21 @@ class FormViewModel(private val scope: CoroutineScope) {
         }
     }
 
-    fun confirmReuseFormula(formulaId: Int, strings: Strings) {
-        if (isReusing) return
-        isReusing = true
-        scope.launch {
-            try {
-                val result = ApiClient.reuseFormula(formulaId)
-                reuseCountResult = result.reuseCount
-                selectedFormulaDetail = null
-                screen = "reuseSuccess"
-            } catch (e: Exception) {
-                detailError = e.message ?: strings.networkError
-            } finally {
-                isReusing = false
-            }
-        }
+    // ── "Recommencer à partir d'une formule" : démarre le questionnaire pour ce client comme
+    // pour toute nouvelle formule (startQuestionnaireForExistingCustomer), mais pré-sélectionne
+    // les notes de la formule choisie. L'utilisateur reste libre de les ajuster à l'étape
+    // "notesDetail" avant de valider — ce n'est pas une duplication telle quelle côté serveur.
+    // L'atelier d'origine (formula.atelierId) est mémorisé dans preselectedAtelierId : une fois le
+    // questionnaire terminé, App.kt le resélectionne automatiquement sans repasser par l'écran de
+    // choix d'atelier, puisque c'est le même coffret/volume qu'on reprend. ──
+    fun startQuestionnaireFromFormula(customer: CustomerSearchResult, formula: FormulaDetail) {
+        selectedTopNotes = formula.topNotes.map { it.name }.toSet()
+        selectedHeartNotes = formula.heartNotes.map { it.name }.toSet()
+        selectedBaseNotes = formula.baseNotes.map { it.name }.toSet()
+        selectedBoosterNotes = formula.boosterNotes.map { it.name }.toSet()
+        preselectedAtelierId = formula.atelierId
+        selectedFormulaDetail = null
+        startQuestionnaireForExistingCustomer(customer)
     }
 
     // "50ml" -> 50.0 ; valeur vide ou non numérique -> null
@@ -547,12 +520,16 @@ class FormViewModel(private val scope: CoroutineScope) {
         rawQuantity.removeSuffix("ml").trim().toDoubleOrNull()
 
     // ── Dosage IA des notes sélectionnées ──
+    // Le volume total du flacon (`quantity`) inclut le volume déjà réservé aux boosters (fixe,
+    // non dosé par l'IA) : on le soustrait avant l'appel pour que l'IA répartisse le volume
+    // réellement disponible entre tête/cœur/fond, qu'il reste 1 ou 2 boosters choisis.
     fun suggestNoteQuantities(strings: Strings) {
         val totalVolumeMl = parseVolumeMl(quantity)
         if (totalVolumeMl == null || totalVolumeMl <= 0.0) {
             // Pas de volume exploitable : on laisse la saisie manuelle.
             return
         }
+        val volumeForNotesMl = totalVolumeMl - selectedBoosterNotes.size * BOOSTER_QUANTITY_ML
         if (isSuggestingQuantities) return
         isSuggestingQuantities = true
         suggestQuantitiesError = null
@@ -564,7 +541,7 @@ class FormViewModel(private val scope: CoroutineScope) {
                         heartNotes = selectedHeartNotes.toList(),
                         baseNotes = selectedBaseNotes.toList(),
                         intensity = perfumeIntensity,
-                        totalVolumeMl = totalVolumeMl
+                        totalVolumeMl = volumeForNotesMl
                     )
                 )
                 topNoteQuantities = response.topNotes.associate { it.name to it.quantityMl.toString() }
@@ -649,19 +626,24 @@ class FormViewModel(private val scope: CoroutineScope) {
                     liabilityAccepted = when (liabilityAnswer) { "Oui" -> true; "Non" -> false; else -> null },
                     rgpdConsent = rgpdAnswer == "Oui",
                     quantity = quantity.ifBlank { null },
+                    atelierId = selectedAtelierId,
+                    atelierName = selectedBoxSetName,
                     perfumeName = perfumeName.trim().ifBlank { null },
                     perfumeIntensity = perfumeIntensity.ifBlank { null },
                     supervisorId = supervisorUser?.id,
                     topNotes = selectedTopNotes.map { TabletNote(name = it, quantity = topNoteQuantities[it]?.ifBlank { null }) },
                     heartNotes = selectedHeartNotes.map { TabletNote(name = it, quantity = heartNoteQuantities[it]?.ifBlank { null }) },
                     baseNotes = selectedBaseNotes.map { TabletNote(name = it, quantity = baseNoteQuantities[it]?.ifBlank { null }) },
-                    boosterNotes = selectedBoosterNotes.map { TabletNote(name = it, quantity = "5") }
+                    boosterNotes = selectedBoosterNotes.map { TabletNote(name = it, quantity = BOOSTER_QUANTITY_ML.toInt().toString()) }
                 )
                 submissionResult = ApiClient.submitForm(submission)
                 currentSessionId?.let { sid ->
                     try { ApiClient.completeSession(sid) } catch (_: Exception) {}
                 }
                 currentSessionId = null
+                // Envoi automatique de la pyramide olfactive par email : échec silencieux,
+                // ne doit jamais bloquer le parcours client (formule déjà enregistrée).
+                try { ApiClient.sendFormulaEmail(submissionResult!!.formulaId) } catch (_: Exception) {}
                 screen = "success"
             } catch (e: Exception) {
                 submitError = strings.submitGenericError

@@ -656,6 +656,7 @@ fun SupervisorNotesPickerScreen(
                             rowNotes.forEach { note ->
                                 SupervisorNoteChip(
                                     name = note.name,
+                                    code = note.code,
                                     isSelected = note.name in selected,
                                     onClick = {
                                         onSelect(
@@ -681,6 +682,7 @@ fun SupervisorNotesPickerScreen(
 @Composable
 fun SupervisorNoteChip(
     name: String,
+    code: String? = null,
     isSelected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -709,7 +711,7 @@ fun SupervisorNoteChip(
                 Spacer(Modifier.width(4.dp))
             }
             Text(
-                text = name,
+                text = if (code.isNullOrBlank()) name else "$code — $name",
                 fontSize = 13.sp,
                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                 color = if (isSelected) Color(0xFFE5851A) else OnSurface,

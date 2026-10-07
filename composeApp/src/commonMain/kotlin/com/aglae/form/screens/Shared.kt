@@ -343,35 +343,6 @@ fun QuestionScreenScaffold(
             }
 
             content()
-
-            Spacer(modifier = Modifier.height(48.dp))
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.widthIn(max = 320.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(1.dp)
-                        .background(QuestionOnSurfaceVariant.copy(alpha = 0.3f))
-                )
-                Text(
-                    text = "Studio des parfums",
-                    fontFamily = questionBodyFont(),
-                    color = QuestionOnSurfaceVariant,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = 2.sp
-                )
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(1.dp)
-                        .background(QuestionOnSurfaceVariant.copy(alpha = 0.3f))
-                )
-            }
         }
 
         if (onBack != null) {

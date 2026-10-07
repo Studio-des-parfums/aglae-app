@@ -27,13 +27,14 @@ object StringsEn : Strings {
     override val supervisorDialogInvalidCode = "Invalid identifier"
     override val supervisorDialogConnectionError = "Connection error"
 
-    override val boxSetTitle = "Choose your box set"
-    override val boxSetSubtitle = "The notes offered next will depend on the box set you select."
-    override val boxSetLoadErrorPrefix = "Error: "
-    override val boxSetEmpty = "No box set available right now."
-    override fun boxSetIngredientCount(count: Int) = if (count == 1) "1 note" else "$count notes"
+    override val atelierTitle = "Choose your workshop"
+    override val atelierSubtitle = "The notes offered next will depend on the workshop you select."
+    override val atelierLoadErrorPrefix = "Error: "
+    override val atelierEmpty = "No workshop available right now."
 
     override val accountCheckTitle = "Do you already have a formula with us?"
+    override val accountCheckYes = "Yes, I already have a formula"
+    override val accountCheckNo = "No, this is my first time"
 
     override val contactSearchTitle = "Let's find your formula"
     override val contactSearchSubtitle = "Enter your email or your phone number"
@@ -54,7 +55,7 @@ object StringsEn : Strings {
 
     override val formulaChoiceTitle = "What would you like to do?"
     override val formulaChoiceNew = "Create a new formula"
-    override val formulaChoiceReuse = "Reuse an existing formula"
+    override val formulaChoiceReuse = "Start again from a formula"
 
     override val formulaHistoryTitle = "Your formulas"
     override val formulaHistoryLoadError = "Unable to load your formulas.\nCheck your connection to the server."
@@ -66,14 +67,7 @@ object StringsEn : Strings {
     override val formulaDetailErrorPrefix = "Error: "
     override fun formulaDetailCreatedOn(date: String) = "Created on $date"
     override fun formulaDetailQuantity(quantity: String) = "Quantity: $quantity"
-    override fun formulaDetailReusedOnce() = "Already reused 1 time"
-    override fun formulaDetailReusedTimes(count: Int) = "Already reused $count times"
-    override val formulaDetailUseFormula = "Use this formula"
-
-    override val reuseSuccessTitle = "Got it!"
-    override val reuseSuccessMessage = "Your usual formula will be prepared by our team."
-    override fun reuseSuccessMessageWithCount(count: Int) =
-        "Your usual formula will be prepared by our team.\nYou have now used it $count times."
+    override val formulaDetailUseFormula = "Start again from this formula"
 
     override fun questionCounter(current: Int, total: Int) = "Question $current/$total"
     override val questionIdentityTitle = "Your information"
@@ -83,11 +77,12 @@ object StringsEn : Strings {
     override val questionGenderTitle = "What is your gender?"
     override val genderMale = "Male"
     override val genderFemale = "Female"
-    override val genderUnspecified = "Prefer not to say"
+    override val genderChild = "Child"
     override val questionNameTitle = "What is your first and last name?"
     override val firstNameLabel = "First name"
     override val lastNameLabel = "Last name"
     override val questionBirthDateTitle = "What is your date of birth?"
+    override val birthDateLabel = "Date of birth"
     override val dayLabel = "Day"
     override val monthLabel = "Month"
     override val yearLabel = "Year"
@@ -109,7 +104,6 @@ object StringsEn : Strings {
     override val allergyQuestion = "Do you have any fragrance-related or skin allergies?"
     override val liabilityQuestion = "If so, would you like to proceed by waiving our liability?"
     override val rgpdQuestion = "Under GDPR, may we keep your formula on file?"
-    override val questionQuantityTitle = "Before we start, choose the desired quantity"
     override val questionnaireChooseNotes = "Choose my notes"
 
     override val notesSelectionTitle = "Choose your notes"
@@ -134,6 +128,8 @@ object StringsEn : Strings {
         "$familyName: choose at least $min."
     override fun noteCountTooMany(familyName: String, max: Int) =
         "$familyName: choose at most $max."
+    override fun noteCountTooManyRemove(familyName: String, max: Int, count: Int) =
+        "$familyName: you have $count notes, maximum $max. Remove ${count - max} note(s) before confirming."
     override fun noteCountExactly(count: Int) = "$count note(s) to choose"
     override fun noteCountBetween(min: Int, max: Int) = "Between $min and $max notes"
     override fun noteCountAtLeast(min: Int) = "At least $min note(s)"
@@ -178,13 +174,6 @@ object StringsEn : Strings {
     override val successMessageNew = "Your formula has been successfully saved."
     override val successMessageExisting = "Your formula has been successfully saved\nand added to your existing profile."
 
-    override val deviceCheckingTitle = "Checking device..."
-    override val deviceRejectedTitle = "Unauthorized device"
-    override val deviceRejectedMessage = "This device has been disabled.\nContact your administrator."
-    override val devicePendingTitle = "Awaiting approval"
-    override val devicePendingMessage = "Your device is awaiting approval by an administrator.\nPlease try again later."
-    override val deviceErrorTitle = "Connection error"
-    override val deviceErrorMessage = "Unable to reach the server.\nCheck your connection."
 
     override val languageSelectorContentDescription = "Change language"
 }
