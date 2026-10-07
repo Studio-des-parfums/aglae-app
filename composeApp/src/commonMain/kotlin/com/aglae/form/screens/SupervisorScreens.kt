@@ -41,6 +41,8 @@ import com.aglae.form.Surface
 import com.aglae.form.i18n.LocalLanguage
 import com.aglae.form.network.AnswerEntry
 import com.aglae.form.network.ApiClient
+import com.aglae.form.network.AtelierItem
+import com.aglae.form.network.displayName
 import com.aglae.form.network.IngredientItem
 import com.aglae.form.network.NoteItem
 import com.aglae.form.network.NotesCatalog
@@ -283,6 +285,9 @@ fun SupervisorSessionDetailScreen(
     var notesPickerSection by remember { mutableStateOf<String?>(null) }
     var notesPickerSelected by remember { mutableStateOf<Set<String>>(emptySet()) }
 
+    // Navigation interne pour le sélecteur d'atelier
+    var atelierPickerOpen by remember { mutableStateOf(false) }
+
     fun load() {
         scope.launch {
             isLoading = true
@@ -331,6 +336,29 @@ fun SupervisorSessionDetailScreen(
                 notesPickerSection = null
             },
             onBack = { notesPickerSection = null }
+        )
+        return
+    }
+
+    if (atelierPickerOpen) {
+        val currentAtelierId = answers.find { it.questionKey == "atelierId" }?.answerValue?.toIntOrNull()
+        SupervisorAtelierPickerScreen(
+            selectedAtelierId = currentAtelierId,
+            onSave = { atelier ->
+                val value = atelier.id.toString()
+                scope.launch {
+                    try {
+                        ApiClient.updateSingleAnswer(sessionId, "atelierId", value)
+                        answers = if (answers.any { it.questionKey == "atelierId" }) {
+                            answers.map { if (it.questionKey == "atelierId") it.copy(answerValue = value) else it }
+                        } else {
+                            answers + AnswerEntry(questionKey = "atelierId", answerValue = value)
+                        }
+                    } catch (_: Exception) {}
+                }
+                atelierPickerOpen = false
+            },
+            onBack = { atelierPickerOpen = false }
         )
         return
     }
@@ -413,11 +441,19 @@ fun SupervisorSessionDetailScreen(
 
                     Text("Reponses", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = OnSurface)
 
+                    // L'atelier peut être modifié même avant que le client n'ait atteint cette
+                    // étape du questionnaire (pas encore de ligne "atelierId" dans answers).
+                    AtelierAnswerCard(
+                        answerValue = answers.find { it.questionKey == "atelierId" }?.answerValue,
+                        onEdit = { atelierPickerOpen = true }
+                    )
+
                     if (answers.isEmpty()) {
                         Text("En attente des reponses...", color = OnSurfaceVariant, fontStyle = FontStyle.Italic)
                     } else {
                         answers.forEach { entry ->
                             when {
+                                entry.questionKey == "atelierId" -> {}
                                 entry.questionKey in noteFields -> {
                                     NoteAnswerCard(
                                         questionKey = entry.questionKey,
@@ -463,6 +499,145 @@ fun SupervisorSessionDetailScreen(
                                             }
                                         }
                                     )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    }
+}
+
+// ── Carte pour l'atelier (coffret) : toujours affichée, même sans réponse encore envoyée ──
+
+@Composable
+fun AtelierAnswerCard(
+    answerValue: String?,
+    onEdit: () -> Unit
+) {
+    Card(
+        shape = CardShape,
+        backgroundColor = Surface,
+        elevation = 1.dp,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Atelier",
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 13.sp,
+                    color = OnSurfaceVariant,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(onClick = onEdit, modifier = Modifier.size(24.dp)) {
+                    Icon(Icons.Filled.Edit, contentDescription = "Modifier", tint = Primary, modifier = Modifier.size(16.dp))
+                }
+            }
+            Text(
+                text = answerValue?.let { "Atelier #$it" } ?: "Pas encore choisi",
+                fontSize = 15.sp,
+                color = OnSurface,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+    }
+}
+
+// ── Sélecteur d'atelier (coffret) côté superviseur ──
+
+@Composable
+fun SupervisorAtelierPickerScreen(
+    selectedAtelierId: Int?,
+    onSave: (AtelierItem) -> Unit,
+    onBack: () -> Unit
+) {
+    val language = LocalLanguage.current
+    var ateliers by remember { mutableStateOf<List<AtelierItem>?>(null) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var reloadKey by remember { mutableStateOf(0) }
+
+    LaunchedEffect(reloadKey) {
+        error = null
+        try {
+            ateliers = ApiClient.fetchAteliers()
+        } catch (e: Exception) {
+            error = e.message ?: "Erreur reseau"
+        }
+    }
+
+    val (pickerFloatA, pickerFloatB, pickerDotAlpha) = rememberFloatingBackground()
+
+    Box(modifier = Modifier.fillMaxSize()) {
+    AtmosphericBackground(floatA = pickerFloatA, floatB = pickerFloatB, dotAlpha = pickerDotAlpha)
+    Column(modifier = Modifier.fillMaxSize()) {
+        Surface(modifier = Modifier.fillMaxWidth(), color = Surface, elevation = 0.dp) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour", tint = OnSurface)
+                }
+                Text("Atelier", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = OnSurface)
+            }
+        }
+
+        Divider(color = OutlineVariant, thickness = 0.5.dp)
+
+        when {
+            ateliers == null && error != null -> {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(error ?: "", color = OnSurfaceVariant, textAlign = TextAlign.Center)
+                        Spacer(Modifier.height(16.dp))
+                        Button(onClick = { reloadKey++ }, colors = ButtonDefaults.buttonColors(backgroundColor = Color.Transparent, contentColor = Color(0xFFE5851A))) {
+                            Text("Reessayer", color = Color(0xFFE5851A))
+                        }
+                    }
+                }
+            }
+            ateliers == null -> {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = Primary)
+                }
+            }
+            else -> {
+                Column(
+                    modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    ateliers?.forEach { atelier ->
+                        val isSelected = atelier.id == selectedAtelierId
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { onSave(atelier) },
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color.Transparent,
+                            border = BorderStroke(1.dp, if (isSelected) Color(0xFF221007) else OutlineVariant),
+                            elevation = 0.dp
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = atelier.displayName(language.code),
+                                    fontSize = 15.sp,
+                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                    color = if (isSelected) Color(0xFFE5851A) else OnSurface
+                                )
+                                if (isSelected) {
+                                    Icon(Icons.Default.Check, contentDescription = null, tint = Color(0xFFE5851A), modifier = Modifier.size(18.dp))
                                 }
                             }
                         }

@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.aglae.form.i18n.Strings
+import com.aglae.form.network.AnswerEntry
 import com.aglae.form.network.ApiClient
 import com.aglae.form.network.AtelierItem
 import com.aglae.form.network.CustomerSearchResult
@@ -374,6 +375,7 @@ class FormViewModel(private val scope: CoroutineScope) {
         selectedBoxSetName = atelier.displayName(languageCode)
         quantity = atelier.volumeMl?.let { "${it}ml" } ?: ""
         catalogReloadKey++
+        sendAnswer("atelierId", atelier.id.toString())
         screen = "pyramidExplanation"
     }
 
@@ -611,13 +613,71 @@ class FormViewModel(private val scope: CoroutineScope) {
         }
     }
 
+    // ── Resynchronisation depuis la session (mode superviseur) ──
+    // Le superviseur peut corriger n'importe quelle réponse pendant que le client remplit le
+    // questionnaire (voir SupervisorSessionDetailScreen), mais ces corrections ne vivent que
+    // côté serveur (table session_answers) tant que le client ne les relit pas : l'état local du
+    // FormViewModel n'est jamais mis à jour automatiquement. On relit donc explicitement toutes
+    // les réponses de la session juste avant de construire la soumission finale, pour que toute
+    // correction du superviseur (atelier, notes, nom du parfum, etc.) soit bien celle envoyée au
+    // back, plutôt que l'état local potentiellement obsolète du client.
+    private suspend fun applySessionAnswers(sessionId: Int, languageCode: String) {
+        val detail = try { ApiClient.fetchSessionDetail(sessionId) } catch (_: Exception) { return }
+        val byKey = detail.answers.associateBy { it.questionKey }
+        fun value(key: String): String? = byKey[key]?.answerValue
+        fun csvToSet(raw: String?): Set<String>? =
+            raw?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() }?.toSet()
+        fun parseQuantities(raw: String?): Map<String, String>? =
+            raw?.split(",")?.mapNotNull { entry ->
+                val parts = entry.split(":", limit = 2)
+                if (parts.size == 2) parts[0].trim() to parts[1].trim() else null
+            }?.toMap()
+
+        value("gender")?.let { gender = it }
+        value("firstName")?.let { firstName = it }
+        value("lastName")?.let { lastName = it }
+        value("birthDay")?.let { day = it }
+        value("birthMonth")?.let { month = it }
+        value("birthYear")?.let { year = it }
+        value("profession")?.let { profession = it }
+        value("country")?.let { country = it }
+        value("city")?.let { city = it }
+        value("phone")?.let { phone = it }
+        value("email")?.let { email = it }
+        value("hasAllergy")?.let { allergyAnswer = it }
+        value("liabilityAccepted")?.let { liabilityAnswer = it }
+        value("rgpdConsent")?.let { rgpdAnswer = it }
+        value("perfumeIntensity")?.let { perfumeIntensity = it }
+        value("perfumeName")?.let { perfumeName = it }
+        csvToSet(value("topNotes"))?.let { selectedTopNotes = it }
+        csvToSet(value("heartNotes"))?.let { selectedHeartNotes = it }
+        csvToSet(value("baseNotes"))?.let { selectedBaseNotes = it }
+        csvToSet(value("boosterNotes"))?.let { selectedBoosterNotes = it }
+        parseQuantities(value("topNoteQuantities"))?.let { topNoteQuantities = it }
+        parseQuantities(value("heartNoteQuantities"))?.let { heartNoteQuantities = it }
+        parseQuantities(value("baseNoteQuantities"))?.let { baseNoteQuantities = it }
+
+        value("atelierId")?.toIntOrNull()?.let { atelierId ->
+            try {
+                val atelier = ApiClient.fetchAteliers().find { it.id == atelierId }
+                if (atelier != null) {
+                    selectedAtelierId = atelier.id
+                    selectedBoxSetId = atelier.coffretId
+                    selectedBoxSetName = atelier.displayName(languageCode)
+                    quantity = atelier.volumeMl?.let { "${it}ml" } ?: quantity
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
     // ── Soumission finale du formulaire ──
-    fun submitForm(strings: Strings) {
+    fun submitForm(strings: Strings, languageCode: String) {
         if (isSubmitting) return
         isSubmitting = true
         submitError = null
         scope.launch {
             try {
+                currentSessionId?.let { applySessionAnswers(it, languageCode) }
                 val submission = TabletSubmission(
                     gender = gender.ifBlank { null },
                     firstName = firstName.trim(),

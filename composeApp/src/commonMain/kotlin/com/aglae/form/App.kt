@@ -433,7 +433,7 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                     perfumeName = vm.perfumeName,
                     isSubmitting = vm.isSubmitting,
                     submitError = vm.submitError,
-                    onConfirm = { vm.submitForm(strings) },
+                    onConfirm = { vm.submitForm(strings, language.code) },
                     onBack = { vm.screen = "perfumeName" },
                     onGoHome = { vm.resetAll() }
                 )
