@@ -385,6 +385,7 @@ data class SessionItem(
     val id: Int,
     @SerialName("customer_name") val customerName: String? = null,
     @SerialName("customer_email") val customerEmail: String? = null,
+    val room: String? = null,
     val status: String = "active",
     @SerialName("started_at") val startedAt: String = "",
     @SerialName("updated_at") val updatedAt: String? = null,

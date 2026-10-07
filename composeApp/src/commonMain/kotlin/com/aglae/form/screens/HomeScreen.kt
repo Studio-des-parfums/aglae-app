@@ -6,9 +6,9 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -38,6 +38,8 @@ import androidx.compose.material.TextButton
 import androidx.compose.material.TextFieldDefaults
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.MeetingRoom
 import androidx.compose.material.icons.filled.SupervisorAccount
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.foundation.text.KeyboardOptions
@@ -65,13 +67,17 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.aglae.form.AVAILABLE_ROOMS
 import com.aglae.form.OnPrimary
 import com.aglae.form.OnSurface
 import com.aglae.form.OnSurfaceVariant
 import com.aglae.form.OutlineVariant
+import com.aglae.form.PillShape
 import com.aglae.form.Primary
 import com.aglae.form.Surface
 import com.aglae.form.XlShape
+import com.aglae.form.getAssignedRoom
+import com.aglae.form.setAssignedRoom
 import com.aglae.form.i18n.Language
 import com.aglae.form.i18n.LanguageSelector
 import com.aglae.form.i18n.LocalStrings
@@ -96,6 +102,61 @@ fun HomeScreen(
 ) {
     val strings = LocalStrings.current
     val scope = rememberCoroutineScope()
+
+    var assignedRoom by remember { mutableStateOf(getAssignedRoom()) }
+    var showRoomDialog by remember { mutableStateOf(false) }
+
+    if (showRoomDialog) {
+        Dialog(onDismissRequest = { showRoomDialog = false }) {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = Surface,
+                elevation = 24.dp
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "Salle de cette tablette",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = OnSurface
+                    )
+                    AVAILABLE_ROOMS.forEach { room ->
+                        val isSelected = room == assignedRoom
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isSelected) Primary.copy(alpha = 0.12f) else Color.Transparent,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    assignedRoom = room
+                                    setAssignedRoom(room)
+                                    showRoomDialog = false
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = room,
+                                    fontSize = 16.sp,
+                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                    color = if (isSelected) Primary else OnSurface
+                                )
+                                if (isSelected) {
+                                    Icon(Icons.Filled.Check, contentDescription = null, tint = Primary, modifier = Modifier.size(20.dp))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     var showSupervisorDialog by remember { mutableStateOf(false) }
     var supervisorCode by remember { mutableStateOf("") }
@@ -192,21 +253,23 @@ fun HomeScreen(
                                 }
                             },
                             enabled = supervisorCode.isNotBlank() && !isVerifying,
-                            border = BorderStroke(1.dp, Color(0xFF221007)),
                             colors = ButtonDefaults.buttonColors(
-                                backgroundColor = Color.Transparent,
-                                contentColor = Color(0xFFE5851A)
+                                backgroundColor = Primary,
+                                contentColor = OnPrimary,
+                                disabledBackgroundColor = Primary.copy(alpha = 0.4f),
+                                disabledContentColor = OnPrimary.copy(alpha = 0.7f)
                             ),
-                            shape = RoundedCornerShape(12.dp)
+                            elevation = ButtonDefaults.elevation(defaultElevation = 0.dp, pressedElevation = 0.dp),
+                            shape = PillShape
                         ) {
                             if (isVerifying) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(20.dp),
-                                    color = Color(0xFFE5851A),
+                                    color = OnPrimary,
                                     strokeWidth = 2.dp
                                 )
                             } else {
-                                Text(strings.validate)
+                                Text(strings.validate, fontWeight = FontWeight.SemiBold)
                             }
                         }
                     }
@@ -278,6 +341,17 @@ fun HomeScreen(
                 Icon(
                     imageVector = Icons.Filled.Settings,
                     contentDescription = "Réglages imprimante",
+                    tint = Primary,
+                    modifier = Modifier.size(32.dp)
+                )
+            }
+            IconButton(
+                onClick = { showRoomDialog = true },
+                modifier = Modifier.size(48.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.MeetingRoom,
+                    contentDescription = "Salle : $assignedRoom",
                     tint = Primary,
                     modifier = Modifier.size(32.dp)
                 )

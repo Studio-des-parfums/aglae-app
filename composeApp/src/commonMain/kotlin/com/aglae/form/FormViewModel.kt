@@ -451,7 +451,7 @@ class FormViewModel(private val scope: CoroutineScope) {
         screen = "questionnaire"
         scope.launch {
             try {
-                val resp = ApiClient.createSession(null, null)
+                val resp = ApiClient.createSession(null, null, getAssignedRoom())
                 currentSessionId = resp.sessionId
             } catch (_: Exception) {}
         }
@@ -471,7 +471,8 @@ class FormViewModel(private val scope: CoroutineScope) {
             try {
                 val resp = ApiClient.createSession(
                     customerName = "${customer.firstName ?: ""} ${customer.lastName ?: ""}".trim().ifBlank { null },
-                    customerEmail = email.ifBlank { null }
+                    customerEmail = email.ifBlank { null },
+                    room = getAssignedRoom()
                 )
                 currentSessionId = resp.sessionId
             } catch (_: Exception) {}

@@ -7,7 +7,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.*
@@ -27,6 +29,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.aglae.form.AVAILABLE_ROOMS
 import com.aglae.form.CardShape
 import com.aglae.form.OnPrimary
 import com.aglae.form.OnSecondaryContainer
@@ -35,7 +38,7 @@ import com.aglae.form.OnSurfaceVariant
 import com.aglae.form.Outline
 import com.aglae.form.OutlineVariant
 import com.aglae.form.Primary
-import com.aglae.form.PrimaryFixed
+import com.aglae.form.PillShape
 import com.aglae.form.SecondaryContainer
 import com.aglae.form.Surface
 import com.aglae.form.i18n.LocalLanguage
@@ -66,13 +69,15 @@ fun SupervisorHomeScreen(
     var sessions by remember { mutableStateOf<List<SessionItem>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
+    // null = toutes les salles confondues.
+    var selectedRoom by remember { mutableStateOf<String?>(null) }
 
     fun load() {
         scope.launch {
             isLoading = true
             error = null
             try {
-                sessions = ApiClient.fetchActiveSessions()
+                sessions = ApiClient.fetchActiveSessions(selectedRoom)
             } catch (e: Exception) {
                 error = e.message ?: "Erreur reseau"
             } finally {
@@ -81,7 +86,7 @@ fun SupervisorHomeScreen(
         }
     }
 
-    LaunchedEffect(Unit) { load() }
+    LaunchedEffect(selectedRoom) { load() }
 
     val (floatA, floatB, dotAlpha) = rememberFloatingBackground()
 
@@ -114,6 +119,27 @@ fun SupervisorHomeScreen(
             }
         }
 
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            RoomFilterChip(
+                label = "Toutes",
+                isSelected = selectedRoom == null,
+                onClick = { selectedRoom = null }
+            )
+            AVAILABLE_ROOMS.forEach { room ->
+                RoomFilterChip(
+                    label = room,
+                    isSelected = selectedRoom == room,
+                    onClick = { selectedRoom = room }
+                )
+            }
+        }
+
         Divider(color = OutlineVariant, thickness = 0.5.dp)
 
         when {
@@ -130,9 +156,7 @@ fun SupervisorHomeScreen(
                 ) {
                     Text(error ?: "", color = OnSurfaceVariant, textAlign = TextAlign.Center)
                     Spacer(Modifier.height(16.dp))
-                    Button(onClick = { load() }, colors = ButtonDefaults.buttonColors(backgroundColor = Color.Transparent, contentColor = Color(0xFFE5851A))) {
-                        Text("Reessayer", color = Color(0xFFE5851A))
-                    }
+                    RetryButton(onClick = { load() })
                 }
             }
             sessions.isEmpty() -> {
@@ -188,41 +212,39 @@ fun SessionCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(CardShape)
             .clickable(onClick = onClick),
         shape = CardShape,
-        backgroundColor = if (isMine) PrimaryFixed.copy(alpha = 0.3f) else Surface,
-        elevation = 2.dp,
-        border = if (isMine) BorderStroke(2.dp, Primary) else null
+        backgroundColor = if (isMine) Primary.copy(alpha = 0.10f) else Surface,
+        elevation = if (isMine) 0.dp else 1.dp,
+        border = BorderStroke(1.dp, if (isMine) Primary else OutlineVariant)
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Icon(
-                    Icons.Filled.SupervisorAccount,
-                    contentDescription = null,
-                    tint = Primary,
-                    modifier = Modifier.size(32.dp)
-                )
-                if (isMine) {
-                    Text(
-                        text = "Moi",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Primary
-                    )
-                } else if (isAssigned) {
-                    Text(
-                        text = session.supervisorName ?: "",
-                        fontSize = 11.sp,
-                        color = OnSurfaceVariant,
-                        fontStyle = FontStyle.Italic
-                    )
+                Surface(
+                    shape = CircleShape,
+                    color = Primary.copy(alpha = 0.12f),
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Filled.SupervisorAccount,
+                            contentDescription = null,
+                            tint = Primary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+                when {
+                    isMine -> StatusPill(text = "Moi", color = Primary)
+                    isAssigned -> StatusPill(text = session.supervisorName ?: "", color = Outline)
                 }
             }
             Text(
@@ -249,22 +271,78 @@ fun SessionCard(
             )
             if (!isAssigned && onAssign != null) {
                 Button(
-                    onClick = {
-                        onAssign()
-                    },
+                    onClick = onAssign,
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.dp, Color(0xFF221007)),
+                    shape = PillShape,
                     colors = ButtonDefaults.buttonColors(
-                        backgroundColor = Color.Transparent,
-                        contentColor = Color(0xFFE5851A),
+                        backgroundColor = Primary,
+                        contentColor = OnPrimary,
                     ),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                    elevation = ButtonDefaults.elevation(defaultElevation = 0.dp, pressedElevation = 0.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                 ) {
-                    Text("Prendre en charge", fontSize = 12.sp)
+                    Text("Prendre en charge", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
+    }
+}
+
+// ── Petit badge de statut (pill) réutilisé sur les cartes de session ──
+@Composable
+fun StatusPill(text: String, color: Color) {
+    if (text.isBlank()) return
+    Surface(
+        shape = PillShape,
+        color = color.copy(alpha = 0.12f),
+        modifier = Modifier.clip(PillShape)
+    ) {
+        Text(
+            text = text,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = color,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+        )
+    }
+}
+
+// ── Chip de filtre par salle, en haut de la liste des sessions ──
+@Composable
+fun RoomFilterChip(label: String, isSelected: Boolean, onClick: () -> Unit) {
+    Surface(
+        shape = PillShape,
+        color = if (isSelected) Primary else Color.Transparent,
+        border = BorderStroke(1.dp, if (isSelected) Primary else OutlineVariant),
+        modifier = Modifier.clip(PillShape).clickable(onClick = onClick)
+    ) {
+        Text(
+            text = label,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = if (isSelected) OnPrimary else OnSurfaceVariant,
+            maxLines = 1,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        )
+    }
+}
+
+// ── Bouton "Reessayer" réutilisé sur les écrans superviseur en erreur ──
+@Composable
+fun RetryButton(onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        shape = PillShape,
+        colors = ButtonDefaults.buttonColors(
+            backgroundColor = Primary,
+            contentColor = OnPrimary,
+        ),
+        elevation = ButtonDefaults.elevation(defaultElevation = 0.dp, pressedElevation = 0.dp),
+        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 10.dp)
+    ) {
+        Text("Réessayer", fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -410,9 +488,7 @@ fun SupervisorSessionDetailScreen(
                 ) {
                     Text(error ?: "", color = OnSurfaceVariant, textAlign = TextAlign.Center)
                     Spacer(Modifier.height(16.dp))
-                    Button(onClick = { load() }, colors = ButtonDefaults.buttonColors(backgroundColor = Color.Transparent, contentColor = Color(0xFFE5851A))) {
-                        Text("Reessayer", color = Color(0xFFE5851A))
-                    }
+                    RetryButton(onClick = { load() })
                 }
             }
             else -> {
@@ -597,9 +673,7 @@ fun SupervisorAtelierPickerScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(error ?: "", color = OnSurfaceVariant, textAlign = TextAlign.Center)
                         Spacer(Modifier.height(16.dp))
-                        Button(onClick = { reloadKey++ }, colors = ButtonDefaults.buttonColors(backgroundColor = Color.Transparent, contentColor = Color(0xFFE5851A))) {
-                            Text("Reessayer", color = Color(0xFFE5851A))
-                        }
+                        RetryButton(onClick = { reloadKey++ })
                     }
                 }
             }
@@ -622,7 +696,7 @@ fun SupervisorAtelierPickerScreen(
                                 .clickable { onSave(atelier) },
                             shape = RoundedCornerShape(12.dp),
                             color = Color.Transparent,
-                            border = BorderStroke(1.dp, if (isSelected) Color(0xFF221007) else OutlineVariant),
+                            border = BorderStroke(1.dp, if (isSelected) Primary else OutlineVariant),
                             elevation = 0.dp
                         ) {
                             Row(
@@ -634,10 +708,10 @@ fun SupervisorAtelierPickerScreen(
                                     text = atelier.displayName(language.code),
                                     fontSize = 15.sp,
                                     fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                    color = if (isSelected) Color(0xFFE5851A) else OnSurface
+                                    color = if (isSelected) Primary else OnSurface
                                 )
                                 if (isSelected) {
-                                    Icon(Icons.Default.Check, contentDescription = null, tint = Color(0xFFE5851A), modifier = Modifier.size(18.dp))
+                                    Icon(Icons.Default.Check, contentDescription = null, tint = Primary, modifier = Modifier.size(18.dp))
                                 }
                             }
                         }
@@ -798,9 +872,7 @@ fun SupervisorNotesPickerScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(catalogError ?: "", color = OnSurfaceVariant, textAlign = TextAlign.Center)
                         Spacer(Modifier.height(16.dp))
-                        Button(onClick = { catalogReloadKey++ }, colors = ButtonDefaults.buttonColors(backgroundColor = Color.Transparent, contentColor = Color(0xFFE5851A))) {
-                            Text("Reessayer", color = Color(0xFFE5851A))
-                        }
+                        RetryButton(onClick = { catalogReloadKey++ })
                     }
                 }
             }
@@ -868,7 +940,7 @@ fun SupervisorNoteChip(
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
         color = Color.Transparent,
-        border = BorderStroke(1.dp, if (isSelected) Color(0xFF221007) else OutlineVariant),
+        border = BorderStroke(1.dp, if (isSelected) Primary else OutlineVariant),
         elevation = 0.dp
     ) {
         Row(
@@ -880,7 +952,7 @@ fun SupervisorNoteChip(
                 Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = null,
-                    tint = Color(0xFFE5851A),
+                    tint = Primary,
                     modifier = Modifier.size(14.dp)
                 )
                 Spacer(Modifier.width(4.dp))
@@ -889,7 +961,7 @@ fun SupervisorNoteChip(
                 text = if (code.isNullOrBlank()) name else "$code — $name",
                 fontSize = 13.sp,
                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                color = if (isSelected) Color(0xFFE5851A) else OnSurface,
+                color = if (isSelected) Primary else OnSurface,
                 textAlign = TextAlign.Center,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
@@ -928,7 +1000,7 @@ fun GenderAnswerCard(
                             .clickable { onSelect(option) },
                         shape = RoundedCornerShape(8.dp),
                         color = Color.Transparent,
-                        border = BorderStroke(1.dp, if (isSelected) Color(0xFF221007) else OutlineVariant)
+                        border = BorderStroke(1.dp, if (isSelected) Primary else OutlineVariant)
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
@@ -936,13 +1008,13 @@ fun GenderAnswerCard(
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             if (isSelected) {
-                                Icon(Icons.Default.Check, contentDescription = null, tint = Color(0xFFE5851A), modifier = Modifier.size(16.dp))
+                                Icon(Icons.Default.Check, contentDescription = null, tint = Primary, modifier = Modifier.size(16.dp))
                             }
                             Text(
                                 text = option,
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = if (isSelected) Color(0xFFE5851A) else OnSurface
+                                color = if (isSelected) Primary else OnSurface
                             )
                         }
                     }
@@ -1013,10 +1085,12 @@ fun EditableAnswerCard(
                         onEdit(editText)
                         showEdit = false
                     },
-                    border = BorderStroke(1.dp, Color(0xFF221007)), colors = ButtonDefaults.buttonColors(backgroundColor = Color.Transparent, contentColor = Color(0xFFE5851A)),
+                    shape = PillShape,
+                    colors = ButtonDefaults.buttonColors(backgroundColor = Primary, contentColor = OnPrimary),
+                    elevation = ButtonDefaults.elevation(defaultElevation = 0.dp, pressedElevation = 0.dp),
                     modifier = Modifier.align(Alignment.End)
                 ) {
-                    Text("Enregistrer", color = Color(0xFFE5851A))
+                    Text("Enregistrer", fontWeight = FontWeight.SemiBold)
                 }
             }
         }

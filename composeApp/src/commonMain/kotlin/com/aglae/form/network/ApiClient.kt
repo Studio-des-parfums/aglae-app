@@ -125,10 +125,10 @@ object ApiClient {
 
     // ── Sessions (mode superviseur) ──
 
-    suspend fun createSession(customerName: String?, customerEmail: String?): CreateSessionResponse =
+    suspend fun createSession(customerName: String?, customerEmail: String?, room: String?): CreateSessionResponse =
         client.post("$baseUrl/api/v1/tablet/sessions") {
             contentType(ContentType.Application.Json)
-            setBody(mapOf("customer_name" to customerName, "customer_email" to customerEmail))
+            setBody(mapOf("customer_name" to customerName, "customer_email" to customerEmail, "room" to room))
         }.body()
 
     suspend fun cancelSession(sessionId: Int) {
@@ -139,8 +139,10 @@ object ApiClient {
         client.patch("$baseUrl/api/v1/tablet/sessions/$sessionId/complete")
     }
 
-    suspend fun fetchActiveSessions(): List<SessionItem> =
-        client.get("$baseUrl/api/v1/tablet/sessions/active").body()
+    suspend fun fetchActiveSessions(room: String? = null): List<SessionItem> =
+        client.get("$baseUrl/api/v1/tablet/sessions/active") {
+            if (!room.isNullOrBlank()) parameter("room", room)
+        }.body()
 
     suspend fun fetchSessionDetail(sessionId: Int): SessionDetailResponse =
         client.get("$baseUrl/api/v1/tablet/sessions/$sessionId").body()
