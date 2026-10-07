@@ -99,6 +99,11 @@ class FormViewModel(private val scope: CoroutineScope) {
     // choix) une fois le questionnaire terminé — voir startQuestionnaireFromFormula et l'usage
     // dans App.kt (onFinish du questionnaire).
     var preselectedAtelierId by mutableStateOf<Int?>(null)
+    // Non-null uniquement dans le parcours "Recommencer à partir d'une formule" : l'id de la
+    // formule d'origine, transmis à la soumission finale (voir submitForm) pour que le back
+    // dérive la nouvelle référence de celle-ci (ex: 20260900001 -> 20260900001-2) au lieu d'en
+    // générer une nouvelle séquentielle.
+    var reusedFromFormulaId by mutableStateOf<Int?>(null)
     var selectedBoxSetId by mutableStateOf<Int?>(null)
     var selectedBoxSetName by mutableStateOf<String?>(null)
 
@@ -377,6 +382,7 @@ class FormViewModel(private val scope: CoroutineScope) {
         screen = "home"
         selectedAtelierId = null
         preselectedAtelierId = null
+        reusedFromFormulaId = null
         selectedBoxSetId = null
         selectedBoxSetName = null
         ateliers = null
@@ -511,6 +517,7 @@ class FormViewModel(private val scope: CoroutineScope) {
         selectedBaseNotes = formula.baseNotes.map { it.name }.toSet()
         selectedBoosterNotes = formula.boosterNotes.map { it.name }.toSet()
         preselectedAtelierId = formula.atelierId
+        reusedFromFormulaId = formula.id
         selectedFormulaDetail = null
         startQuestionnaireForExistingCustomer(customer)
     }
@@ -628,6 +635,7 @@ class FormViewModel(private val scope: CoroutineScope) {
                     quantity = quantity.ifBlank { null },
                     atelierId = selectedAtelierId,
                     atelierName = selectedBoxSetName,
+                    reusedFromFormulaId = reusedFromFormulaId,
                     perfumeName = perfumeName.trim().ifBlank { null },
                     perfumeIntensity = perfumeIntensity.ifBlank { null },
                     supervisorId = supervisorUser?.id,

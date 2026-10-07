@@ -315,6 +315,7 @@ data class TabletSubmission(
     val quantity: String? = null,
     @SerialName("atelier_id") val atelierId: Int? = null,
     @SerialName("atelier_name") val atelierName: String? = null,
+    @SerialName("reused_from_formula_id") val reusedFromFormulaId: Int? = null,
     @SerialName("perfume_name") val perfumeName: String? = null,
     @SerialName("perfume_intensity") val perfumeIntensity: String? = null,
     @SerialName("top_notes") val topNotes: List<TabletNote> = emptyList(),
