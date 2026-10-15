@@ -7,6 +7,8 @@ fun stringsFor(language: Language): Strings = when (language) {
     Language.ENGLISH -> StringsEn
     Language.SPANISH -> StringsEs
     Language.PORTUGUESE -> StringsPt
+    Language.ARABIC -> StringsAr
+    Language.RUSSIAN -> StringsRu
 }
 
 val LocalStrings = staticCompositionLocalOf<Strings> { StringsFr }

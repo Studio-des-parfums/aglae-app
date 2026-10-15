@@ -21,7 +21,9 @@ data class AtelierTranslations(
     val fr: String? = null,
     val en: String? = null,
     val es: String? = null,
-    val pt: String? = null
+    val pt: String? = null,
+    val ar: String? = null,
+    val ru: String? = null
 )
 
 @Serializable
@@ -41,12 +43,52 @@ private fun AtelierTranslations.forLanguageCode(languageCode: String): String {
         "en" -> en
         "es" -> es
         "pt" -> pt
+        "ar" -> ar
+        "ru" -> ru
         else -> null
     }
     return byCode ?: fr ?: en ?: ""
 }
 
 fun AtelierItem.displayName(languageCode: String): String = translations.forLanguageCode(languageCode)
+
+// ── Options (GET /api/options) ──
+// Suppléments facultatifs au parfum (ex: Ruban, Champagne, Flacon murano), plusieurs
+// sélectionnables à la fois, proposés juste avant le récapitulatif final.
+
+@Serializable
+data class OptionTranslations(
+    val fr: String? = null,
+    val en: String? = null,
+    val es: String? = null,
+    val pt: String? = null,
+    val ar: String? = null,
+    val ru: String? = null
+)
+
+@Serializable
+data class OptionItem(
+    val id: Int,
+    val description: String? = null,
+    @SerialName("image_url") val imageUrl: String? = null,
+    @SerialName("is_active") val isActive: Boolean = true,
+    @SerialName("coffret_ids") val coffretIds: List<Int> = emptyList(),
+    @SerialName("atelier_ids") val atelierIds: List<Int> = emptyList(),
+    val translations: OptionTranslations = OptionTranslations()
+)
+
+fun OptionItem.displayName(languageCode: String): String {
+    val byCode = when (languageCode) {
+        "fr" -> translations.fr
+        "en" -> translations.en
+        "es" -> translations.es
+        "pt" -> translations.pt
+        "ar" -> translations.ar
+        "ru" -> translations.ru
+        else -> null
+    }
+    return byCode ?: translations.fr ?: translations.en ?: ""
+}
 
 @Serializable
 data class NotesCatalog(
@@ -65,7 +107,9 @@ data class IngredientTranslations(
     val fr: String? = null,
     val en: String? = null,
     val es: String? = null,
-    val pt: String? = null
+    val pt: String? = null,
+    val ar: String? = null,
+    val ru: String? = null
 )
 
 @Serializable
@@ -82,6 +126,8 @@ private fun IngredientTranslations.forLanguageCode(languageCode: String): String
         "en" -> en
         "es" -> es
         "pt" -> pt
+        "ar" -> ar
+        "ru" -> ru
         else -> null
     }
     return byCode ?: en ?: fr ?: ""
@@ -116,7 +162,8 @@ fun List<IngredientItem>.toNotesCatalog(languageCode: String): NotesCatalog {
 // Champs communs : box_set_id (null = tous coffrets ; number, id du coffret depuis la migration
 // 024_rule_box_set_id.sql — remplace l'ancien box_set en texte libre), intensity ("toutes" ou une
 // valeur précise), bottle_sizes ([] = toutes tailles), is_active (false = règle désactivée, à
-// ignorer), note (texte libre interne admin, pas un message formaté pour l'utilisateur final).
+// ignorer), note (raison de la règle, facultative : saisie côté admin, affichée au client dans
+// l'alerte d'incompatibilité/group_limit quand elle est renseignée — voir NoteRuleWarning.reason).
 
 @Serializable
 data class IngredientRule(
@@ -204,7 +251,8 @@ data class NoteRuleEvaluation(
 data class NoteRuleWarning(
     val type: String, // IngredientRuleType.INCOMPATIBILITY ou GROUP_LIMIT
     val conflictingNames: List<String>,
-    val maxChoices: Int? = null // renseigné pour GROUP_LIMIT
+    val maxChoices: Int? = null, // renseigné pour GROUP_LIMIT
+    val reason: String? = null // note explicative de la règle (facultative), affichée au client
 )
 
 // Évalue les règles pertinentes pour le clic sur `clickedName`, en tenant compte des notes déjà
@@ -221,6 +269,9 @@ fun List<IngredientRule>.evaluateNoteClick(
     val active = filter { it.isActive }
 
     // incompatibility : groupe symétrique, alerte si une autre note du même groupe est déjà choisie.
+    val incompatibilityRule = active
+        .filter { it.ruleType == IngredientRuleType.INCOMPATIBILITY && clickedId in it.targetIngredientIds }
+        .firstOrNull { rule -> rule.targetIngredientIds.any { it != clickedId && it in selectedIds } }
     val incompatibilityConflict = active
         .filter { it.ruleType == IngredientRuleType.INCOMPATIBILITY && clickedId in it.targetIngredientIds }
         .flatMap { it.targetIngredientIds }
@@ -231,7 +282,8 @@ fun List<IngredientRule>.evaluateNoteClick(
         return NoteRuleEvaluation(
             blockingWarning = NoteRuleWarning(
                 type = IngredientRuleType.INCOMPATIBILITY,
-                conflictingNames = incompatibilityConflict.mapNotNull { catalog.nameFor(it) }
+                conflictingNames = incompatibilityConflict.mapNotNull { catalog.nameFor(it) },
+                reason = incompatibilityRule?.note?.takeIf { it.isNotBlank() }
             )
         )
     }
@@ -250,7 +302,8 @@ fun List<IngredientRule>.evaluateNoteClick(
                 // Toutes les notes du groupe (pas seulement celles déjà choisies) : le message
                 // affiché énumère "parmi ces notes : ..." sur l'ensemble du groupe concerné.
                 conflictingNames = groupLimitRule.targetIngredientIds.mapNotNull { catalog.nameFor(it) },
-                maxChoices = groupLimitRule.maxChoices
+                maxChoices = groupLimitRule.maxChoices,
+                reason = groupLimitRule.note?.takeIf { it.isNotBlank() }
             )
         )
     }
@@ -307,6 +360,7 @@ data class TabletSubmission(
     val job: String? = null,
     val country: String? = null,
     val city: String? = null,
+    @SerialName("booking_source") val bookingSource: String? = null,
     val phone: String,
     val email: String,
     @SerialName("has_allergy") val hasAllergy: Boolean? = null,
@@ -321,7 +375,8 @@ data class TabletSubmission(
     @SerialName("top_notes") val topNotes: List<TabletNote> = emptyList(),
     @SerialName("heart_notes") val heartNotes: List<TabletNote> = emptyList(),
     @SerialName("base_notes") val baseNotes: List<TabletNote> = emptyList(),
-    @SerialName("booster_notes") val boosterNotes: List<TabletNote> = emptyList()
+    @SerialName("booster_notes") val boosterNotes: List<TabletNote> = emptyList(),
+    val options: List<String> = emptyList()
 )
 
 @Serializable
@@ -342,7 +397,8 @@ data class CustomerSearchResult(
     val id: Int,
     @SerialName("first_name") val firstName: String? = null,
     @SerialName("last_name") val lastName: String? = null,
-    val city: String? = null
+    val city: String? = null,
+    val gender: String? = null
 )
 
 @Serializable
@@ -365,6 +421,7 @@ data class FormulaDetail(
     @SerialName("heart_notes") val heartNotes: List<TabletNote> = emptyList(),
     @SerialName("base_notes") val baseNotes: List<TabletNote> = emptyList(),
     @SerialName("booster_notes") val boosterNotes: List<TabletNote> = emptyList(),
+    val options: List<String> = emptyList(),
     @SerialName("atelier_id") val atelierId: Int? = null,
     @SerialName("atelier_name") val atelierName: String? = null
 )
@@ -424,16 +481,10 @@ data class AnswersUpdatePayload(
 @Serializable
 data class SupervisorIdentifierResponse(
     val id: Int,
-    val identifier: String? = null,
+    val pseudo: String? = null,
     @SerialName("first_name") val firstName: String? = null,
     @SerialName("last_name") val lastName: String? = null,
     val email: String? = null,
-    val job: String? = null,
-    val role: SupervisorRole? = null
-)
-
-@Serializable
-data class SupervisorRole(
-    val id: Int,
-    val name: String? = null
+    @SerialName("role_id") val roleId: Int? = null,
+    @SerialName("role_name") val roleName: String? = null
 )

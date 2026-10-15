@@ -108,7 +108,7 @@ fun FormulaHistoryScreen(
                 TextButton(onClick = onBack, colors = ButtonDefaults.textButtonColors(contentColor = OnSurfaceVariant)) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp), tint = OnSurfaceVariant)
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(text = strings.back, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    Text(text = strings.back, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -191,7 +191,7 @@ fun FormulaHistoryScreen(
                                         Text(
                                             text = formula.perfumeName?.takeIf { it.isNotBlank() } ?: strings.formulaUnnamed,
                                             fontSize = 18.sp,
-                                            fontWeight = FontWeight.SemiBold,
+                                            fontWeight = FontWeight.Bold,
                                             color = OnSurface
                                         )
                                         Text(
@@ -260,7 +260,7 @@ fun FormulaDetailModal(
                             text = detail.perfumeName?.takeIf { it.isNotBlank() } ?: strings.formulaUnnamed,
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Primary
+                            color = Color.Black
                         )
 
                         if (!detail.date.isNullOrBlank()) {
@@ -278,7 +278,7 @@ fun FormulaDetailModal(
                         ).forEach { (title, notes) ->
                             if (notes.isNotEmpty()) {
                                 Column {
-                                    Text(text = title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = OnSurface)
+                                    Text(text = title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = OnSurface)
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
                                         text = notes.joinToString(" · ") { note ->
@@ -303,7 +303,7 @@ fun FormulaDetailModal(
                             ),
                             elevation = ButtonDefaults.elevation(defaultElevation = 2.dp, pressedElevation = 4.dp)
                         ) {
-                            Text(text = strings.formulaDetailUseFormula, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.3.sp)
+                            Text(text = strings.formulaDetailUseFormula, fontSize = 16.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.3.sp)
                         }
 
                         TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {

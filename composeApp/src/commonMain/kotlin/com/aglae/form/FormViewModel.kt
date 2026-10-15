@@ -7,6 +7,7 @@ import com.aglae.form.i18n.Strings
 import com.aglae.form.network.AnswerEntry
 import com.aglae.form.network.ApiClient
 import com.aglae.form.network.AtelierItem
+import com.aglae.form.network.OptionItem
 import com.aglae.form.network.CustomerSearchResult
 import com.aglae.form.network.displayName
 import com.aglae.form.network.FormulaDetail
@@ -94,6 +95,12 @@ class FormViewModel(private val scope: CoroutineScope) {
     var ateliers by mutableStateOf<List<AtelierItem>?>(null)
     var ateliersLoading by mutableStateOf(false)
     var ateliersError by mutableStateOf<String?>(null)
+
+    // Options facultatives (ruban, champagne, flacon…), proposées juste avant le récapitulatif.
+    var options by mutableStateOf<List<OptionItem>?>(null)
+    var optionsLoading by mutableStateOf(false)
+    var optionsError by mutableStateOf<String?>(null)
+    var selectedOptions by mutableStateOf(setOf<String>())
     var selectedAtelierId by mutableStateOf<Int?>(null)
     // Non-null uniquement dans le parcours "Recommencer à partir d'une formule" : l'atelier de
     // la formule d'origine, à resélectionner automatiquement (sans repasser par l'écran de
@@ -118,11 +125,14 @@ class FormViewModel(private val scope: CoroutineScope) {
     var profession by mutableStateOf("")
     var country by mutableStateOf("")
     var city by mutableStateOf("")
+    var bookingSource by mutableStateOf("")
     var phone by mutableStateOf("")
     var email by mutableStateOf("")
     var allergyAnswer by mutableStateOf("")
+    var allergyDetails by mutableStateOf("")
     var liabilityAnswer by mutableStateOf("")
     var rgpdAnswer by mutableStateOf("")
+    var pregnancyAnswer by mutableStateOf("")
     // Taille de flacon : plus de choix utilisateur, dérivée de `AtelierItem.volumeMl` au moment
     // de `chooseAtelier` (ex. "30ml"). Reste utilisée telle quelle par loadNoteCountBounds,
     // suggestNoteQuantities, submitForm et le récap.
@@ -140,9 +150,9 @@ class FormViewModel(private val scope: CoroutineScope) {
     var selectedTopNotes by mutableStateOf(setOf<String>())
     var selectedHeartNotes by mutableStateOf(setOf<String>())
     var selectedBaseNotes by mutableStateOf(setOf<String>())
-    // Boosters (4e famille, toujours affichée) : quantité toujours fixe à
-    // BOOSTER_QUANTITY_ML, jamais dosée par l'IA ni éditable — pas de Map de quantités dédiée,
-    // voir suggestNoteQuantities/submitForm qui la calculent à la volée.
+    // Boosters (4e famille, toujours affichée) : quantité pré-remplie à BOOSTER_QUANTITY_ML au
+    // moment de la sélection (voir App.kt), mais modifiable ensuite comme les autres familles
+    // sur l'écran "Formule finale de votre parfum".
     var selectedBoosterNotes by mutableStateOf(setOf<String>())
 
     // Bornes min/max de notes par famille (GET /api/ingredient-rules?rule_type=note_count),
@@ -179,6 +189,7 @@ class FormViewModel(private val scope: CoroutineScope) {
     var topNoteQuantities by mutableStateOf(mapOf<String, String>())
     var heartNoteQuantities by mutableStateOf(mapOf<String, String>())
     var baseNoteQuantities by mutableStateOf(mapOf<String, String>())
+    var boosterNoteQuantities by mutableStateOf(mapOf<String, String>())
 
     // Nom donné au parfum composé
     var perfumeName by mutableStateOf("")
@@ -339,6 +350,20 @@ class FormViewModel(private val scope: CoroutineScope) {
         }
     }
 
+    fun loadOptions(strings: Strings) {
+        optionsLoading = true
+        optionsError = null
+        scope.launch {
+            try {
+                options = ApiClient.fetchOptions(coffretId = selectedBoxSetId, atelierId = selectedAtelierId)
+            } catch (e: Exception) {
+                optionsError = e.message ?: strings.networkError
+            } finally {
+                optionsLoading = false
+            }
+        }
+    }
+
     // ── "Recommencer à partir d'une formule" : charge la liste des ateliers puis resélectionne
     // automatiquement celui de la formule d'origine (mémorisé dans preselectedAtelierId), sans
     // jamais afficher l'écran de choix. Si l'atelier n'existe plus (désactivé/supprimé côté
@@ -398,11 +423,14 @@ class FormViewModel(private val scope: CoroutineScope) {
         profession = ""
         country = ""
         city = ""
+        bookingSource = ""
         phone = ""
         email = ""
         allergyAnswer = ""
+        allergyDetails = ""
         liabilityAnswer = ""
         rgpdAnswer = ""
+        pregnancyAnswer = ""
         quantity = ""
         currentQuestion = 0
         selectedNoteSection = ""
@@ -410,6 +438,8 @@ class FormViewModel(private val scope: CoroutineScope) {
         selectedHeartNotes = emptySet()
         selectedBaseNotes = emptySet()
         selectedBoosterNotes = emptySet()
+        selectedOptions = emptySet()
+        options = null
         noteCountBounds = null
         noteCountError = null
         ingredientRules = emptyList()
@@ -420,6 +450,7 @@ class FormViewModel(private val scope: CoroutineScope) {
         topNoteQuantities = emptyMap()
         heartNoteQuantities = emptyMap()
         baseNoteQuantities = emptyMap()
+        boosterNoteQuantities = emptyMap()
         perfumeName = ""
         perfumeIntensity = ""
         submitError = null
@@ -461,6 +492,7 @@ class FormViewModel(private val scope: CoroutineScope) {
     fun startQuestionnaireForExistingCustomer(customer: CustomerSearchResult) {
         firstName = customer.firstName ?: ""
         lastName = customer.lastName ?: ""
+        gender = customer.gender ?: ""
         email = searchEmail.ifBlank { email }
         phone = searchPhone.ifBlank { phone }
         // Démarre directement à la question légale (index 1) : la page "Vos informations"
@@ -519,6 +551,7 @@ class FormViewModel(private val scope: CoroutineScope) {
         selectedHeartNotes = formula.heartNotes.map { it.name }.toSet()
         selectedBaseNotes = formula.baseNotes.map { it.name }.toSet()
         selectedBoosterNotes = formula.boosterNotes.map { it.name }.toSet()
+        selectedOptions = formula.options.toSet()
         preselectedAtelierId = formula.atelierId
         reusedFromFormulaId = formula.id
         selectedFormulaDetail = null
@@ -642,21 +675,26 @@ class FormViewModel(private val scope: CoroutineScope) {
         value("birthYear")?.let { year = it }
         value("profession")?.let { profession = it }
         value("country")?.let { country = it }
+        value("bookingSource")?.let { bookingSource = it }
         value("city")?.let { city = it }
         value("phone")?.let { phone = it }
         value("email")?.let { email = it }
         value("hasAllergy")?.let { allergyAnswer = it }
+        value("allergyDetails")?.let { allergyDetails = it }
         value("liabilityAccepted")?.let { liabilityAnswer = it }
         value("rgpdConsent")?.let { rgpdAnswer = it }
+        value("pregnancyAnswer")?.let { pregnancyAnswer = it }
         value("perfumeIntensity")?.let { perfumeIntensity = it }
         value("perfumeName")?.let { perfumeName = it }
         csvToSet(value("topNotes"))?.let { selectedTopNotes = it }
         csvToSet(value("heartNotes"))?.let { selectedHeartNotes = it }
         csvToSet(value("baseNotes"))?.let { selectedBaseNotes = it }
         csvToSet(value("boosterNotes"))?.let { selectedBoosterNotes = it }
+        csvToSet(value("options"))?.let { selectedOptions = it }
         parseQuantities(value("topNoteQuantities"))?.let { topNoteQuantities = it }
         parseQuantities(value("heartNoteQuantities"))?.let { heartNoteQuantities = it }
         parseQuantities(value("baseNoteQuantities"))?.let { baseNoteQuantities = it }
+        parseQuantities(value("boosterNoteQuantities"))?.let { boosterNoteQuantities = it }
 
         value("atelierId")?.toIntOrNull()?.let { atelierId ->
             try {
@@ -669,6 +707,35 @@ class FormViewModel(private val scope: CoroutineScope) {
                 }
             } catch (_: Exception) {}
         }
+    }
+
+    // ── Polling des notes pendant l'écran "Choisissez vos notes" ──
+    // Contrairement à applySessionAnswers (relu une seule fois avant soumission), ce polling ne
+    // touche qu'aux notes : il permet au client de voir en direct une correction du superviseur
+    // pendant qu'il est sur cet écran. En cas de conflit (le client modifie en même temps), le
+    // superviseur gagne toujours — c'est lui qui corrige/supervise le client, pas l'inverse.
+    suspend fun refreshNotesFromSession() {
+        val sessionId = currentSessionId ?: return
+        val detail = try { ApiClient.fetchSessionDetail(sessionId) } catch (_: Exception) { return }
+        val byKey = detail.answers.associateBy { it.questionKey }
+        fun value(key: String): String? = byKey[key]?.answerValue
+        fun csvToSet(raw: String?): Set<String>? =
+            raw?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() }?.toSet()
+        fun parseQuantities(raw: String?): Map<String, String>? =
+            raw?.split(",")?.mapNotNull { entry ->
+                val parts = entry.split(":", limit = 2)
+                if (parts.size == 2) parts[0].trim() to parts[1].trim() else null
+            }?.toMap()
+
+        csvToSet(value("topNotes"))?.let { selectedTopNotes = it }
+        csvToSet(value("heartNotes"))?.let { selectedHeartNotes = it }
+        csvToSet(value("baseNotes"))?.let { selectedBaseNotes = it }
+        csvToSet(value("boosterNotes"))?.let { selectedBoosterNotes = it }
+        csvToSet(value("options"))?.let { selectedOptions = it }
+        parseQuantities(value("topNoteQuantities"))?.let { topNoteQuantities = it }
+        parseQuantities(value("heartNoteQuantities"))?.let { heartNoteQuantities = it }
+        parseQuantities(value("baseNoteQuantities"))?.let { baseNoteQuantities = it }
+        parseQuantities(value("boosterNoteQuantities"))?.let { boosterNoteQuantities = it }
     }
 
     // ── Soumission finale du formulaire ──
@@ -688,6 +755,7 @@ class FormViewModel(private val scope: CoroutineScope) {
                     job = profession.ifBlank { null },
                     country = country.ifBlank { null },
                     city = city.ifBlank { null },
+                    bookingSource = bookingSource.ifBlank { null },
                     phone = phone.trim(),
                     email = email.trim(),
                     hasAllergy = when (allergyAnswer) { "Oui" -> true; "Non" -> false; else -> null },
@@ -703,7 +771,10 @@ class FormViewModel(private val scope: CoroutineScope) {
                     topNotes = selectedTopNotes.map { TabletNote(name = it, quantity = topNoteQuantities[it]?.ifBlank { null }) },
                     heartNotes = selectedHeartNotes.map { TabletNote(name = it, quantity = heartNoteQuantities[it]?.ifBlank { null }) },
                     baseNotes = selectedBaseNotes.map { TabletNote(name = it, quantity = baseNoteQuantities[it]?.ifBlank { null }) },
-                    boosterNotes = selectedBoosterNotes.map { TabletNote(name = it, quantity = BOOSTER_QUANTITY_ML.toInt().toString()) }
+                    boosterNotes = selectedBoosterNotes.map { name ->
+                        TabletNote(name = name, quantity = boosterNoteQuantities[name] ?: BOOSTER_QUANTITY_ML.toInt().toString())
+                    },
+                    options = selectedOptions.toList()
                 )
                 submissionResult = ApiClient.submitForm(submission)
                 currentSessionId?.let { sid ->

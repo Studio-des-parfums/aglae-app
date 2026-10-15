@@ -8,6 +8,7 @@ object StringsEs : Strings {
     override val close = "Cerrar"
     override val cancel = "Cancelar"
     override val validate = "Validar"
+    override val skip = "Omitir"
     override val finish = "Terminar"
     override val yes = "Sí"
     override val no = "No"
@@ -27,7 +28,11 @@ object StringsEs : Strings {
     override val supervisorDialogInvalidCode = "Identificador no válido"
     override val supervisorDialogConnectionError = "Error de conexión"
 
-    override val atelierTitle = "Elige tu taller"
+    override val welcomeDialogTitle = "Bienvenido al Studio des Parfums"
+    override val welcomeDialogBody = "Esta experiencia de creación olfativa solo está disponible en el Studio des Parfums. Al finalizar su recorrido, le rogamos que entregue esta tableta al perfumista que le acompaña."
+    override val welcomeDialogOk = "Entendido"
+
+    override val atelierTitle = "¿En qué taller estás registrado?"
     override val atelierSubtitle = "Las notas propuestas a continuación dependerán del taller seleccionado."
     override val atelierLoadErrorPrefix = "Error: "
     override val atelierEmpty = "No hay ningún taller disponible por el momento."
@@ -91,6 +96,11 @@ object StringsEs : Strings {
     override val yearError = "El año debe tener 4 dígitos (1900-2026)"
     override val questionProfessionTitle = "¿Cuál es tu profesión?"
     override val professionLabel = "Profesión"
+    override val bookingSourceTitle = "¿Dónde reservaste?"
+    override val bookingSourcePhone = "Teléfono"
+    override val bookingSourceWeecando = "Weecando"
+    override val bookingSourceWebsite = "Sitio web"
+    override val bookingSourceOther = "Otro"
     override val questionLocationTitle = "¿Cuál es tu país y tu ciudad?"
     override val countryLabel = "País"
     override val cityLabel = "Ciudad"
@@ -102,12 +112,27 @@ object StringsEs : Strings {
     override val questionLegalTitle = "Normativa y privacidad"
     override val legalNotice = "Todas nuestras notas olfativas cumplen con la normativa francesa y europea vigente"
     override val allergyQuestion = "¿Tienes alguna alergia relacionada con perfumes o alergia cutánea?"
+    override val allergyDetailsLabel = "Indica tus alergias conocidas"
     override val liabilityQuestion = "En caso afirmativo, ¿deseas continuar eximiéndonos de responsabilidad?"
+    override val liabilityDeclineWarning = "En caso de alergia conocida, no podemos ser responsables: por favor, acepta eximirnos de responsabilidad para continuar, o vuelve atrás."
     override val rgpdQuestion = "En el marco del RGPD, ¿podemos conservar tu fórmula?"
+    override val pregnancyQuestion = "¿Estás embarazada o en periodo de lactancia?"
+
+    override val pregnancyDialogTitle = "Por favor, consulta con el perfumista"
+    override val pregnancyDialogBody = "Como medida de precaución, algunas materias primas no se recomiendan durante el embarazo o la lactancia. Por favor, dirígete al perfumista que te acompaña para obtener más información antes de continuar."
+    override val pregnancyDialogOk = "Entendido"
+
+    override val rgpdDialogTitle = "Conservación de tu fórmula"
+    override val rgpdDialogBody = "En el Studio des Parfums, necesitamos conservar las fórmulas para ofrecerte un servicio de calidad, especialmente si deseas recuperarla en una próxima visita."
+    override val rgpdDialogOk = "Entendido"
     override val questionnaireChooseNotes = "Elegir mis notas"
 
     override val notesSelectionTitle = "Elige tus notas"
     override val notesSelectionSubtitle = "Explora las diferentes notas que compondrán tu perfume único."
+
+    override val optionsSelectionTitle = "¿Deseas añadir alguna opción?"
+    override val optionsSelectionSubtitle = "Opcional — selecciona tantas opciones como quieras, o pasa esta etapa."
+    override val optionsSelectionEmpty = "No hay opciones disponibles por el momento."
     override val topNotesName = "Notas de salida"
     override val topNotesShortName = "Salida"
     override val topNotesDescription = "La apertura del perfume, frescura ligera y fugaz (duración: 30 minutos)."
@@ -116,7 +141,7 @@ object StringsEs : Strings {
     override val heartNotesDescription = "El alma del perfume, que revela toda su personalidad (duración: de 2 a 4 horas)."
     override val baseNotesName = "Notas de fondo"
     override val baseNotesShortName = "Fondo"
-    override val baseNotesDescription = "La base del perfume, su firma final (duración: de 10 horas a un día)."
+    override val baseNotesDescription = "La base del perfume, su firma final (duración: hasta 10 horas)."
     override val boosterNotesName = "Notas booster"
     override val boosterNotesShortName = "Booster"
     override val boosterNotesDescription = "Refuerza tu perfume con un toque de firma adicional."
@@ -130,8 +155,11 @@ object StringsEs : Strings {
         "$familyName: elige como máximo $max."
     override fun noteCountTooManyRemove(familyName: String, max: Int, count: Int) =
         "$familyName: tienes $count notas, máximo $max. Elimina ${count - max} nota(s) antes de confirmar."
+    override fun noteCountTooFewRemaining(familyName: String, min: Int, missing: Int) =
+        "$familyName: te faltan $missing nota(s) para alcanzar el mínimo de $min."
     override fun noteCountExactly(count: Int) = "$count nota(s) a elegir"
     override fun noteCountBetween(min: Int, max: Int) = "Entre $min y $max notas"
+    override fun boosterCountBetween(min: Int, max: Int) = "Entre $min y $max boosters"
     override fun noteCountAtLeast(min: Int) = "Al menos $min nota(s)"
     override fun noteCountAtMost(max: Int) = "$max nota(s) máx."
 
@@ -144,6 +172,7 @@ object StringsEs : Strings {
         "No recomendamos añadir $clickedName con $conflictingNames. ¿Deseas añadirla de todos modos?"
     override fun ruleWarningGroupLimit(maxChoices: Int, groupNames: String) =
         "No recomendamos tener más de $maxChoices notas entre estas notas: $groupNames. ¿Deseas añadirla de todos modos?"
+    override fun ruleWarningReasonPrefix(reason: String) = "Por qué: $reason"
     override val ruleWarningConfirm = "Sí"
     override val ruleWarningCancel = "No"
     override fun ruleRecommendation(clickedName: String, recommendedNames: String) =

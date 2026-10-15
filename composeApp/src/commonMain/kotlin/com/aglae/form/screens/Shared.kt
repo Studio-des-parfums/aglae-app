@@ -38,6 +38,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aglae.form.OnPrimary
@@ -162,7 +163,7 @@ fun OptionCard(
             Text(
                 text = text,
                 fontSize = 18.sp,
-                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Bold,
                 color = if (isSelected) Color(0xFFE5851A) else OnSurface
             )
             if (isSelected) {
@@ -208,7 +209,7 @@ fun BoxScope.BackButton(onClick: () -> Unit, enabled: Boolean = true) {
             tint = Color.White
         )
         Spacer(modifier = Modifier.width(6.dp))
-        Text(text = strings.back, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+        Text(text = strings.back, fontSize = 14.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -232,7 +233,7 @@ fun HomeFooterLink(onClick: () -> Unit) {
             text = strings.backToHome,
             color = Color.White,
             fontSize = 12.sp,
-            fontWeight = FontWeight.Medium,
+            fontWeight = FontWeight.Bold,
             letterSpacing = 2.sp
         )
         Box(
@@ -266,7 +267,7 @@ fun BoxScope.HomeButton(onClick: () -> Unit, enabled: Boolean = true) {
             tint = OnSurfaceVariant
         )
         Spacer(modifier = Modifier.width(6.dp))
-        Text(text = strings.home, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+        Text(text = strings.home, fontSize = 14.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -275,16 +276,20 @@ fun BoxScope.HomeButton(onClick: () -> Unit, enabled: Boolean = true) {
 // ══════════════════════════════════════════════════════════════════════════════
 
 @Composable
-fun questionHeadlineFont() = FontFamily(Font(Res.font.playfair_medium, FontWeight.Medium))
+fun questionHeadlineFont() = FontFamily(Font(Res.font.playfair_medium, FontWeight.Bold))
 
 @Composable
-fun questionDisplayFont() = FontFamily(Font(Res.font.playfair_semibold, FontWeight.SemiBold))
+fun questionDisplayFont() = FontFamily(Font(Res.font.playfair_semibold, FontWeight.Bold))
 
+// Un seul fichier (le plus épais disponible, semibold — aucun "bold" n'existe dans les
+// ressources) mappé sur tous les poids : quel que soit le fontWeight demandé par l'appelant,
+// le rendu reste visuellement gras plutôt que de retomber sur le regular/medium plus fin.
 @Composable
 fun questionBodyFont() = FontFamily(
-    Font(Res.font.manrope_regular, FontWeight.Normal),
-    Font(Res.font.manrope_medium, FontWeight.Medium),
-    Font(Res.font.manrope_semibold, FontWeight.SemiBold)
+    Font(Res.font.manrope_semibold, FontWeight.Normal),
+    Font(Res.font.manrope_semibold, FontWeight.Medium),
+    Font(Res.font.manrope_semibold, FontWeight.SemiBold),
+    Font(Res.font.manrope_semibold, FontWeight.Bold)
 )
 
 // ── Squelette commun à tous les écrans "question" : fond, bouton retour en haut à gauche,
@@ -294,6 +299,12 @@ fun QuestionScreenScaffold(
     onBack: (() -> Unit)?,
     onGoHome: () -> Unit,
     showTitle: Boolean = true,
+    logoHeight: Dp = 120.dp,
+    titleSpacing: Dp = 48.dp,
+    bottomPadding: Dp = 96.dp,
+    // false pour une page qui doit occuper exactement la hauteur de l'écran (son contenu se
+    // redimensionne pour tenir, via weight()) plutôt que déborder avec un scroll.
+    scrollable: Boolean = true,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Box(
@@ -328,18 +339,18 @@ fun QuestionScreenScaffold(
                 .fillMaxWidth()
                 .fillMaxHeight()
                 .widthIn(max = 680.dp)
-                .verticalScroll(rememberScrollState())
+                .let { if (scrollable) it.verticalScroll(rememberScrollState()) else it }
                 .padding(horizontal = 24.dp)
-                .padding(top = 16.dp, bottom = 96.dp)
+                .padding(top = 16.dp, bottom = bottomPadding)
         ) {
             if (showTitle) {
                 Image(
                     painter = painterResource(Res.drawable.logoSDP),
                     contentDescription = null,
-                    modifier = Modifier.height(120.dp)
+                    modifier = Modifier.height(logoHeight)
                 )
 
-                Spacer(modifier = Modifier.height(48.dp))
+                Spacer(modifier = Modifier.height(titleSpacing))
             }
 
             content()
@@ -364,7 +375,7 @@ fun QuestionScreenScaffold(
                     text = LocalStrings.current.back,
                     fontFamily = questionBodyFont(),
                     fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Bold,
                     letterSpacing = 1.5.sp
                 )
             }
@@ -401,8 +412,8 @@ fun QuestionPill(text: String) {
             text = text,
             fontFamily = questionHeadlineFont(),
             fontSize = 24.sp,
-            fontWeight = FontWeight.Medium,
-            color = QuestionPrimary,
+            fontWeight = FontWeight.Bold,
+            color = Color.Black,
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .fillMaxWidth()
@@ -442,8 +453,8 @@ fun QuestionOptionCard(
                 text = text,
                 fontFamily = questionBodyFont(),
                 fontSize = 18.sp,
-                fontWeight = FontWeight.Medium,
-                color = if (isSelected) QuestionOnSurface else QuestionPrimary
+                fontWeight = FontWeight.Bold,
+                color = Color.Black
             )
             Box(
                 modifier = Modifier
@@ -495,7 +506,7 @@ fun QuestionActionButton(
             text = text,
             fontFamily = questionBodyFont(),
             fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = FontWeight.Bold,
             letterSpacing = 1.5.sp
         )
     }

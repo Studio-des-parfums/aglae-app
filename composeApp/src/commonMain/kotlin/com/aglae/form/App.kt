@@ -4,7 +4,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Typography
 import androidx.compose.material.lightColors
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -14,9 +16,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.aglae.form.i18n.Language
 import com.aglae.form.i18n.LocalLanguage
@@ -40,6 +45,7 @@ import com.aglae.form.screens.NotesSelectionScreen
 import com.aglae.form.screens.PyramidExplanationScreen
 import com.aglae.form.screens.PerfumeIntensityScreen
 import com.aglae.form.screens.PerfumeNameScreen
+import com.aglae.form.screens.OptionsSelectionScreen
 import com.aglae.form.screens.QuestionnaireScreen
 import com.aglae.form.screens.RecapScreen
 import com.aglae.form.screens.SuccessScreen
@@ -67,7 +73,8 @@ fun App() {
 
     CompositionLocalProvider(
         LocalStrings provides stringsFor(language),
-        LocalLanguage provides language
+        LocalLanguage provides language,
+        LocalLayoutDirection provides if (language.isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr
     ) {
         AppContent(language = language, onLanguageChange = { language = it })
     }
@@ -90,7 +97,7 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
     // Recalculé ici (et non dans le ViewModel) car dépend de `language`, qui est un état externe
     // au ViewModel (partagé avec le CompositionLocalProvider de App()). Voir FormViewModel.kt
     // pour le détail de cette décision.
-    val notesCatalog by remember { derivedStateOf { vm.ingredients?.toNotesCatalog(language.code) } }
+    val notesCatalog by remember(language) { derivedStateOf { vm.ingredients?.toNotesCatalog(language.code) } }
 
     MaterialTheme(
         colors = lightColors(
@@ -109,8 +116,26 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
             small = PillShape,
             medium = XlShape,
             large = RoundedCornerShape(16.dp)
+        ),
+        // Styles par défaut en gras : ne couvre que les Text() qui ne précisent pas déjà leur
+        // propre fontWeight (voir ProvideTextStyle plus bas pour le reste).
+        typography = Typography(
+            h1 = Typography().h1.copy(fontWeight = FontWeight.Bold),
+            h2 = Typography().h2.copy(fontWeight = FontWeight.Bold),
+            h3 = Typography().h3.copy(fontWeight = FontWeight.Bold),
+            h4 = Typography().h4.copy(fontWeight = FontWeight.Bold),
+            h5 = Typography().h5.copy(fontWeight = FontWeight.Bold),
+            h6 = Typography().h6.copy(fontWeight = FontWeight.Bold),
+            subtitle1 = Typography().subtitle1.copy(fontWeight = FontWeight.Bold),
+            subtitle2 = Typography().subtitle2.copy(fontWeight = FontWeight.Bold),
+            body1 = Typography().body1.copy(fontWeight = FontWeight.Bold),
+            body2 = Typography().body2.copy(fontWeight = FontWeight.Bold),
+            button = Typography().button.copy(fontWeight = FontWeight.Bold),
+            caption = Typography().caption.copy(fontWeight = FontWeight.Bold),
+            overline = Typography().overline.copy(fontWeight = FontWeight.Bold)
         )
     ) {
+        PinchZoomContainer {
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
@@ -223,16 +248,22 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                     onCountryChange = { vm.country = it; vm.sendAnswer("country", it) },
                     city = vm.city,
                     onCityChange = { vm.city = it; vm.sendAnswer("city", it) },
+                    bookingSource = vm.bookingSource,
+                    onBookingSourceChange = { vm.bookingSource = it; vm.sendAnswer("bookingSource", it) },
                     phone = vm.phone,
                     onPhoneChange = { vm.phone = it; vm.sendAnswer("phone", it) },
                     email = vm.email,
                     onEmailChange = { vm.email = it; vm.sendAnswer("email", it) },
                     allergyAnswer = vm.allergyAnswer,
                     onAllergyAnswerChange = { vm.allergyAnswer = it; vm.sendAnswer("hasAllergy", it) },
+                    allergyDetails = vm.allergyDetails,
+                    onAllergyDetailsChange = { vm.allergyDetails = it; vm.sendAnswer("allergyDetails", it) },
                     liabilityAnswer = vm.liabilityAnswer,
                     onLiabilityAnswerChange = { vm.liabilityAnswer = it; vm.sendAnswer("liabilityAccepted", it) },
                     rgpdAnswer = vm.rgpdAnswer,
                     onRgpdAnswerChange = { vm.rgpdAnswer = it; vm.sendAnswer("rgpdConsent", it) },
+                    pregnancyAnswer = vm.pregnancyAnswer,
+                    onPregnancyAnswerChange = { vm.pregnancyAnswer = it; vm.sendAnswer("pregnancyAnswer", it) },
                     currentQuestion = vm.currentQuestion,
                     onNextQuestion = {
                         // Page unique "Vos informations" (index 0, contient email/téléphone) :
@@ -280,7 +311,17 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                     onNext = { vm.screen = "notesSelection" },
                     onBack = { vm.screen = "atelierChoice" }
                 )
-                "notesSelection" -> NotesSelectionScreen(
+                "notesSelection" -> {
+                    // Tant que le client est sur cet écran, on relit périodiquement les notes de
+                    // la session pour voir en direct une correction faite par le superviseur (qui,
+                    // lui, poll les réponses du client en continu depuis SupervisorSessionDetailScreen).
+                    LaunchedEffect(vm.currentSessionId) {
+                        while (vm.currentSessionId != null) {
+                            delay(3000)
+                            vm.refreshNotesFromSession()
+                        }
+                    }
+                    NotesSelectionScreen(
                     selectedCounts = mapOf(
                         "Notes de tête" to vm.selectedTopNotes.size,
                         "Notes de cœur" to vm.selectedHeartNotes.size,
@@ -305,7 +346,8 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                     },
                     onBack = { vm.screen = "pyramidExplanation" },
                     onGoHome = { vm.resetAll() }
-                )
+                    )
+                }
                 "perfumeIntensity" -> PerfumeIntensityScreen(
                     selectedIntensity = vm.perfumeIntensity,
                     onIntensitySelected = { vm.perfumeIntensity = it; vm.sendAnswer("perfumeIntensity", it) },
@@ -324,7 +366,12 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                     topQuantities = vm.topNoteQuantities,
                     heartQuantities = vm.heartNoteQuantities,
                     baseQuantities = vm.baseNoteQuantities,
-                    boosterQuantities = vm.selectedBoosterNotes.associateWith { FormViewModel.BOOSTER_QUANTITY_ML.toInt().toString() },
+                    boosterQuantities = vm.selectedBoosterNotes.associateWith { name ->
+                        vm.boosterNoteQuantities[name] ?: FormViewModel.BOOSTER_QUANTITY_ML.toInt().toString()
+                    },
+                    availableTopNotes = notesCatalog?.topNotes.orEmpty().map { it.name }.filter { it !in vm.selectedTopNotes },
+                    availableHeartNotes = notesCatalog?.heartNotes.orEmpty().map { it.name }.filter { it !in vm.selectedHeartNotes },
+                    availableBaseNotes = notesCatalog?.baseNotes.orEmpty().map { it.name }.filter { it !in vm.selectedBaseNotes },
                     isLoadingSuggestions = vm.isSuggestingQuantities,
                     suggestionsFailed = vm.suggestQuantitiesError != null,
                     onTopQuantityChange = { name, qty ->
@@ -339,6 +386,52 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                         vm.baseNoteQuantities = vm.baseNoteQuantities + (name to qty)
                         vm.sendAnswer("baseNoteQuantities", vm.baseNoteQuantities.entries.joinToString(",") { "${it.key}:${it.value}" })
                     },
+                    onBoosterQuantityChange = { name, qty ->
+                        vm.boosterNoteQuantities = vm.boosterNoteQuantities + (name to qty)
+                        vm.sendAnswer("boosterNoteQuantities", vm.boosterNoteQuantities.entries.joinToString(",") { "${it.key}:${it.value}" })
+                    },
+                    onRemoveBoosterNote = { name ->
+                        vm.selectedBoosterNotes = vm.selectedBoosterNotes - name
+                        vm.boosterNoteQuantities = vm.boosterNoteQuantities - name
+                        vm.sendAnswer("boosterNotes", vm.selectedBoosterNotes.joinToString(","))
+                        vm.sendAnswer("boosterNoteQuantities", vm.boosterNoteQuantities.entries.joinToString(",") { "${it.key}:${it.value}" })
+                    },
+                    onAddTopNote = { name, qty ->
+                        vm.selectedTopNotes = vm.selectedTopNotes + name
+                        vm.topNoteQuantities = vm.topNoteQuantities + (name to qty)
+                        vm.sendAnswer("topNotes", vm.selectedTopNotes.joinToString(","))
+                        vm.sendAnswer("topNoteQuantities", vm.topNoteQuantities.entries.joinToString(",") { "${it.key}:${it.value}" })
+                    },
+                    onAddHeartNote = { name, qty ->
+                        vm.selectedHeartNotes = vm.selectedHeartNotes + name
+                        vm.heartNoteQuantities = vm.heartNoteQuantities + (name to qty)
+                        vm.sendAnswer("heartNotes", vm.selectedHeartNotes.joinToString(","))
+                        vm.sendAnswer("heartNoteQuantities", vm.heartNoteQuantities.entries.joinToString(",") { "${it.key}:${it.value}" })
+                    },
+                    onAddBaseNote = { name, qty ->
+                        vm.selectedBaseNotes = vm.selectedBaseNotes + name
+                        vm.baseNoteQuantities = vm.baseNoteQuantities + (name to qty)
+                        vm.sendAnswer("baseNotes", vm.selectedBaseNotes.joinToString(","))
+                        vm.sendAnswer("baseNoteQuantities", vm.baseNoteQuantities.entries.joinToString(",") { "${it.key}:${it.value}" })
+                    },
+                    onRemoveTopNote = { name ->
+                        vm.selectedTopNotes = vm.selectedTopNotes - name
+                        vm.topNoteQuantities = vm.topNoteQuantities - name
+                        vm.sendAnswer("topNotes", vm.selectedTopNotes.joinToString(","))
+                        vm.sendAnswer("topNoteQuantities", vm.topNoteQuantities.entries.joinToString(",") { "${it.key}:${it.value}" })
+                    },
+                    onRemoveHeartNote = { name ->
+                        vm.selectedHeartNotes = vm.selectedHeartNotes - name
+                        vm.heartNoteQuantities = vm.heartNoteQuantities - name
+                        vm.sendAnswer("heartNotes", vm.selectedHeartNotes.joinToString(","))
+                        vm.sendAnswer("heartNoteQuantities", vm.heartNoteQuantities.entries.joinToString(",") { "${it.key}:${it.value}" })
+                    },
+                    onRemoveBaseNote = { name ->
+                        vm.selectedBaseNotes = vm.selectedBaseNotes - name
+                        vm.baseNoteQuantities = vm.baseNoteQuantities - name
+                        vm.sendAnswer("baseNotes", vm.selectedBaseNotes.joinToString(","))
+                        vm.sendAnswer("baseNoteQuantities", vm.baseNoteQuantities.entries.joinToString(",") { "${it.key}:${it.value}" })
+                    },
                     onNext = { vm.screen = "perfumeName" },
                     onBack = { vm.screen = "perfumeIntensity" },
                     onGoHome = { vm.resetAll() }
@@ -346,8 +439,27 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                 "perfumeName" -> PerfumeNameScreen(
                     perfumeName = vm.perfumeName,
                     onPerfumeNameChange = { vm.perfumeName = it; vm.sendAnswer("perfumeName", it) },
-                    onNext = { vm.screen = "recap" },
+                    onNext = {
+                        vm.screen = "optionsSelection"
+                        vm.loadOptions(strings)
+                    },
                     onBack = { vm.screen = "noteQuantities" },
+                    onGoHome = { vm.resetAll() }
+                )
+                "optionsSelection" -> OptionsSelectionScreen(
+                    options = vm.options,
+                    isLoading = vm.optionsLoading,
+                    loadError = vm.optionsError,
+                    languageCode = language.code,
+                    selectedOptions = vm.selectedOptions,
+                    onToggleOption = { name ->
+                        vm.selectedOptions =
+                            if (name in vm.selectedOptions) vm.selectedOptions - name else vm.selectedOptions + name
+                        vm.sendAnswer("options", vm.selectedOptions.joinToString(","))
+                    },
+                    onRetry = { vm.loadOptions(strings) },
+                    onNext = { vm.screen = "recap" },
+                    onBack = { vm.screen = "perfumeName" },
                     onGoHome = { vm.resetAll() }
                 )
                 "notesDetail" -> {
@@ -387,7 +499,15 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                                     vm.selectedBoosterNotes.size < 2 -> vm.selectedBoosterNotes + name
                                     else -> vm.selectedBoosterNotes
                                 }
+                                // Pré-remplit/nettoie la quantité : valeur fixe au départ, mais
+                                // modifiable ensuite sur l'écran "Formule finale de votre parfum".
+                                vm.boosterNoteQuantities = if (name in vm.selectedBoosterNotes) {
+                                    vm.boosterNoteQuantities + (name to FormViewModel.BOOSTER_QUANTITY_ML.toInt().toString())
+                                } else {
+                                    vm.boosterNoteQuantities - name
+                                }
                                 vm.sendAnswer("boosterNotes", vm.selectedBoosterNotes.joinToString(","))
+                                vm.sendAnswer("boosterNoteQuantities", vm.boosterNoteQuantities.entries.joinToString(",") { "${it.key}:${it.value}" })
                             }
                             else -> {
                                 vm.selectedBaseNotes =
@@ -429,12 +549,16 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                     topNotes = vm.selectedTopNotes.map { name -> vm.topNoteQuantities[name]?.takeIf { it.isNotBlank() }?.let { "$name ($it ml)" } ?: name },
                     heartNotes = vm.selectedHeartNotes.map { name -> vm.heartNoteQuantities[name]?.takeIf { it.isNotBlank() }?.let { "$name ($it ml)" } ?: name },
                     baseNotes = vm.selectedBaseNotes.map { name -> vm.baseNoteQuantities[name]?.takeIf { it.isNotBlank() }?.let { "$name ($it ml)" } ?: name },
-                    boosterNotes = vm.selectedBoosterNotes.map { name -> "$name (${FormViewModel.BOOSTER_QUANTITY_ML.toInt()} ml)" },
+                    boosterNotes = vm.selectedBoosterNotes.map { name ->
+                        val ml = vm.boosterNoteQuantities[name] ?: FormViewModel.BOOSTER_QUANTITY_ML.toInt().toString()
+                        "$name ($ml ml)"
+                    },
+                    options = vm.selectedOptions.toList(),
                     perfumeName = vm.perfumeName,
                     isSubmitting = vm.isSubmitting,
                     submitError = vm.submitError,
                     onConfirm = { vm.submitForm(strings, language.code) },
-                    onBack = { vm.screen = "perfumeName" },
+                    onBack = { vm.screen = "optionsSelection" },
                     onGoHome = { vm.resetAll() }
                 )
                 "success" -> SuccessScreen(
@@ -471,6 +595,7 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                     }
                 )
             }
+        }
         }
     }
 }

@@ -8,6 +8,7 @@ object StringsEn : Strings {
     override val close = "Close"
     override val cancel = "Cancel"
     override val validate = "Confirm"
+    override val skip = "Skip"
     override val finish = "Finish"
     override val yes = "Yes"
     override val no = "No"
@@ -27,7 +28,11 @@ object StringsEn : Strings {
     override val supervisorDialogInvalidCode = "Invalid identifier"
     override val supervisorDialogConnectionError = "Connection error"
 
-    override val atelierTitle = "Choose your workshop"
+    override val welcomeDialogTitle = "Welcome to the Studio des Parfums"
+    override val welcomeDialogBody = "This fragrance-creation experience is only available at the Studio des Parfums. Once your journey is complete, please hand this tablet back to the perfumer guiding you."
+    override val welcomeDialogOk = "Got it"
+
+    override val atelierTitle = "Which workshop are you registered for?"
     override val atelierSubtitle = "The notes offered next will depend on the workshop you select."
     override val atelierLoadErrorPrefix = "Error: "
     override val atelierEmpty = "No workshop available right now."
@@ -91,6 +96,11 @@ object StringsEn : Strings {
     override val yearError = "The year must have 4 digits (1900-2026)"
     override val questionProfessionTitle = "What is your profession?"
     override val professionLabel = "Occupation"
+    override val bookingSourceTitle = "Where did you book?"
+    override val bookingSourcePhone = "Phone"
+    override val bookingSourceWeecando = "Weecando"
+    override val bookingSourceWebsite = "Website"
+    override val bookingSourceOther = "Other"
     override val questionLocationTitle = "What is your country and city?"
     override val countryLabel = "Country"
     override val cityLabel = "City"
@@ -102,12 +112,27 @@ object StringsEn : Strings {
     override val questionLegalTitle = "Regulation and privacy"
     override val legalNotice = "All our fragrance notes comply with current French and European regulations"
     override val allergyQuestion = "Do you have any fragrance-related or skin allergies?"
+    override val allergyDetailsLabel = "Please specify your known allergies"
     override val liabilityQuestion = "If so, would you like to proceed by waiving our liability?"
+    override val liabilityDeclineWarning = "In the case of a known allergy, we cannot be held liable: please agree to waive our liability to continue, or go back."
     override val rgpdQuestion = "Under GDPR, may we keep your formula on file?"
+    override val pregnancyQuestion = "Are you pregnant or breastfeeding?"
+
+    override val pregnancyDialogTitle = "Please speak with your perfumer"
+    override val pregnancyDialogBody = "As a precaution, some raw materials are not recommended during pregnancy or breastfeeding. Please go to the perfumer guiding you for more information before continuing."
+    override val pregnancyDialogOk = "Got it"
+
+    override val rgpdDialogTitle = "Keeping your formula on file"
+    override val rgpdDialogBody = "At the Studio des Parfums, we need to keep your formula on file in order to offer you quality service, especially if you'd like to find it again on a future visit."
+    override val rgpdDialogOk = "Got it"
     override val questionnaireChooseNotes = "Choose my notes"
 
     override val notesSelectionTitle = "Choose your notes"
     override val notesSelectionSubtitle = "Explore the different notes that will make up your unique fragrance."
+
+    override val optionsSelectionTitle = "Would you like to add any options?"
+    override val optionsSelectionSubtitle = "Optional — select as many options as you'd like, or skip this step."
+    override val optionsSelectionEmpty = "No options available at the moment."
     override val topNotesName = "Top notes"
     override val topNotesShortName = "Top"
     override val topNotesDescription = "The opening of the fragrance, light and fleeting freshness (lasts: 30 minutes)."
@@ -116,7 +141,7 @@ object StringsEn : Strings {
     override val heartNotesDescription = "The soul of the fragrance, revealing its full personality (lasts: 2 to 4 hours)."
     override val baseNotesName = "Base notes"
     override val baseNotesShortName = "Base"
-    override val baseNotesDescription = "The base of the fragrance, its final signature (lasts: 10 hours to a full day)."
+    override val baseNotesDescription = "The base of the fragrance, its final signature (lasts: up to 10 hours)."
     override val boosterNotesName = "Booster notes"
     override val boosterNotesShortName = "Booster"
     override val boosterNotesDescription = "Enhance your fragrance with an extra signature touch."
@@ -130,8 +155,11 @@ object StringsEn : Strings {
         "$familyName: choose at most $max."
     override fun noteCountTooManyRemove(familyName: String, max: Int, count: Int) =
         "$familyName: you have $count notes, maximum $max. Remove ${count - max} note(s) before confirming."
+    override fun noteCountTooFewRemaining(familyName: String, min: Int, missing: Int) =
+        "$familyName: you need $missing more note(s) to reach the minimum of $min."
     override fun noteCountExactly(count: Int) = "$count note(s) to choose"
     override fun noteCountBetween(min: Int, max: Int) = "Between $min and $max notes"
+    override fun boosterCountBetween(min: Int, max: Int) = "Between $min and $max boosters"
     override fun noteCountAtLeast(min: Int) = "At least $min note(s)"
     override fun noteCountAtMost(max: Int) = "$max note(s) max"
 
@@ -144,6 +172,7 @@ object StringsEn : Strings {
         "We recommend not adding $clickedName with $conflictingNames. Do you want to add it anyway?"
     override fun ruleWarningGroupLimit(maxChoices: Int, groupNames: String) =
         "We recommend not having more than $maxChoices notes among these notes: $groupNames. Do you want to add it anyway?"
+    override fun ruleWarningReasonPrefix(reason: String) = "Why: $reason"
     override val ruleWarningConfirm = "Yes"
     override val ruleWarningCancel = "No"
     override fun ruleRecommendation(clickedName: String, recommendedNames: String) =

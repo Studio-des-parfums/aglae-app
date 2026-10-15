@@ -42,6 +42,7 @@ fun RecapScreen(
     heartNotes: List<String>,
     baseNotes: List<String>,
     boosterNotes: List<String> = emptyList(),
+    options: List<String> = emptyList(),
     perfumeName: String,
     isSubmitting: Boolean,
     submitError: String?,
@@ -78,7 +79,7 @@ fun RecapScreen(
                         text = "$firstName $lastName",
                         fontFamily = bodyFont,
                         fontSize = 20.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = FontWeight.Bold,
                         color = QuestionOnSurface
                     )
                     Text(text = email, fontFamily = bodyFont, fontSize = 15.sp, color = QuestionOnSurfaceVariant)
@@ -88,8 +89,8 @@ fun RecapScreen(
                             text = strings.recapPerfumeName(perfumeName),
                             fontFamily = bodyFont,
                             fontSize = 15.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = QuestionPrimary
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Black
                         )
                     }
                     if (quantity.isNotBlank()) {
@@ -97,43 +98,77 @@ fun RecapScreen(
                             text = strings.recapQuantity(quantity),
                             fontFamily = bodyFont,
                             fontSize = 15.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = QuestionPrimary
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Black
                         )
                     }
                 }
             }
 
             listOf(
-                strings.topNotesName to topNotes,
-                strings.heartNotesName to heartNotes,
-                strings.baseNotesName to baseNotes,
-                strings.boosterNotesName to boosterNotes
-            ).forEach { (title, noteList) ->
+                "Notes de tête" to topNotes,
+                "Notes de cœur" to heartNotes,
+                "Notes de fond" to baseNotes,
+                "Notes booster" to boosterNotes
+            ).forEach { (sectionKey, noteList) ->
                 if (noteList.isNotEmpty()) {
+                    val sectionColor = colorForSection(sectionKey)
+                    val title = when (sectionKey) {
+                        "Notes de tête" -> strings.topNotesName
+                        "Notes de cœur" -> strings.heartNotesName
+                        "Notes booster" -> strings.boosterNotesName
+                        else -> strings.baseNotesName
+                    }
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
                         color = Color.White.copy(alpha = 0.80f),
                         elevation = 0.dp,
-                        border = BorderStroke(1.dp, QuestionOutlineVariant.copy(alpha = 0.5f))
+                        border = BorderStroke(1.dp, sectionColor.copy(alpha = 0.5f))
                     ) {
                         Column(modifier = Modifier.padding(20.dp)) {
                             Text(
                                 text = title,
                                 fontFamily = bodyFont,
                                 fontSize = 16.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = QuestionOnSurface
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Black
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
                                 text = noteList.joinToString(" · "),
                                 fontFamily = bodyFont,
                                 fontSize = 15.sp,
-                                color = QuestionOnSurfaceVariant
+                                color = Color.Black
                             )
                         }
+                    }
+                }
+            }
+
+            if (options.isNotEmpty()) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color.White.copy(alpha = 0.80f),
+                    elevation = 0.dp,
+                    border = BorderStroke(1.dp, QuestionOutlineVariant.copy(alpha = 0.5f))
+                ) {
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        Text(
+                            text = strings.optionsSelectionTitle,
+                            fontFamily = bodyFont,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = QuestionOnSurface
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = options.joinToString(" · "),
+                            fontFamily = bodyFont,
+                            fontSize = 15.sp,
+                            color = QuestionOnSurface
+                        )
                     }
                 }
             }
@@ -173,7 +208,7 @@ fun RecapScreen(
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(text = "Impression en cours…", fontFamily = bodyFont, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                        Text(text = "Impression en cours…", fontFamily = bodyFont, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     } else {
                         Icon(
                             imageVector = Icons.Default.Print,
@@ -182,7 +217,7 @@ fun RecapScreen(
                             tint = QuestionOnSurfaceVariant
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(text = "Étiquette", fontFamily = bodyFont, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                        Text(text = "Étiquette", fontFamily = bodyFont, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     }
                 }
                 when (val printResult = labelPrinter.result) {
@@ -255,7 +290,7 @@ fun SuccessScreen(
                 text = strings.successTitle,
                 fontSize = 40.sp,
                 fontWeight = FontWeight.Bold,
-                color = Primary,
+                color = Color.Black,
                 textAlign = TextAlign.Center
             )
 
@@ -288,7 +323,7 @@ fun SuccessScreen(
                 Text(
                     text = strings.finish,
                     fontSize = 18.sp,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.Bold
                 )
             }
         }

@@ -17,6 +17,7 @@ import com.aglae.form.QuestionOnSurfaceVariant
 import com.aglae.form.QuestionOutlineVariant
 import com.aglae.form.QuestionPrimary
 import com.aglae.form.i18n.LocalStrings
+import com.aglae.form.i18n.localizedKeyboardOptions
 
 // ── Écran : intensité de parfum préférée ──
 @Composable
@@ -93,7 +94,7 @@ fun PerfumeNameScreen(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().height(64.dp),
                 shape = RoundedCornerShape(9999.dp),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Done),
+                keyboardOptions = localizedKeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Done),
                 textStyle = MaterialTheme.typography.body1.copy(fontFamily = bodyFont, fontSize = 17.sp, color = QuestionOnSurface),
                 colors = TextFieldDefaults.outlinedTextFieldColors(
                     backgroundColor = Color.White.copy(alpha = 0.80f),

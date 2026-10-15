@@ -56,6 +56,16 @@ object ApiClient {
             parameter("active_only", "true")
         }.body()
 
+    // Options facultatives (ruban, champagne, flacon…) proposées juste avant le récapitulatif.
+    // Coffret optionnel : filtre aux options disponibles pour ce coffret (une option sans
+    // coffret associé en base est renvoyée pour tous les coffrets).
+    suspend fun fetchOptions(coffretId: Int? = null, atelierId: Int? = null): List<OptionItem> =
+        client.get("$ingredientsBaseUrl/api/options") {
+            parameter("active_only", "true")
+            if (coffretId != null) parameter("coffret_id", coffretId)
+            if (atelierId != null) parameter("atelier_id", atelierId)
+        }.body()
+
     // Règles de nombre min/max de notes par famille (tête/cœur/fond) pour une combinaison
     // taille de flacon / coffret / intensité donnée. `bottleSize` et `boxSetId` restent optionnels
     // (non transmis si vides) ; l'intensité n'est volontairement pas filtrée ici car elle n'est
@@ -164,8 +174,8 @@ object ApiClient {
     // ── Supervisor verification ──
 
     suspend fun verifySupervisorIdentifier(identifier: String): SupervisorIdentifierResponse? {
-        val response: HttpResponse = client.get("$baseUrl/api/v1/users/by-identifier") {
-            parameter("identifier", identifier)
+        val response: HttpResponse = client.get("$ingredientsBaseUrl/api/users/by-pseudo") {
+            parameter("pseudo", identifier)
         }
         if (response.status == HttpStatusCode.NotFound) return null
         return response.body()

@@ -17,8 +17,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SupervisorAccount
 import androidx.compose.runtime.*
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,13 +52,28 @@ import com.aglae.form.network.displayName
 import com.aglae.form.network.IngredientItem
 import com.aglae.form.network.NoteItem
 import com.aglae.form.network.NotesCatalog
+import com.aglae.form.network.OptionItem
 import com.aglae.form.network.SessionItem
 import com.aglae.form.network.SupervisorIdentifierResponse
 import com.aglae.form.network.toNotesCatalog
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
-private val noteFields = setOf("topNotes", "heartNotes", "baseNotes")
+private val noteFields = setOf("topNotes", "heartNotes", "baseNotes", "boosterNotes")
+private val noteQuantityFields = setOf("topNoteQuantities", "heartNoteQuantities", "baseNoteQuantities", "boosterNoteQuantities")
+private val birthDateFields = setOf("birthDay", "birthMonth", "birthYear")
+// Clés gérées par des cartes/sections dédiées : exclues de la boucle générique d'affichage.
+private val handledSeparately = noteFields + noteQuantityFields + birthDateFields + setOf("atelierId", "options")
+
+private fun parseNoteQuantities(raw: String): Map<String, String> =
+    raw.split(",").mapNotNull { entry ->
+        val parts = entry.split(":", limit = 2)
+        if (parts.size == 2) parts[0].trim() to parts[1].trim() else null
+    }.toMap()
+
+private fun serializeNoteQuantities(quantities: Map<String, String>): String =
+    quantities.entries.joinToString(",") { (name, qty) -> "$name:$qty" }
 
 // ── Écran liste des sessions actives (grille) ──
 
@@ -114,8 +132,12 @@ fun SupervisorHomeScreen(
                     text = "Superviseur",
                     fontWeight = FontWeight.Bold,
                     fontSize = 20.sp,
-                    color = OnSurface
+                    color = OnSurface,
+                    modifier = Modifier.weight(1f)
                 )
+                IconButton(onClick = { load() }, enabled = !isLoading) {
+                    Icon(Icons.Filled.Refresh, contentDescription = "Actualiser", tint = OnSurface)
+                }
             }
         }
 
@@ -249,7 +271,7 @@ fun SessionCard(
             }
             Text(
                 text = session.customerName ?: "Anonyme",
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Bold,
                 fontSize = 16.sp,
                 color = OnSurface,
                 maxLines = 1,
@@ -281,7 +303,7 @@ fun SessionCard(
                     elevation = ButtonDefaults.elevation(defaultElevation = 0.dp, pressedElevation = 0.dp),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                 ) {
-                    Text("Prendre en charge", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Prendre en charge", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -300,7 +322,7 @@ fun StatusPill(text: String, color: Color) {
         Text(
             text = text,
             fontSize = 11.sp,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = FontWeight.Bold,
             color = color,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -321,7 +343,7 @@ fun RoomFilterChip(label: String, isSelected: Boolean, onClick: () -> Unit) {
         Text(
             text = label,
             fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = FontWeight.Bold,
             color = if (isSelected) OnPrimary else OnSurfaceVariant,
             maxLines = 1,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
@@ -342,7 +364,7 @@ fun RetryButton(onClick: () -> Unit) {
         elevation = ButtonDefaults.elevation(defaultElevation = 0.dp, pressedElevation = 0.dp),
         contentPadding = PaddingValues(horizontal = 24.dp, vertical = 10.dp)
     ) {
-        Text("Réessayer", fontWeight = FontWeight.SemiBold)
+        Text("Réessayer", fontWeight = FontWeight.Bold)
     }
 }
 
@@ -359,12 +381,69 @@ fun SupervisorSessionDetailScreen(
     var isLoading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
 
-    // Navigation interne pour le sélecteur de notes
-    var notesPickerSection by remember { mutableStateOf<String?>(null) }
-    var notesPickerSelected by remember { mutableStateOf<Set<String>>(emptySet()) }
+    // Ateliers : chargés une fois, utilisés pour afficher le nom (pas juste l'id) et pour
+    // déterminer le coffret du client (filtre des notes proposées).
+    var ateliers by remember { mutableStateOf<List<AtelierItem>?>(null) }
+    LaunchedEffect(Unit) {
+        try { ateliers = ApiClient.fetchAteliers() } catch (_: Exception) {}
+    }
+
+    // Navigation interne pour l'écran plein écran "Formule" (notes + quantités)
+    var notesQuantitiesScreenOpen by remember { mutableStateOf(false) }
 
     // Navigation interne pour le sélecteur d'atelier
     var atelierPickerOpen by remember { mutableStateOf(false) }
+
+    // Navigation interne pour le sélecteur d'options
+    var optionsPickerOpen by remember { mutableStateOf(false) }
+
+    // Coffret de l'atelier actuellement choisi par le client : filtre les notes proposées
+    // (catalogue + ajout), pour ne jamais lui suggérer une note hors de son coffret.
+    val currentAtelierId = answers.find { it.questionKey == "atelierId" }?.answerValue?.toIntOrNull()
+    val currentCoffretId = currentAtelierId?.let { id -> ateliers?.find { it.id == id }?.coffretId }
+
+    var ingredients by remember { mutableStateOf<List<IngredientItem>?>(null) }
+    var ingredientsError by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(currentCoffretId) {
+        ingredients = null
+        ingredientsError = null
+        try {
+            ingredients = ApiClient.fetchIngredients(coffretId = currentCoffretId)
+        } catch (e: Exception) {
+            ingredientsError = e.message ?: "Erreur reseau"
+        }
+    }
+    // Toujours en français côté superviseur, quelle que soit la langue de l'app.
+    val notesCatalog = ingredients?.toNotesCatalog("fr")
+
+    fun updateAnswer(key: String, value: String) {
+        scope.launch {
+            try {
+                ApiClient.updateSingleAnswer(sessionId, key, value)
+                answers = if (answers.any { it.questionKey == key }) {
+                    answers.map { if (it.questionKey == key) it.copy(answerValue = value) else it }
+                } else {
+                    answers + AnswerEntry(questionKey = key, answerValue = value)
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
+    // Enregistrement groupé (un seul appel réseau) pour l'écran "Formule" : toutes les
+    // modifications (quantité, ajout, suppression de notes) sont accumulées localement et
+    // envoyées en une fois, plutôt qu'un appel réseau à chaque clic +/-/✕.
+    var isSavingNotes by remember { mutableStateOf(false) }
+    fun saveNotesBatch(updated: List<AnswerEntry>) {
+        scope.launch {
+            isSavingNotes = true
+            try {
+                ApiClient.updateSessionAnswers(sessionId, updated)
+                answers = answers.filter { entry -> updated.none { it.questionKey == entry.questionKey } } + updated
+            } catch (_: Exception) {} finally {
+                isSavingNotes = false
+            }
+        }
+    }
 
     fun load() {
         scope.launch {
@@ -394,49 +473,45 @@ fun SupervisorSessionDetailScreen(
         }
     }
 
-    // Si le sélecteur de notes est ouvert
-    val sectionKey = notesPickerSection
-    if (sectionKey != null) {
-        SupervisorNotesPickerScreen(
-            sectionKey = sectionKey,
-            selected = notesPickerSelected,
-            onSelect = { notesPickerSelected = it },
-            onSave = { selectedNotes ->
-                val value = selectedNotes.joinToString(",")
-                scope.launch {
-                    try {
-                        ApiClient.updateSingleAnswer(sessionId, sectionKey, value)
-                        answers = answers.map {
-                            if (it.questionKey == sectionKey) it.copy(answerValue = value) else it
-                        }
-                    } catch (_: Exception) {}
-                }
-                notesPickerSection = null
+    if (optionsPickerOpen) {
+        val currentSelected = answers.find { it.questionKey == "options" }
+            ?.answerValue
+            ?.split(",")
+            ?.map { it.trim() }
+            ?.filter { it.isNotBlank() }
+            ?.toSet()
+            .orEmpty()
+        SupervisorOptionsPickerScreen(
+            selected = currentSelected,
+            onSave = { selectedOptions ->
+                updateAnswer("options", selectedOptions.joinToString(","))
+                optionsPickerOpen = false
             },
-            onBack = { notesPickerSection = null }
+            onBack = { optionsPickerOpen = false }
         )
         return
     }
 
     if (atelierPickerOpen) {
-        val currentAtelierId = answers.find { it.questionKey == "atelierId" }?.answerValue?.toIntOrNull()
         SupervisorAtelierPickerScreen(
             selectedAtelierId = currentAtelierId,
             onSave = { atelier ->
-                val value = atelier.id.toString()
-                scope.launch {
-                    try {
-                        ApiClient.updateSingleAnswer(sessionId, "atelierId", value)
-                        answers = if (answers.any { it.questionKey == "atelierId" }) {
-                            answers.map { if (it.questionKey == "atelierId") it.copy(answerValue = value) else it }
-                        } else {
-                            answers + AnswerEntry(questionKey = "atelierId", answerValue = value)
-                        }
-                    } catch (_: Exception) {}
-                }
+                updateAnswer("atelierId", atelier.id.toString())
                 atelierPickerOpen = false
             },
             onBack = { atelierPickerOpen = false }
+        )
+        return
+    }
+
+    if (notesQuantitiesScreenOpen) {
+        SupervisorNotesQuantitiesScreen(
+            answers = answers,
+            notesCatalog = notesCatalog,
+            catalogError = ingredientsError,
+            isSaving = isSavingNotes,
+            onSave = { updated -> saveNotesBatch(updated) },
+            onBack = { notesQuantitiesScreenOpen = false }
         )
         return
     }
@@ -506,11 +581,37 @@ fun SupervisorSessionDetailScreen(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(Modifier.padding(16.dp)) {
-                                Text("Client: ${s.customerName ?: "Anonyme"}", fontWeight = FontWeight.SemiBold, color = OnSecondaryContainer)
+                                Text("Client: ${s.customerName ?: "Anonyme"}", fontWeight = FontWeight.Bold, color = OnSecondaryContainer)
                                 if (!s.customerEmail.isNullOrBlank()) {
                                     Text("Email: ${s.customerEmail}", color = OnSecondaryContainer, fontSize = 14.sp)
                                 }
                                 Text("Debut: ${s.startedAt.take(16).replace("T", " ")}", color = OnSecondaryContainer, fontSize = 12.sp)
+                            }
+                        }
+                    }
+
+                    // Alerte allergie mise en évidence (pas noyée dans la liste générique des
+                    // réponses) : le superviseur doit la voir immédiatement pour adapter l'atelier.
+                    if (answers.find { it.questionKey == "hasAllergy" }?.answerValue == "Oui") {
+                        Surface(
+                            shape = CardShape,
+                            color = Color(0xFFFDECEA),
+                            border = BorderStroke(1.dp, Color(0xFFBA1A1A)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(Modifier.padding(16.dp)) {
+                                Text(
+                                    "⚠ Allergie signalée",
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFBA1A1A)
+                                )
+                                val details = answers.find { it.questionKey == "allergyDetails" }?.answerValue
+                                Text(
+                                    text = if (details.isNullOrBlank()) "Aucun détail précisé par le client." else details,
+                                    color = Color(0xFFBA1A1A),
+                                    fontSize = 14.sp,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
                             }
                         }
                     }
@@ -521,63 +622,61 @@ fun SupervisorSessionDetailScreen(
                     // étape du questionnaire (pas encore de ligne "atelierId" dans answers).
                     AtelierAnswerCard(
                         answerValue = answers.find { it.questionKey == "atelierId" }?.answerValue,
+                        ateliers = ateliers,
                         onEdit = { atelierPickerOpen = true }
                     )
 
                     if (answers.isEmpty()) {
                         Text("En attente des reponses...", color = OnSurfaceVariant, fontStyle = FontStyle.Italic)
                     } else {
+                        // Date de naissance : jour/mois/annee sont 3 reponses distinctes cote
+                        // stockage, regroupees ici en une seule carte editable sur une ligne.
+                        if (birthDateFields.any { key -> answers.any { it.questionKey == key } }) {
+                            BirthDateAnswerCard(
+                                day = answers.find { it.questionKey == "birthDay" }?.answerValue.orEmpty(),
+                                month = answers.find { it.questionKey == "birthMonth" }?.answerValue.orEmpty(),
+                                year = answers.find { it.questionKey == "birthYear" }?.answerValue.orEmpty(),
+                                onSave = { day, month, year ->
+                                    updateAnswer("birthDay", day)
+                                    updateAnswer("birthMonth", month)
+                                    updateAnswer("birthYear", year)
+                                }
+                            )
+                        }
+
                         answers.forEach { entry ->
                             when {
-                                entry.questionKey == "atelierId" -> {}
-                                entry.questionKey in noteFields -> {
-                                    NoteAnswerCard(
-                                        questionKey = entry.questionKey,
-                                        answerValue = entry.answerValue,
-                                        onEdit = {
-                                            val currentSelected = entry.answerValue
-                                                .split(",")
-                                                .map { it.trim() }
-                                                .filter { it.isNotBlank() }
-                                                .toSet()
-                                            notesPickerSelected = currentSelected
-                                            notesPickerSection = entry.questionKey
-                                        }
-                                    )
-                                }
+                                entry.questionKey in handledSeparately -> {}
                                 entry.questionKey == "gender" -> {
                                     GenderAnswerCard(
                                         answerValue = entry.answerValue,
-                                        onSelect = { value ->
-                                            scope.launch {
-                                                try {
-                                                    ApiClient.updateSingleAnswer(sessionId, "gender", value)
-                                                    answers = answers.map {
-                                                        if (it.questionKey == "gender") it.copy(answerValue = value) else it
-                                                    }
-                                                } catch (_: Exception) {}
-                                            }
-                                        }
+                                        onSelect = { value -> updateAnswer("gender", value) }
                                     )
                                 }
                                 else -> {
                                     EditableAnswerCard(
                                         questionKey = entry.questionKey,
                                         answerValue = entry.answerValue,
-                                        onEdit = { newValue ->
-                                            scope.launch {
-                                                try {
-                                                    ApiClient.updateSingleAnswer(sessionId, entry.questionKey, newValue)
-                                                    answers = answers.map {
-                                                        if (it.questionKey == entry.questionKey) it.copy(answerValue = newValue) else it
-                                                    }
-                                                } catch (_: Exception) {}
-                                            }
-                                        }
+                                        onEdit = { newValue -> updateAnswer(entry.questionKey, newValue) }
                                     )
                                 }
                             }
                         }
+
+                        // Options choisies par le client : carte cliquable qui ouvre le meme
+                        // visuel que cote client (chips a cocher/decocher), plutot qu'un champ
+                        // texte libre.
+                        OptionsAnswerCard(
+                            answerValue = answers.find { it.questionKey == "options" }?.answerValue,
+                            onEdit = { optionsPickerOpen = true }
+                        )
+
+                        // Formule (notes + quantités) : carte résumé cliquable, l'édition complète
+                        // se fait sur un écran plein écran dédié (même pattern que Options/Atelier).
+                        NotesQuantitiesAnswerCard(
+                            answers = answers,
+                            onEdit = { notesQuantitiesScreenOpen = true }
+                        )
                     }
                 }
             }
@@ -591,8 +690,13 @@ fun SupervisorSessionDetailScreen(
 @Composable
 fun AtelierAnswerCard(
     answerValue: String?,
+    ateliers: List<AtelierItem>?,
     onEdit: () -> Unit
 ) {
+    val language = LocalLanguage.current
+    val atelierId = answerValue?.toIntOrNull()
+    val atelierName = atelierId?.let { id -> ateliers?.find { it.id == id }?.displayName(language.code) }
+
     Card(
         shape = CardShape,
         backgroundColor = Surface,
@@ -607,7 +711,7 @@ fun AtelierAnswerCard(
             ) {
                 Text(
                     text = "Atelier",
-                    fontWeight = FontWeight.Medium,
+                    fontWeight = FontWeight.Bold,
                     fontSize = 13.sp,
                     color = OnSurfaceVariant,
                     modifier = Modifier.weight(1f)
@@ -617,10 +721,14 @@ fun AtelierAnswerCard(
                 }
             }
             Text(
-                text = answerValue?.let { "Atelier #$it" } ?: "Pas encore choisi",
+                text = when {
+                    atelierId == null -> "Pas encore choisi"
+                    !atelierName.isNullOrBlank() -> atelierName
+                    else -> "Atelier #$atelierId"
+                },
                 fontSize = 15.sp,
                 color = OnSurface,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.Bold
             )
         }
     }
@@ -707,8 +815,8 @@ fun SupervisorAtelierPickerScreen(
                                 Text(
                                     text = atelier.displayName(language.code),
                                     fontSize = 15.sp,
-                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                    color = if (isSelected) Primary else OnSurface
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.Black
                                 )
                                 if (isSelected) {
                                     Icon(Icons.Default.Check, contentDescription = null, tint = Primary, modifier = Modifier.size(18.dp))
@@ -723,18 +831,24 @@ fun SupervisorAtelierPickerScreen(
     }
 }
 
-// ── Carte pour les réponses de type "notes" (avec sélecteur catalogue) ──
+// ── Carte "Date de naissance" : jour/mois/annee regroupes sur une seule ligne editable ──
 
 @Composable
-fun NoteAnswerCard(
-    questionKey: String,
-    answerValue: String,
-    onEdit: () -> Unit
+fun BirthDateAnswerCard(
+    day: String,
+    month: String,
+    year: String,
+    onSave: (day: String, month: String, year: String) -> Unit
 ) {
-    val selectedNotes = answerValue
-        .split(",")
-        .map { it.trim() }
-        .filter { it.isNotBlank() }
+    var showEdit by remember { mutableStateOf(false) }
+    var editDay by remember(day, showEdit) { mutableStateOf(day) }
+    var editMonth by remember(month, showEdit) { mutableStateOf(month) }
+    var editYear by remember(year, showEdit) { mutableStateOf(year) }
+
+    val display = listOf(day, month, year).filter { it.isNotBlank() }
+    val formatted = if (display.size == 3) {
+        "${day.padStart(2, '0')}/${month.padStart(2, '0')}/$year"
+    } else "-"
 
     Card(
         shape = CardShape,
@@ -749,8 +863,96 @@ fun NoteAnswerCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = formatQuestionKey(questionKey),
-                    fontWeight = FontWeight.Medium,
+                    text = "Date de naissance",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    color = OnSurfaceVariant,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(onClick = { showEdit = !showEdit }, modifier = Modifier.size(24.dp)) {
+                    Icon(Icons.Filled.Edit, contentDescription = "Modifier", tint = Primary, modifier = Modifier.size(16.dp))
+                }
+            }
+            Text(
+                text = formatted,
+                fontSize = 15.sp,
+                color = OnSurface,
+                fontWeight = FontWeight.Bold
+            )
+
+            if (showEdit) {
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = editDay,
+                        onValueChange = { if (it.length <= 2) editDay = it.filter(Char::isDigit) },
+                        placeholder = { Text("JJ") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = editMonth,
+                        onValueChange = { if (it.length <= 2) editMonth = it.filter(Char::isDigit) },
+                        placeholder = { Text("MM") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = editYear,
+                        onValueChange = { if (it.length <= 4) editYear = it.filter(Char::isDigit) },
+                        placeholder = { Text("AAAA") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1.3f)
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+                Button(
+                    onClick = {
+                        onSave(editDay, editMonth, editYear)
+                        showEdit = false
+                    },
+                    shape = PillShape,
+                    colors = ButtonDefaults.buttonColors(backgroundColor = Primary, contentColor = OnPrimary),
+                    elevation = ButtonDefaults.elevation(defaultElevation = 0.dp, pressedElevation = 0.dp),
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text("Enregistrer", fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
+// ── Carte "Options" : affiche les options choisies, ouvre le picker dedie pour les modifier ──
+
+@Composable
+fun OptionsAnswerCard(
+    answerValue: String?,
+    onEdit: () -> Unit
+) {
+    val selected = answerValue?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() }.orEmpty()
+
+    Card(
+        shape = CardShape,
+        backgroundColor = Surface,
+        elevation = 1.dp,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Options",
+                    fontWeight = FontWeight.Bold,
                     fontSize = 13.sp,
                     color = OnSurfaceVariant,
                     modifier = Modifier.weight(1f)
@@ -758,28 +960,28 @@ fun NoteAnswerCard(
                 TextButton(onClick = onEdit) {
                     Icon(Icons.Filled.Edit, contentDescription = "Modifier", tint = Primary, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("Modifier", color = Primary, fontSize = 13.sp)
+                    Text("Modifier", color = Color.Black, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 }
             }
-            if (selectedNotes.isEmpty()) {
-                Text("-", fontSize = 15.sp, color = OnSurface, fontWeight = FontWeight.SemiBold)
+            if (selected.isEmpty()) {
+                Text("Aucune option", fontSize = 15.sp, color = OnSurface, fontWeight = FontWeight.Bold)
             } else {
                 Spacer(Modifier.height(8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    selectedNotes.forEach { note ->
+                    selected.forEach { option ->
                         Surface(
                             shape = RoundedCornerShape(8.dp),
                             color = SecondaryContainer,
                         ) {
                             Text(
-                                text = note,
+                                text = option,
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                                 fontSize = 13.sp,
                                 color = OnSecondaryContainer,
-                                fontWeight = FontWeight.Medium
+                                fontWeight = FontWeight.Bold
                             )
                         }
                     }
@@ -789,77 +991,46 @@ fun NoteAnswerCard(
     }
 }
 
-// ── Sélecteur de notes depuis le catalogue (plein écran) ──
+// ── Sélecteur d'options (plein écran) : même expérience que côté client, on clique sur une
+// option pour la sélectionner/désélectionner, sans contrainte min/max. ──
 
 @Composable
-fun SupervisorNotesPickerScreen(
-    sectionKey: String,
+fun SupervisorOptionsPickerScreen(
     selected: Set<String>,
-    onSelect: (Set<String>) -> Unit,
     onSave: (Set<String>) -> Unit,
     onBack: () -> Unit
 ) {
-    val scope = rememberCoroutineScope()
     val language = LocalLanguage.current
-    var ingredients by remember { mutableStateOf<List<IngredientItem>?>(null) }
-    var catalogError by remember { mutableStateOf<String?>(null) }
-    var catalogReloadKey by remember { mutableStateOf(0) }
-    val catalog by remember { derivedStateOf { ingredients?.toNotesCatalog(language.code) } }
+    var options by remember { mutableStateOf<List<OptionItem>?>(null) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var reloadKey by remember { mutableStateOf(0) }
+    var currentSelected by remember { mutableStateOf(selected) }
 
-    LaunchedEffect(catalogReloadKey) {
-        catalogError = null
+    LaunchedEffect(reloadKey) {
+        error = null
         try {
-            ingredients = ApiClient.fetchIngredients()
+            options = ApiClient.fetchOptions()
         } catch (e: Exception) {
-            catalogError = e.message ?: "Erreur reseau"
+            error = e.message ?: "Erreur reseau"
         }
     }
-
-    val notes = when (sectionKey) {
-        "topNotes" -> catalog?.topNotes
-        "heartNotes" -> catalog?.heartNotes
-        else -> catalog?.baseNotes
-    }
-    val sectionLabel = formatQuestionKey(sectionKey)
 
     val (pickerFloatA, pickerFloatB, pickerDotAlpha) = rememberFloatingBackground()
 
     Box(modifier = Modifier.fillMaxSize()) {
     AtmosphericBackground(floatA = pickerFloatA, floatB = pickerFloatB, dotAlpha = pickerDotAlpha)
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-    ) {
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            color = Surface,
-            elevation = 0.dp
-        ) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        Surface(modifier = Modifier.fillMaxWidth(), color = Surface, elevation = 0.dp) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour", tint = OnSurface)
                 }
-                Text(
-                    text = sectionLabel,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 20.sp,
-                    color = OnSurface,
-                    modifier = Modifier.weight(1f)
-                )
-                TextButton(
-                    onClick = { onSave(selected) },
-                    enabled = selected.isNotEmpty()
-                ) {
-                    Text(
-                        "Enregistrer",
-                        color = if (selected.isNotEmpty()) Primary else OnSurface.copy(alpha = 0.38f),
-                        fontWeight = FontWeight.Bold
-                    )
+                Text("Options", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = OnSurface, modifier = Modifier.weight(1f))
+                TextButton(onClick = { onSave(currentSelected) }) {
+                    Text("Enregistrer", color = Color.Black, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -867,54 +1038,47 @@ fun SupervisorNotesPickerScreen(
         Divider(color = OutlineVariant, thickness = 0.5.dp)
 
         when {
-            notes == null && catalogError != null -> {
+            options == null && error != null -> {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(catalogError ?: "", color = OnSurfaceVariant, textAlign = TextAlign.Center)
+                        Text(error ?: "", color = OnSurfaceVariant, textAlign = TextAlign.Center)
                         Spacer(Modifier.height(16.dp))
-                        RetryButton(onClick = { catalogReloadKey++ })
+                        RetryButton(onClick = { reloadKey++ })
                     }
                 }
             }
-            notes == null -> {
+            options == null -> {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = Primary)
                 }
             }
+            options.isNullOrEmpty() -> {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Aucune option disponible pour le moment.", color = OnSurfaceVariant, textAlign = TextAlign.Center)
+                }
+            }
             else -> {
                 Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                        .padding(16.dp),
+                    modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        "Selectionnez les notes $sectionLabel",
-                        fontSize = 16.sp,
-                        color = OnSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-                    notes.chunked(3).forEach { rowNotes ->
+                    options?.chunked(2)?.forEach { rowOptions ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            rowNotes.forEach { note ->
+                            rowOptions.forEach { option ->
+                                val name = option.displayName(language.code)
                                 SupervisorNoteChip(
-                                    name = note.name,
-                                    code = note.code,
-                                    isSelected = note.name in selected,
+                                    name = name,
+                                    isSelected = name in currentSelected,
                                     onClick = {
-                                        onSelect(
-                                            if (note.name in selected) selected - note.name
-                                            else selected + note.name
-                                        )
+                                        currentSelected = if (name in currentSelected) currentSelected - name else currentSelected + name
                                     },
                                     modifier = Modifier.weight(1f)
                                 )
                             }
-                            repeat(3 - rowNotes.size) {
+                            if (rowOptions.size == 1) {
                                 Spacer(modifier = Modifier.weight(1f))
                             }
                         }
@@ -923,6 +1087,470 @@ fun SupervisorNotesPickerScreen(
             }
         }
     }
+    }
+}
+
+// ── Section unique "Formule" : notes + quantités (tête/cœur/fond/booster), même visuel que
+// côté client (couleurs par famille, steppers +/-/suppression), notes toujours en FR, filtrées
+// par le coffret de l'atelier choisi par le client. ──
+
+private data class SupervisorNoteFamily(
+    val sectionKey: String,
+    val quantityKey: String,
+    val label: String,
+    val names: List<String>,
+    val quantities: Map<String, String>,
+    val availableNotes: List<String>
+)
+
+// ── Carte résumé "Formule" dans la page détail : affiche un aperçu compact (familles + total
+// ml), ouvre l'écran plein écran dédié pour l'édition complète. ──
+
+@Composable
+fun NotesQuantitiesAnswerCard(
+    answers: List<AnswerEntry>,
+    onEdit: () -> Unit
+) {
+    fun namesFor(key: String): List<String> =
+        answers.find { it.questionKey == key }?.answerValue
+            ?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() }.orEmpty()
+
+    fun quantitiesFor(key: String): Map<String, String> =
+        answers.find { it.questionKey == key }?.answerValue?.let { parseNoteQuantities(it) }.orEmpty()
+
+    val families = listOf(
+        "Notes de tête" to (namesFor("topNotes") to quantitiesFor("topNoteQuantities")),
+        "Notes de cœur" to (namesFor("heartNotes") to quantitiesFor("heartNoteQuantities")),
+        "Notes de fond" to (namesFor("baseNotes") to quantitiesFor("baseNoteQuantities")),
+        "Notes booster" to (namesFor("boosterNotes") to quantitiesFor("boosterNoteQuantities"))
+    )
+    val grandTotalMl = families.sumOf { (_, data) ->
+        val (names, quantities) = data
+        names.sumOf { name -> quantities[name]?.toDoubleOrNull() ?: 0.0 }
+    }
+
+    Card(
+        shape = CardShape,
+        backgroundColor = Surface,
+        elevation = 1.dp,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Formule (notes & quantités)",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    color = OnSurfaceVariant,
+                    modifier = Modifier.weight(1f)
+                )
+                TextButton(onClick = onEdit) {
+                    Icon(Icons.Filled.Edit, contentDescription = "Modifier", tint = Primary, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Modifier", color = Color.Black, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+            if (grandTotalMl <= 0.0 && families.all { it.second.first.isEmpty() }) {
+                Text("Aucune note pour le moment", fontSize = 15.sp, color = OnSurface, fontWeight = FontWeight.Bold)
+            } else {
+                Spacer(Modifier.height(8.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    families.forEach { (label, data) ->
+                        val (names, quantities) = data
+                        if (names.isNotEmpty()) {
+                            val total = names.sumOf { name -> quantities[name]?.toDoubleOrNull() ?: 0.0 }
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(label, fontSize = 14.sp, color = OnSurface, fontWeight = FontWeight.Bold)
+                                    Text("${total.roundToInt()} mL", fontSize = 14.sp, color = OnSurface, fontWeight = FontWeight.Bold)
+                                }
+                                names.forEach { name ->
+                                    val qty = quantities[name]?.toDoubleOrNull()?.roundToInt() ?: 0
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(start = 8.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(name, fontSize = 13.sp, color = OnSurfaceVariant)
+                                        Text("${qty} mL", fontSize = 13.sp, color = OnSurfaceVariant)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(4.dp))
+                Divider(color = OutlineVariant, thickness = 0.5.dp)
+                Spacer(Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Total", fontSize = 13.sp, color = OnSurfaceVariant, fontWeight = FontWeight.Bold)
+                    Text("${grandTotalMl.roundToInt()} mL", fontSize = 13.sp, color = OnSurfaceVariant, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
+// ── Écran plein écran dédié : édition complète des notes + quantités (tête/cœur/fond/booster),
+// même visuel que côté client (couleurs par famille, steppers +/-/suppression), notes toujours
+// en FR, filtrées par le coffret de l'atelier choisi par le client. ──
+
+@Composable
+fun SupervisorNotesQuantitiesScreen(
+    answers: List<AnswerEntry>,
+    notesCatalog: NotesCatalog?,
+    catalogError: String?,
+    isSaving: Boolean,
+    onSave: (List<AnswerEntry>) -> Unit,
+    onBack: () -> Unit
+) {
+    var addNotePickerSection by remember { mutableStateOf<String?>(null) }
+
+    fun namesFor(key: String): List<String> =
+        answers.find { it.questionKey == key }?.answerValue
+            ?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() }.orEmpty()
+
+    fun quantitiesFor(key: String): Map<String, String> =
+        answers.find { it.questionKey == key }?.answerValue?.let { parseNoteQuantities(it) }.orEmpty()
+
+    // État local : toutes les modifications (quantité, ajout, suppression) ne sont appliquées
+    // qu'ici, sans aucun appel réseau. Un seul appel groupé est fait au clic sur "Enregistrer".
+    val sectionKeys = listOf("topNotes", "heartNotes", "baseNotes", "boosterNotes")
+    val quantityKeys = listOf("topNoteQuantities", "heartNoteQuantities", "baseNoteQuantities", "boosterNoteQuantities")
+
+    var localNames by remember(answers) {
+        mutableStateOf(sectionKeys.associateWith { namesFor(it) })
+    }
+    var localQuantities by remember(answers) {
+        mutableStateOf(quantityKeys.associateWith { quantitiesFor(it) })
+    }
+    var hasChanges by remember { mutableStateOf(false) }
+
+    fun labelFor(sectionKey: String) = when (sectionKey) {
+        "topNotes" -> "Notes de tête"
+        "heartNotes" -> "Notes de cœur"
+        "boosterNotes" -> "Notes booster"
+        else -> "Notes de fond"
+    }
+    fun quantityKeyFor(sectionKey: String) = when (sectionKey) {
+        "topNotes" -> "topNoteQuantities"
+        "heartNotes" -> "heartNoteQuantities"
+        "boosterNotes" -> "boosterNoteQuantities"
+        else -> "baseNoteQuantities"
+    }
+    fun catalogFor(sectionKey: String): List<String> = when (sectionKey) {
+        "topNotes" -> notesCatalog?.topNotes?.map { it.name }
+        "heartNotes" -> notesCatalog?.heartNotes?.map { it.name }
+        "boosterNotes" -> notesCatalog?.boosterNotes?.map { it.name }
+        else -> notesCatalog?.baseNotes?.map { it.name }
+    }.orEmpty()
+
+    val families = sectionKeys.map { sectionKey ->
+        val quantityKey = quantityKeyFor(sectionKey)
+        SupervisorNoteFamily(
+            sectionKey = sectionKey,
+            quantityKey = quantityKey,
+            label = labelFor(sectionKey),
+            names = localNames[sectionKey].orEmpty(),
+            quantities = localQuantities[quantityKey].orEmpty(),
+            availableNotes = catalogFor(sectionKey)
+        )
+    }
+
+    val grandTotalMl = families.sumOf { family ->
+        family.names.sumOf { name -> family.quantities[name]?.toDoubleOrNull() ?: 0.0 }
+    }
+
+    fun changeQuantity(family: SupervisorNoteFamily, name: String, qty: String) {
+        localQuantities = localQuantities + (family.quantityKey to (family.quantities + (name to qty)))
+        hasChanges = true
+    }
+
+    fun removeNote(family: SupervisorNoteFamily, name: String) {
+        localNames = localNames + (family.sectionKey to (family.names - name))
+        localQuantities = localQuantities + (family.quantityKey to (family.quantities - name))
+        hasChanges = true
+    }
+
+    fun addNote(family: SupervisorNoteFamily, name: String, qty: String) {
+        localNames = localNames + (family.sectionKey to (family.names + name))
+        localQuantities = localQuantities + (family.quantityKey to (family.quantities + (name to qty)))
+        hasChanges = true
+    }
+
+    val (pickerFloatA, pickerFloatB, pickerDotAlpha) = rememberFloatingBackground()
+
+    Box(modifier = Modifier.fillMaxSize()) {
+    AtmosphericBackground(floatA = pickerFloatA, floatB = pickerFloatB, dotAlpha = pickerDotAlpha)
+    Column(modifier = Modifier.fillMaxSize()) {
+        Surface(modifier = Modifier.fillMaxWidth(), color = Surface, elevation = 0.dp) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour", tint = OnSurface)
+                }
+                Text("Formule", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = OnSurface, modifier = Modifier.weight(1f))
+                if (isSaving) {
+                    CircularProgressIndicator(color = Primary, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+                } else {
+                    TextButton(
+                        onClick = {
+                            val updated = sectionKeys.map { key -> AnswerEntry(questionKey = key, answerValue = localNames[key].orEmpty().joinToString(",")) } +
+                                quantityKeys.map { key -> AnswerEntry(questionKey = key, answerValue = serializeNoteQuantities(localQuantities[key].orEmpty())) }
+                            onSave(updated)
+                            hasChanges = false
+                        },
+                        enabled = hasChanges
+                    ) {
+                        Text(
+                            "Enregistrer",
+                            color = if (hasChanges) Color.Black else OnSurface.copy(alpha = 0.38f),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        }
+
+        Divider(color = OutlineVariant, thickness = 0.5.dp)
+
+        Column(
+            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            if (catalogError != null) {
+                Text(
+                    text = "Catalogue de notes indisponible : $catalogError",
+                    fontSize = 13.sp,
+                    color = Color(0xFFBA1A1A)
+                )
+            }
+
+            families.forEach { family ->
+            val names = family.names
+            val availableToAdd = family.availableNotes.filter { it !in names }
+            val canAddMore = availableToAdd.isNotEmpty()
+            if (names.isNotEmpty() || canAddMore) {
+                val sectionColor = colorForSection(family.label)
+                val totalFamilyMl = names.sumOf { name -> family.quantities[name]?.toDoubleOrNull() ?: 0.0 }
+                val familyPercent = if (grandTotalMl > 0.0) (totalFamilyMl / grandTotalMl) * 100.0 else 0.0
+
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = sectionColor,
+                        modifier = Modifier
+                            .wrapContentWidth()
+                            .let { if (canAddMore) it.clickable { addNotePickerSection = family.sectionKey } else it }
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                        ) {
+                            Text(family.label, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            if (totalFamilyMl > 0.0) {
+                                Text(
+                                    text = " — ${totalFamilyMl.roundToInt()} mL (${familyPercent.roundToInt()}%)",
+                                    fontSize = 14.sp,
+                                    color = Color.White.copy(alpha = 0.85f)
+                                )
+                            }
+                            if (canAddMore) {
+                                Spacer(Modifier.width(8.dp))
+                                Text("+", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            }
+                        }
+                    }
+                    names.forEach { name ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = name,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = sectionColor,
+                                modifier = Modifier.weight(1f).padding(end = 12.dp)
+                            )
+                            val currentMl = family.quantities[name]?.toDoubleOrNull()?.roundToInt() ?: 0
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                QuantityStepperButton(
+                                    icon = "−",
+                                    enabled = currentMl > 0,
+                                    color = sectionColor,
+                                    onClick = { changeQuantity(family, name, (currentMl - 1).coerceAtLeast(0).toString()) }
+                                )
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = Color.White.copy(alpha = 0.80f),
+                                    border = BorderStroke(1.dp, sectionColor.copy(alpha = 0.5f)),
+                                    modifier = Modifier.width(64.dp)
+                                ) {
+                                    Text(
+                                        text = "$currentMl mL",
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = sectionColor,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp)
+                                    )
+                                }
+                                QuantityStepperButton(
+                                    icon = "+",
+                                    enabled = true,
+                                    color = sectionColor,
+                                    onClick = { changeQuantity(family, name, (currentMl + 1).toString()) }
+                                )
+                                QuantityStepperButton(
+                                    icon = "✕",
+                                    enabled = true,
+                                    color = Color(0xFFBA1A1A),
+                                    onClick = { removeNote(family, name) }
+                                )
+                            }
+                        }
+                    }
+                    if (names.isEmpty() && canAddMore) {
+                        Text(
+                            text = "Aucune note — touchez le titre pour en ajouter",
+                            fontSize = 13.sp,
+                            fontStyle = FontStyle.Italic,
+                            color = OnSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+    }
+    }
+    }
+
+    val pickerSection = addNotePickerSection
+    if (pickerSection != null) {
+        val family = families.first { it.sectionKey == pickerSection }
+        val availableToAdd = family.availableNotes.filter { it !in family.names }
+        SupervisorAddNoteDialog(
+            sectionColor = colorForSection(family.label),
+            availableNotes = availableToAdd,
+            onDismiss = { addNotePickerSection = null },
+            onConfirm = { name, qty ->
+                addNote(family, name, qty)
+                addNotePickerSection = null
+            }
+        )
+    }
+}
+
+@Composable
+private fun SupervisorAddNoteDialog(
+    sectionColor: Color,
+    availableNotes: List<String>,
+    onDismiss: () -> Unit,
+    onConfirm: (String, String) -> Unit
+) {
+    var selectedNote by remember { mutableStateOf<String?>(null) }
+    var quantityMl by remember { mutableStateOf(0) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.45f))
+            .clickable(onClick = onDismiss),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = Color.White,
+            modifier = Modifier
+                .widthIn(max = 480.dp)
+                .heightIn(max = 640.dp)
+                .padding(24.dp)
+                .clickable(enabled = false) {}
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text("Ajouter une note", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = OnSurface)
+                if (availableNotes.isEmpty()) {
+                    Text(
+                        text = "Toutes les notes disponibles pour ce coffret sont déjà sélectionnées.",
+                        fontSize = 14.sp,
+                        color = OnSurfaceVariant
+                    )
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        availableNotes.forEach { name ->
+                            val isSelected = name == selectedNote
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (isSelected) sectionColor.copy(alpha = 0.12f) else Color.Transparent,
+                                border = BorderStroke(1.dp, if (isSelected) sectionColor else OutlineVariant),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .clickable { selectedNote = name }
+                            ) {
+                                Text(
+                                    text = name,
+                                    fontSize = 15.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Bold,
+                                    color = if (isSelected) sectionColor else OnSurface,
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)
+                                )
+                            }
+                        }
+                    }
+                    if (selectedNote != null) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Text("Quantité", fontSize = 15.sp, color = OnSurface, modifier = Modifier.weight(1f))
+                            QuantityStepperButton(
+                                icon = "−",
+                                enabled = quantityMl > 0,
+                                color = sectionColor,
+                                onClick = { quantityMl = (quantityMl - 1).coerceAtLeast(0) }
+                            )
+                            Text("$quantityMl mL", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = sectionColor)
+                            QuantityStepperButton(
+                                icon = "+",
+                                enabled = true,
+                                color = sectionColor,
+                                onClick = { quantityMl += 1 }
+                            )
+                        }
+                        Button(
+                            onClick = { onConfirm(selectedNote!!, quantityMl.toString()) },
+                            shape = PillShape,
+                            colors = ButtonDefaults.buttonColors(backgroundColor = sectionColor, contentColor = Color.White),
+                            elevation = ButtonDefaults.elevation(defaultElevation = 0.dp, pressedElevation = 0.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Ajouter", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -960,8 +1588,8 @@ fun SupervisorNoteChip(
             Text(
                 text = if (code.isNullOrBlank()) name else "$code — $name",
                 fontSize = 13.sp,
-                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                color = if (isSelected) Primary else OnSurface,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black,
                 textAlign = TextAlign.Center,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
@@ -986,7 +1614,7 @@ fun GenderAnswerCard(
         Column(Modifier.padding(12.dp)) {
             Text(
                 text = "Genre",
-                fontWeight = FontWeight.Medium,
+                fontWeight = FontWeight.Bold,
                 fontSize = 13.sp,
                 color = OnSurfaceVariant
             )
@@ -1013,8 +1641,8 @@ fun GenderAnswerCard(
                             Text(
                                 text = option,
                                 fontSize = 15.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = if (isSelected) Primary else OnSurface
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Black
                             )
                         }
                     }
@@ -1049,7 +1677,7 @@ fun EditableAnswerCard(
             ) {
                 Text(
                     text = formatQuestionKey(questionKey),
-                    fontWeight = FontWeight.Medium,
+                    fontWeight = FontWeight.Bold,
                     fontSize = 13.sp,
                     color = OnSurfaceVariant,
                     modifier = Modifier.weight(1f)
@@ -1062,7 +1690,7 @@ fun EditableAnswerCard(
                 text = answerValue.ifBlank { "-" },
                 fontSize = 15.sp,
                 color = OnSurface,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.Bold
             )
 
             if (showEdit) {
@@ -1090,7 +1718,7 @@ fun EditableAnswerCard(
                     elevation = ButtonDefaults.elevation(defaultElevation = 0.dp, pressedElevation = 0.dp),
                     modifier = Modifier.align(Alignment.End)
                 ) {
-                    Text("Enregistrer", fontWeight = FontWeight.SemiBold)
+                    Text("Enregistrer", fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -1108,12 +1736,22 @@ private fun formatQuestionKey(key: String): String = when (key) {
     "phone" -> "Telephone"
     "email" -> "Email"
     "hasAllergy" -> "Allergie"
+    "allergyDetails" -> "Allergies connues"
     "liabilityAccepted" -> "Responsabilite"
     "rgpdConsent" -> "Consentement RGPD"
+    "pregnancyAnswer" -> "Enceinte / allaitante"
     "quantity" -> "Quantite"
     "perfumeName" -> "Nom du parfum"
     "topNotes" -> "Notes de tete"
     "heartNotes" -> "Notes de coeur"
     "baseNotes" -> "Notes de fond"
+    "topNoteQuantities" -> "Quantites - Notes de tete"
+    "heartNoteQuantities" -> "Quantites - Notes de coeur"
+    "baseNoteQuantities" -> "Quantites - Notes de fond"
+    "options" -> "Options"
+    "bookingSource" -> "Reservation"
+    "perfumeIntensity" -> "Intensite"
+    "boosterNotes" -> "Notes booster"
+    "boosterNoteQuantities" -> "Quantites - Notes booster"
     else -> key
 }

@@ -66,7 +66,7 @@ fun LanguageSelector(
             Text(
                 text = language.code.uppercase(),
                 fontSize = 18.sp,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Bold,
                 color = contentColor
             )
         }
@@ -87,7 +87,7 @@ fun LanguageSelector(
                     Text(
                         text = lang.displayName,
                         fontSize = 17.sp,
-                        fontWeight = if (lang == language) FontWeight.Bold else FontWeight.Normal
+                        fontWeight = if (lang == language) FontWeight.Bold else FontWeight.Bold
                     )
                 }
             }

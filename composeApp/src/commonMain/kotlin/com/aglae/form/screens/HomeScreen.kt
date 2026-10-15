@@ -144,7 +144,7 @@ fun HomeScreen(
                                 Text(
                                     text = room,
                                     fontSize = 16.sp,
-                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Bold,
                                     color = if (isSelected) Primary else OnSurface
                                 )
                                 if (isSelected) {
@@ -162,6 +162,53 @@ fun HomeScreen(
     var supervisorCode by remember { mutableStateOf("") }
     var isVerifying by remember { mutableStateOf(false) }
     var verifyError by remember { mutableStateOf<String?>(null) }
+    var showWelcomeDialog by remember { mutableStateOf(false) }
+
+    if (showWelcomeDialog) {
+        Dialog(onDismissRequest = { showWelcomeDialog = false }) {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = Surface,
+                elevation = 24.dp
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp).widthIn(max = 420.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text(
+                        text = strings.welcomeDialogTitle,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = OnSurface
+                    )
+                    Text(
+                        text = strings.welcomeDialogBody,
+                        fontSize = 15.sp,
+                        color = OnSurfaceVariant
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        Button(
+                            onClick = {
+                                showWelcomeDialog = false
+                                onStart()
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                backgroundColor = Primary,
+                                contentColor = OnPrimary
+                            ),
+                            elevation = ButtonDefaults.elevation(defaultElevation = 0.dp, pressedElevation = 0.dp),
+                            shape = PillShape
+                        ) {
+                            Text(strings.welcomeDialogOk, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     if (showSupervisorDialog) {
         Dialog(onDismissRequest = {
@@ -192,7 +239,7 @@ fun HomeScreen(
                     OutlinedTextField(
                         value = supervisorCode,
                         onValueChange = {
-                            supervisorCode = it.uppercase()
+                            supervisorCode = it
                             verifyError = null
                         },
                         label = { Text(strings.supervisorDialogIdentifierLabel) },
@@ -269,7 +316,7 @@ fun HomeScreen(
                                     strokeWidth = 2.dp
                                 )
                             } else {
-                                Text(strings.validate, fontWeight = FontWeight.SemiBold)
+                                Text(strings.validate, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -441,7 +488,7 @@ fun HomeScreen(
             var isHovered by remember { mutableStateOf(false) }
 
             Button(
-                onClick = onStart,
+                onClick = { showWelcomeDialog = true },
                 modifier = Modifier
                     .width(616.dp)
                     .heightIn(min = 56.dp)
@@ -481,7 +528,7 @@ fun HomeScreen(
                     Text(
                         text = strings.homeStart,
                         fontSize = 20.sp,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.Bold
                     )
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowForward,

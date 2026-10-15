@@ -20,6 +20,7 @@ import com.aglae.form.QuestionOnSurfaceVariant
 import com.aglae.form.QuestionOutlineVariant
 import com.aglae.form.QuestionPrimary
 import com.aglae.form.i18n.LocalStrings
+import com.aglae.form.i18n.localizedKeyboardOptions
 import com.aglae.form.network.CustomerSearchResult
 
 // ── Écran : le client a-t-il déjà une formule chez nous ? ──
@@ -105,7 +106,7 @@ fun ContactSearchScreen(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().height(64.dp),
                 shape = RoundedCornerShape(9999.dp),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
+                keyboardOptions = localizedKeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
                 textStyle = MaterialTheme.typography.body1.copy(fontFamily = bodyFont, fontSize = 17.sp, color = QuestionOnSurface),
                 colors = TextFieldDefaults.outlinedTextFieldColors(
                     backgroundColor = Color.White.copy(alpha = 0.80f),
@@ -126,7 +127,7 @@ fun ContactSearchScreen(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().height(64.dp),
                 shape = RoundedCornerShape(9999.dp),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone, imeAction = ImeAction.Done),
+                keyboardOptions = localizedKeyboardOptions(keyboardType = KeyboardType.Phone, imeAction = ImeAction.Done),
                 textStyle = MaterialTheme.typography.body1.copy(fontFamily = bodyFont, fontSize = 17.sp, color = QuestionOnSurface),
                 colors = TextFieldDefaults.outlinedTextFieldColors(
                     backgroundColor = Color.White.copy(alpha = 0.80f),
@@ -192,7 +193,7 @@ fun CustomerFoundScreen(
                         text = "${customer?.firstName.orEmpty()} ${customer?.lastName.orEmpty()}".trim(),
                         fontFamily = bodyFont,
                         fontSize = 20.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = FontWeight.Bold,
                         color = QuestionOnSurface
                     )
                     if (!customer?.city.isNullOrBlank()) {
@@ -211,7 +212,7 @@ fun CustomerFoundScreen(
                 onClick = onNotMe,
                 colors = ButtonDefaults.textButtonColors(contentColor = QuestionOnSurfaceVariant)
             ) {
-                Text(text = strings.customerFoundNotMe, fontFamily = bodyFont, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                Text(text = strings.customerFoundNotMe, fontFamily = bodyFont, fontSize = 15.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -253,7 +254,7 @@ fun CustomerNotFoundScreen(
                 onClick = onRetry,
                 colors = ButtonDefaults.textButtonColors(contentColor = QuestionOnSurfaceVariant)
             ) {
-                Text(text = strings.customerNotFoundRetry, fontFamily = bodyFont, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                Text(text = strings.customerNotFoundRetry, fontFamily = bodyFont, fontSize = 14.sp, fontWeight = FontWeight.Bold)
             }
         }
     }

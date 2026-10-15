@@ -9,6 +9,7 @@ interface Strings {
     val close: String
     val cancel: String
     val validate: String
+    val skip: String
     val finish: String
     val yes: String
     val no: String
@@ -29,6 +30,11 @@ interface Strings {
     val supervisorDialogIdentifierLabel: String
     val supervisorDialogInvalidCode: String
     val supervisorDialogConnectionError: String
+
+    // ── Welcome dialog (affiché au clic sur "Commencer") ──
+    val welcomeDialogTitle: String
+    val welcomeDialogBody: String
+    val welcomeDialogOk: String
 
     // ── Atelier choice screen ──
     val atelierTitle: String
@@ -103,6 +109,11 @@ interface Strings {
     val yearError: String
     val questionProfessionTitle: String
     val professionLabel: String
+    val bookingSourceTitle: String
+    val bookingSourcePhone: String
+    val bookingSourceWeecando: String
+    val bookingSourceWebsite: String
+    val bookingSourceOther: String
     val questionLocationTitle: String
     val countryLabel: String
     val cityLabel: String
@@ -114,13 +125,32 @@ interface Strings {
     val questionLegalTitle: String
     val legalNotice: String
     val allergyQuestion: String
+    val allergyDetailsLabel: String
     val liabilityQuestion: String
+    val liabilityDeclineWarning: String
     val rgpdQuestion: String
+    val pregnancyQuestion: String
+
+    // ── Modal grossesse/allaitement (réponse "Oui" à pregnancyQuestion) ──
+    val pregnancyDialogTitle: String
+    val pregnancyDialogBody: String
+    val pregnancyDialogOk: String
+
+    // ── Modal conservation de formule (réponse "Non" à rgpdQuestion, affiché à l'entrée sur
+    // l'écran "Choisissez vos notes") ──
+    val rgpdDialogTitle: String
+    val rgpdDialogBody: String
+    val rgpdDialogOk: String
     val questionnaireChooseNotes: String
 
     // ── Notes selection screen ──
     val notesSelectionTitle: String
     val notesSelectionSubtitle: String
+
+    // ── Options screen (facultatif, juste avant le récapitulatif) ──
+    val optionsSelectionTitle: String
+    val optionsSelectionSubtitle: String
+    val optionsSelectionEmpty: String
     val topNotesName: String
     val topNotesShortName: String
     val topNotesDescription: String
@@ -140,8 +170,10 @@ interface Strings {
     fun noteCountTooFew(familyName: String, min: Int): String
     fun noteCountTooMany(familyName: String, max: Int): String
     fun noteCountTooManyRemove(familyName: String, max: Int, count: Int): String
+    fun noteCountTooFewRemaining(familyName: String, min: Int, missing: Int): String
     fun noteCountExactly(count: Int): String
     fun noteCountBetween(min: Int, max: Int): String
+    fun boosterCountBetween(min: Int, max: Int): String
     fun noteCountAtLeast(min: Int): String
     fun noteCountAtMost(max: Int): String
 
@@ -154,6 +186,7 @@ interface Strings {
     val ruleWarningTitle: String
     fun ruleWarningIncompatibility(clickedName: String, conflictingNames: String): String
     fun ruleWarningGroupLimit(maxChoices: Int, groupNames: String): String
+    fun ruleWarningReasonPrefix(reason: String): String
     val ruleWarningConfirm: String
     val ruleWarningCancel: String
     fun ruleRecommendation(clickedName: String, recommendedNames: String): String

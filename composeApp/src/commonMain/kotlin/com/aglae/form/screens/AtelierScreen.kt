@@ -63,14 +63,6 @@ fun AtelierScreen(
         ) {
             QuestionPill(text = strings.atelierTitle)
 
-            Text(
-                text = strings.atelierSubtitle,
-                fontFamily = bodyFont,
-                fontSize = 16.sp,
-                color = QuestionOnSurfaceVariant,
-                textAlign = TextAlign.Center
-            )
-
             when {
                 isLoading -> CircularProgressIndicator(color = QuestionPrimary)
 
@@ -86,7 +78,7 @@ fun AtelierScreen(
                         textAlign = TextAlign.Center
                     )
                     TextButton(onClick = onRetry) {
-                        Text(text = strings.retry, fontFamily = bodyFont, color = QuestionPrimary, fontWeight = FontWeight.SemiBold)
+                        Text(text = strings.retry, fontFamily = bodyFont, color = Color.Black, fontWeight = FontWeight.Bold)
                     }
                 }
 
@@ -102,7 +94,7 @@ fun AtelierScreen(
                         textAlign = TextAlign.Center
                     )
                     TextButton(onClick = onRetry) {
-                        Text(text = strings.retry, fontFamily = bodyFont, color = QuestionPrimary, fontWeight = FontWeight.SemiBold)
+                        Text(text = strings.retry, fontFamily = bodyFont, color = Color.Black, fontWeight = FontWeight.Bold)
                     }
                 }
 
@@ -114,7 +106,7 @@ fun AtelierScreen(
                         columns = GridCells.Fixed(3),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.fillMaxWidth().heightIn(max = 720.dp)
+                        modifier = Modifier.widthIn(max = 420.dp).heightIn(max = 480.dp)
                     ) {
                         items(ateliers) { atelier ->
                             AtelierCard(
@@ -180,8 +172,8 @@ private fun AtelierCard(atelier: AtelierItem, languageCode: String, isSelected: 
                     text = atelier.displayName(languageCode),
                     fontFamily = bodyFont,
                     fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = QuestionPrimary,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black,
                     textAlign = TextAlign.Center,
                     minLines = 2,
                     maxLines = 2
