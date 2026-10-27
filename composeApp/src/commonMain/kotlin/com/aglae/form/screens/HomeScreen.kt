@@ -441,6 +441,14 @@ fun HomeScreen(
             )
         }
 
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 28.dp, end = 28.dp)
+        ) {
+            TextZoomButton()
+        }
+
         // Image fiole, entre le titre et le bouton — animation de flottement. Plus petite en
         // portrait pour ne pas chevaucher le bouton "Commencer" en bas d'écran.
         val fioleFloatTransition = rememberInfiniteTransition(label = "fioleFloat")

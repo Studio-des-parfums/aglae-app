@@ -390,10 +390,52 @@ class FormViewModel(private val scope: CoroutineScope) {
         }
     }
 
+    // ── Réinitialisation de la formule (notes, dosages, options) lors d'un changement d'atelier ──
+    fun resetNotesAndDownstream() {
+        selectedNoteSection = ""
+        selectedTopNotes = emptySet()
+        selectedHeartNotes = emptySet()
+        selectedBaseNotes = emptySet()
+        selectedBoosterNotes = emptySet()
+        topNoteQuantities = emptyMap()
+        heartNoteQuantities = emptyMap()
+        baseNoteQuantities = emptyMap()
+        boosterNoteQuantities = emptyMap()
+        selectedOptions = emptySet()
+        options = null
+        noteCountBounds = null
+        noteCountError = null
+        ingredientRules = emptyList()
+        pendingRuleWarning = null
+        pendingRuleWarningNoteName = null
+        noteRecommendationSource = null
+        noteRecommendation = null
+        perfumeIntensity = ""
+        perfumeName = ""
+        submitError = null
+        submissionResult = null
+        suggestQuantitiesError = null
+
+        // Nettoie aussi les réponses envoyées à la session sur le serveur pour éviter que
+        // refreshNotesFromSession ne les recharge.
+        sendAnswer("topNotes", "")
+        sendAnswer("heartNotes", "")
+        sendAnswer("baseNotes", "")
+        sendAnswer("boosterNotes", "")
+        sendAnswer("topNoteQuantities", "")
+        sendAnswer("heartNoteQuantities", "")
+        sendAnswer("baseNoteQuantities", "")
+        sendAnswer("boosterNoteQuantities", "")
+        sendAnswer("options", "")
+        sendAnswer("perfumeIntensity", "")
+        sendAnswer("perfumeName", "")
+    }
+
     // Sélectionne l'atelier, ce qui détermine le coffret (notes proposées) et le volume de
     // flacon (plus de choix de taille dans le questionnaire), force un rechargement du catalogue
     // de notes filtré dessus, et avance vers la suite du parcours (pyramidExplanation).
     fun chooseAtelier(atelier: AtelierItem, languageCode: String) {
+        val isInitialFormulaResume = reusedFromFormulaId != null && preselectedAtelierId == atelier.id
         selectedAtelierId = atelier.id
         preselectedAtelierId = null
         selectedBoxSetId = atelier.coffretId
@@ -401,6 +443,9 @@ class FormViewModel(private val scope: CoroutineScope) {
         quantity = atelier.volumeMl?.let { "${it}ml" } ?: ""
         catalogReloadKey++
         sendAnswer("atelierId", atelier.id.toString())
+        if (!isInitialFormulaResume) {
+            resetNotesAndDownstream()
+        }
         screen = "pyramidExplanation"
     }
 

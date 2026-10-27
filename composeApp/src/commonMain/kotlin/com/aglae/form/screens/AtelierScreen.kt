@@ -7,7 +7,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -51,15 +54,17 @@ fun AtelierScreen(
     val bodyFont = questionBodyFont()
     var selectedAtelier by remember(ateliers) { mutableStateOf<AtelierItem?>(null) }
 
-    QuestionScreenScaffold(onBack = onBack, onGoHome = onGoHome) {
-        // Pas de fillMaxHeight()/weight() ici : le scaffold parent (QuestionScreenScaffold) est
-        // scrollable verticalement, ce qui rend sa hauteur non bornée — un enfant avec weight()
-        // dans ce contexte se réduit à zéro (grille invisible). La grille prend donc une hauteur
-        // fixe généreuse à la place.
+    QuestionScreenScaffold(
+        onBack = onBack,
+        onGoHome = onGoHome,
+        logoHeight = 56.dp,
+        titleSpacing = 14.dp,
+        bottomPadding = 48.dp
+    ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(20.dp),
-            modifier = Modifier.fillMaxWidth().widthIn(max = 720.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.fillMaxWidth().widthIn(max = 740.dp)
         ) {
             QuestionPill(text = strings.atelierTitle)
 
@@ -99,22 +104,30 @@ fun AtelierScreen(
                 }
 
                 else -> {
-                    // Hauteur fixe généreuse (pas de weight() : voir note plus haut sur le
-                    // scaffold scrollable) pour que la grille occupe une grande partie de
-                    // l'écran, avec le bouton Confirmer juste en dessous.
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(3),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.widthIn(max = 420.dp).heightIn(max = 480.dp)
+                    val rows = ateliers.chunked(3)
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        items(ateliers) { atelier ->
-                            AtelierCard(
-                                atelier = atelier,
-                                languageCode = languageCode,
-                                isSelected = atelier.id == selectedAtelier?.id,
-                                onClick = { selectedAtelier = atelier }
-                            )
+                        rows.forEach { rowAteliers ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(14.dp)
+                            ) {
+                                rowAteliers.forEach { atelier ->
+                                    Box(modifier = Modifier.weight(1f)) {
+                                        AtelierCard(
+                                            atelier = atelier,
+                                            languageCode = languageCode,
+                                            isSelected = atelier.id == selectedAtelier?.id,
+                                            onClick = { selectedAtelier = atelier }
+                                        )
+                                    }
+                                }
+                                repeat(3 - rowAteliers.size) {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                }
+                            }
                         }
                     }
 
@@ -140,15 +153,15 @@ private fun AtelierCard(atelier: AtelierItem, languageCode: String, isSelected: 
             .clip(CardShape)
             .clickable(onClick = onClick),
         shape = CardShape,
-        color = Color.White.copy(alpha = 0.80f),
-        border = BorderStroke(if (isSelected) 2.dp else 1.dp, if (isSelected) QuestionPrimary else QuestionOutlineVariant.copy(alpha = 0.5f)),
-        elevation = 0.dp
+        color = Color.White.copy(alpha = 0.85f),
+        border = BorderStroke(if (isSelected) 3.dp else 1.dp, if (isSelected) Color(0xFF1C1B1F) else QuestionOutlineVariant.copy(alpha = 0.5f)),
+        elevation = if (isSelected) 4.dp else 1.dp
     ) {
         Column {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(1f)
+                    .aspectRatio(1.25f)
                     .clip(ImageShape)
                     .background(QuestionOutlineVariant.copy(alpha = 0.2f))
             ) {
@@ -160,20 +173,43 @@ private fun AtelierCard(atelier: AtelierItem, languageCode: String, isSelected: 
                         modifier = Modifier.fillMaxSize()
                     )
                 }
+                if (isSelected) {
+                    Surface(
+                        shape = CircleShape,
+                        color = Color(0xFF1C1B1F),
+                        elevation = 4.dp,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(8.dp)
+                            .size(26.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
             }
 
             // minLines = 2 sur le nom (même quand il tient sur 1 ligne) pour que toutes les
             // cartes réservent la même hauteur de texte, peu importe la longueur du nom.
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(if (isSelected) Color(0xFF1C1B1F) else Color.Transparent)
+                    .padding(horizontal = 8.dp, vertical = 8.dp)
             ) {
                 Text(
                     text = atelier.displayName(languageCode),
                     fontFamily = bodyFont,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.Black,
+                    color = if (isSelected) Color.White else Color.Black,
                     textAlign = TextAlign.Center,
                     minLines = 2,
                     maxLines = 2
@@ -182,7 +218,7 @@ private fun AtelierCard(atelier: AtelierItem, languageCode: String, isSelected: 
                     text = atelier.volumeMl?.let { "${it}ml" } ?: "",
                     fontFamily = bodyFont,
                     fontSize = 12.sp,
-                    color = QuestionOnSurfaceVariant,
+                    color = if (isSelected) Color.White.copy(alpha = 0.8f) else QuestionOnSurfaceVariant,
                     modifier = Modifier.padding(top = 2.dp)
                 )
             }

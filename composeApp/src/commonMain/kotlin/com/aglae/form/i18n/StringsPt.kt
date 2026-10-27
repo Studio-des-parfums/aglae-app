@@ -115,7 +115,8 @@ object StringsPt : Strings {
     override val allergyDetailsLabel = "Indique as suas alergias conhecidas"
     override val liabilityQuestion = "Em caso afirmativo, deseja continuar isentando-nos de responsabilidade?"
     override val liabilityDeclineWarning = "Em caso de alergia conhecida, não podemos ser responsabilizados: por favor, aceite isentar-nos de responsabilidade para continuar, ou volte atrás."
-    override val rgpdQuestion = "No âmbito do RGPD, podemos conservar a sua fórmula?"
+    override val rgpdQuestion = "No âmbito do RGPD, autoriza a conservação da sua fórmula?"
+    override val rgpdDescription = "O RGPD protege os seus dados pessoais. Esta autorização permite ao Studio des Parfums guardar a sua fórmula para que possa encomendar novamente o seu perfume ou encontrá-la em visitas futuras."
     override val pregnancyQuestion = "Está grávida ou a amamentar?"
 
     override val pregnancyDialogTitle = "Por favor, dirija-se ao perfumista"
@@ -186,9 +187,9 @@ object StringsPt : Strings {
 
     override val perfumeIntensityTitle = "Que intensidade prefere?"
     override val perfumeIntensitySubtitle = "Escolha a força do seu perfume"
-    override val perfumeIntensityLight = "Leve"
+    override val perfumeIntensityLight = "Leve (perfume de pele)"
     override val perfumeIntensityModerate = "Moderado"
-    override val perfumeIntensityStrong = "Forte"
+    override val perfumeIntensityStrong = "Forte (rastro)"
 
     override val perfumeNameTitle = "Dê um nome ao seu perfume"
     override val perfumeNameLabel = "Nome do perfume"
@@ -202,6 +203,7 @@ object StringsPt : Strings {
     override val successTitle = "Obrigado!"
     override val successMessageNew = "A sua fórmula foi registada com sucesso."
     override val successMessageExisting = "A sua fórmula foi registada com sucesso\ne adicionada ao seu perfil existente."
+    override val successEmailNotice = "Irá receber um primeiro email diretamente após o workshop e outro nos próximos dias."
 
 
     override val languageSelectorContentDescription = "Mudar de idioma"

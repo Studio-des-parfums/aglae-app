@@ -158,6 +158,7 @@ sealed class QuestionData {
 
 data class SubQuestionData(
     val question: String,
+    val description: String? = null,
     val selectedOption: String,
     val onOptionSelected: (String) -> Unit,
     // Champ texte libre affiché sous les boutons Oui/Non quand selectedOption == "Oui"
@@ -445,6 +446,7 @@ fun QuestionnaireScreen(
                 } else null,
                 SubQuestionData(
                     question = strings.rgpdQuestion,
+                    description = strings.rgpdDescription,
                     selectedOption = rgpdAnswer,
                     onOptionSelected = onRgpdAnswerChange
                 )
@@ -474,8 +476,10 @@ fun QuestionnaireScreen(
     QuestionScreenScaffold(
         onBack = if (currentQuestion >= 1) onPreviousQuestion else null,
         onGoHome = onGoHome,
-        scrollable = !isLegalPage,
-        bottomPadding = if (isLegalPage) 24.dp else 96.dp
+        scrollable = true,
+        logoHeight = if (isLegalPage) 48.dp else 120.dp,
+        titleSpacing = if (isLegalPage) 8.dp else 48.dp,
+        bottomPadding = 64.dp
     ) {
         // Détection portrait/paysage locale à cet écran : la page réglementation (NoticeQuestion)
         // a besoin d'une mise en page plus compacte en portrait pour tenir sans scroll (voir
@@ -512,12 +516,8 @@ fun QuestionnaireScreen(
             // QuestionScreenScaffold plus haut) pour que son contenu se redimensionne avec.
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(if (isPortrait) 16.dp else 32.dp),
-                modifier = if (question is QuestionData.NoticeQuestion) {
-                    Modifier.fillMaxWidth().fillMaxHeight()
-                } else {
-                    Modifier.fillMaxWidth().heightIn(max = 640.dp).verticalScroll(rememberScrollState())
-                }
+                verticalArrangement = Arrangement.spacedBy(if (isLegalPage) 10.dp else if (isPortrait) 16.dp else 28.dp),
+                modifier = Modifier.fillMaxWidth().widthIn(max = 680.dp)
             ) {
                 Text(
                     text = strings.questionCounter(currentQuestion + 1, totalQuestions),
@@ -682,117 +682,139 @@ fun QuestionnaireScreen(
                         }
                     }
                     is QuestionData.NoticeQuestion -> {
-                        // La page doit tenir sans scroll quelle que soit l'orientation : plus il y
-                        // a de sous-questions affichées (jusqu'à 4, selon genre/allergie/RGPD),
-                        // plus cartes/textes/espacements se resserrent pour tenir sur un écran.
-                        val isDense = question.subQuestions.size >= 3
-                        val cardPadding = if (isPortrait) 8.dp else if (isDense) 12.dp else 20.dp
-                        val sectionSpacing = if (isPortrait) 6.dp else if (isDense) 10.dp else 20.dp
-                        val noticeFontSize = if (isPortrait) 11.sp else if (isDense) 13.sp else 15.sp
-                        val subQuestionFontSize = if (isPortrait) 12.sp else if (isDense) 14.sp else 16.sp
-                        val optionFontSize = if (isPortrait) 11.sp else if (isDense) 13.sp else 15.sp
-                        val optionPaddingH = if (isPortrait) 10.dp else if (isDense) 14.dp else 20.dp
-                        val optionPaddingV = if (isPortrait) 5.dp else if (isDense) 8.dp else 12.dp
-                        val innerSpacing = if (isPortrait) 4.dp else if (isDense) 6.dp else 12.dp
+                        val cardPadding = 12.dp
+                        val sectionSpacing = 8.dp
 
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(sectionSpacing),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .widthIn(max = 560.dp)
-                                .verticalScroll(rememberScrollState())
+                                .widthIn(max = 680.dp)
                         ) {
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(16.dp),
-                                color = Color.White.copy(alpha = 0.80f),
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color.White.copy(alpha = 0.85f),
                                 elevation = 0.dp,
-                                border = BorderStroke(1.dp, QuestionOutlineVariant.copy(alpha = 0.5f))
+                                border = BorderStroke(1.dp, QuestionOutlineVariant.copy(alpha = 0.4f))
                             ) {
-                                Text(
-                                    text = question.notice,
-                                    fontFamily = bodyFont,
-                                    fontSize = noticeFontSize,
-                                    color = QuestionOnSurfaceVariant,
-                                    textAlign = TextAlign.Start,
-                                    modifier = Modifier.padding(cardPadding)
-                                )
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = QuestionPrimary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Text(
+                                        text = question.notice,
+                                        fontFamily = bodyFont,
+                                        fontSize = 12.5.sp,
+                                        color = QuestionOnSurfaceVariant,
+                                        lineHeight = 17.sp,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
                             }
 
                             question.subQuestions.forEach { sub ->
                                 Surface(
                                     modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(16.dp),
-                                    color = Color.White.copy(alpha = 0.80f),
-                                    elevation = 0.dp,
-                                    border = BorderStroke(1.dp, QuestionOutlineVariant.copy(alpha = 0.5f))
+                                    shape = RoundedCornerShape(14.dp),
+                                    color = Color.White.copy(alpha = 0.90f),
+                                    elevation = 1.dp,
+                                    border = BorderStroke(1.dp, QuestionOutlineVariant.copy(alpha = 0.45f))
                                 ) {
                                     Column(modifier = Modifier.padding(cardPadding)) {
                                         Text(
                                             text = boldLeadingPhrase(sub.question),
                                             fontFamily = bodyFont,
-                                            fontSize = subQuestionFontSize,
+                                            fontSize = 14.5.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = Color.Black
                                         )
-                                        Spacer(modifier = Modifier.height(innerSpacing))
+                                        if (sub.description != null) {
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = sub.description,
+                                                fontFamily = bodyFont,
+                                                fontSize = 12.sp,
+                                                color = QuestionOnSurfaceVariant,
+                                                lineHeight = 16.sp
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.height(8.dp))
                                         Row(
-                                            horizontalArrangement = Arrangement.spacedBy(innerSpacing)
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                                         ) {
                                             listOf("Oui", "Non").forEach { option ->
                                                 val optionLabel = translateOption(option)
                                                 val isSel = sub.selectedOption == option
                                                 Surface(
                                                     modifier = Modifier
-                                                        .clip(RoundedCornerShape(9999.dp))
+                                                        .weight(1f)
+                                                        .height(44.dp)
+                                                        .clip(RoundedCornerShape(10.dp))
                                                         .clickable { sub.onOptionSelected(option) },
-                                                    shape = RoundedCornerShape(9999.dp),
-                                                    color = if (isSel) QuestionPrimary.copy(alpha = 0.10f) else Color.Transparent,
+                                                    shape = RoundedCornerShape(10.dp),
+                                                    color = if (isSel) Color(0xFF1C1B1F) else Color(0xFFF9F9F9),
                                                     border = BorderStroke(
-                                                        1.dp,
-                                                        if (isSel) QuestionPrimary.copy(alpha = 0.4f) else QuestionOutlineVariant
-                                                    )
+                                                        if (isSel) 2.dp else 1.dp,
+                                                        if (isSel) Color(0xFF1C1B1F) else QuestionOutlineVariant.copy(alpha = 0.6f)
+                                                    ),
+                                                    elevation = if (isSel) 2.dp else 0.dp
                                                 ) {
                                                     Row(
-                                                        modifier = Modifier.padding(
-                                                            horizontal = optionPaddingH,
-                                                            vertical = optionPaddingV
-                                                        ),
+                                                        modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
                                                         verticalAlignment = Alignment.CenterVertically,
-                                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                        horizontalArrangement = Arrangement.Center
                                                     ) {
                                                         if (isSel) {
                                                             Icon(
                                                                 imageVector = Icons.Default.Check,
                                                                 contentDescription = null,
-                                                                tint = QuestionPrimary,
-                                                                modifier = Modifier.size(16.dp)
+                                                                tint = Color.White,
+                                                                modifier = Modifier.size(18.dp)
                                                             )
+                                                            Spacer(modifier = Modifier.width(6.dp))
                                                         }
                                                         Text(
                                                             text = optionLabel,
                                                             fontFamily = bodyFont,
-                                                            fontSize = optionFontSize,
-                                                            fontWeight = FontWeight.Bold,
-                                                            color = Color.Black
+                                                            fontSize = 15.sp,
+                                                            fontWeight = if (isSel) FontWeight.Bold else FontWeight.SemiBold,
+                                                            color = if (isSel) Color.White else QuestionOnSurface
                                                         )
                                                     }
                                                 }
                                             }
                                         }
                                         if (sub.selectedOption == "Oui" && sub.detailsField != null) {
-                                            Spacer(modifier = Modifier.height(innerSpacing))
+                                            Spacer(modifier = Modifier.height(8.dp))
                                             QuestionTextField(sub.detailsField, compact = true, fillAvailableWidth = true)
                                         }
                                         if (sub.selectedOption == "Non" && sub.warningIfNo != null) {
-                                            Spacer(modifier = Modifier.height(innerSpacing))
-                                            Text(
-                                                text = sub.warningIfNo,
-                                                fontFamily = bodyFont,
-                                                fontSize = optionFontSize,
-                                                color = Color(0xFFBA1A1A)
-                                            )
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Surface(
+                                                shape = RoundedCornerShape(8.dp),
+                                                color = Color(0xFFBA1A1A).copy(alpha = 0.08f),
+                                                border = BorderStroke(1.dp, Color(0xFFBA1A1A).copy(alpha = 0.3f)),
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                Text(
+                                                    text = sub.warningIfNo,
+                                                    fontFamily = bodyFont,
+                                                    fontSize = 12.sp,
+                                                    color = Color(0xFFBA1A1A),
+                                                    lineHeight = 16.sp,
+                                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -800,11 +822,19 @@ fun QuestionnaireScreen(
                         }
 
                         val isLastQuestion = currentQuestion == totalQuestions - 1
-                        QuestionActionButton(
-                            text = if (isLastQuestion) strings.questionnaireChooseNotes else strings.next,
-                            onClick = if (isLastQuestion) onFinish else onNextQuestion,
-                            enabled = question.isComplete
-                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .widthIn(max = 680.dp)
+                                .padding(top = 4.dp, bottom = 4.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            QuestionActionButton(
+                                text = if (isLastQuestion) strings.questionnaireChooseNotes else strings.next,
+                                onClick = if (isLastQuestion) onFinish else onNextQuestion,
+                                enabled = question.isComplete
+                            )
+                        }
                     }
                 }
             }

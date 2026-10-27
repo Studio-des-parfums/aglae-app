@@ -115,7 +115,8 @@ object StringsFr : Strings {
     override val allergyDetailsLabel = "Précisez vos allergies connues"
     override val liabilityQuestion = "Si oui, souhaitez-vous poursuivre en déclinant notre responsabilité ?"
     override val liabilityDeclineWarning = "En cas d'allergie connue, nous ne pouvons être tenus responsables : merci d'accepter de décliner notre responsabilité pour continuer, ou de revenir en arrière."
-    override val rgpdQuestion = "Dans le cadre du RGPD, pouvons-nous conserver votre formule ?"
+    override val rgpdQuestion = "Dans le cadre du RGPD, autorisez-vous le Studio des Parfums à conserver votre formule ?"
+    override val rgpdDescription = "Le RGPD (Règlement Général sur la Protection des Données) protège vos données personnelles. Cette autorisation permet d'enregistrer la formule de votre création sur mesure afin que vous puissiez la recommander à tout moment ou la retrouver lors d'une prochaine visite."
     override val pregnancyQuestion = "Êtes-vous enceinte ou allaitante ?"
 
     override val pregnancyDialogTitle = "Merci de vous rapprocher du parfumeur"
@@ -186,9 +187,9 @@ object StringsFr : Strings {
 
     override val perfumeIntensityTitle = "Quelle intensité préférez-vous ?"
     override val perfumeIntensitySubtitle = "Choisissez la force de votre parfum"
-    override val perfumeIntensityLight = "Léger"
+    override val perfumeIntensityLight = "Léger (parfum de peau)"
     override val perfumeIntensityModerate = "Modéré"
-    override val perfumeIntensityStrong = "Intense"
+    override val perfumeIntensityStrong = "Lourd (sillage)"
 
     override val perfumeNameTitle = "Donnez un nom à votre parfum"
     override val perfumeNameLabel = "Nom du parfum"
@@ -202,6 +203,7 @@ object StringsFr : Strings {
     override val successTitle = "Merci !"
     override val successMessageNew = "Votre formule a bien été enregistrée."
     override val successMessageExisting = "Votre formule a bien été enregistrée\net ajoutée à votre profil existant."
+    override val successEmailNotice = "Vous allez recevoir un premier email directement après votre atelier, puis un second dans les jours qui suivent."
 
 
     override val languageSelectorContentDescription = "Changer de langue"

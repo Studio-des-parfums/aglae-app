@@ -634,31 +634,62 @@ fun NoteChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Fond blanc opaque en permanence pour un contraste maximal ; seul le contour se colore
-    // à la sélection, le texte reste toujours noir.
+    val backgroundColor by animateColorAsState(
+        targetValue = if (isSelected) color else Color.White.copy(alpha = 0.95f),
+        animationSpec = tween(durationMillis = 200),
+        label = "noteChipBg"
+    )
     val borderColor by animateColorAsState(
-        targetValue = if (isSelected) color else QuestionOutlineVariant,
-        animationSpec = tween(durationMillis = 250),
+        targetValue = if (isSelected) color else QuestionOutlineVariant.copy(alpha = 0.7f),
+        animationSpec = tween(durationMillis = 200),
         label = "noteChipBorder"
     )
+
+    // Calcul de luminance pour garantir un contraste maximal (texte blanc sur fond sombre, noir sur fond clair)
+    val contentColor = if (isSelected) {
+        val luminance = 0.299f * color.red + 0.587f * color.green + 0.114f * color.blue
+        if (luminance < 0.55f) Color.White else Color(0xFF1C1B1F)
+    } else {
+        Color.Black
+    }
+
     Surface(
         modifier = modifier
             .clip(PillShapeCompat)
             .clickable(onClick = onClick),
         shape = PillShapeCompat,
-        color = Color.White,
+        color = backgroundColor,
         border = BorderStroke(if (isSelected) 2.dp else 1.dp, borderColor),
-        elevation = 0.dp
+        elevation = if (isSelected) 3.dp else 0.dp
     ) {
-        Text(
-            text = if (code.isNullOrBlank()) name else "$code — $name",
-            fontFamily = questionBodyFont(),
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color.Black,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .defaultMinSize(minHeight = 52.dp)
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (isSelected) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = null,
+                    tint = contentColor,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+            }
+            Text(
+                text = if (code.isNullOrBlank()) name else "$code — $name",
+                fontFamily = questionBodyFont(),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = contentColor,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }
 
@@ -864,17 +895,11 @@ fun NoteQuantitiesScreen(
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
-                                            QuantityStepperButton(
-                                                icon = "−",
-                                                enabled = !readOnly && currentMl > 0,
-                                                color = sectionColor,
-                                                onClick = { onChange(name, (currentMl - 1).coerceAtLeast(0).toString()) }
-                                            )
                                             Surface(
                                                 shape = RoundedCornerShape(10.dp),
                                                 color = Color.White.copy(alpha = 0.80f),
                                                 border = BorderStroke(1.dp, sectionColor.copy(alpha = 0.5f)),
-                                                modifier = Modifier.width(64.dp)
+                                                modifier = Modifier.width(72.dp)
                                             ) {
                                                 Text(
                                                     text = "$currentMl mL",
@@ -886,12 +911,6 @@ fun NoteQuantitiesScreen(
                                                     modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp)
                                                 )
                                             }
-                                            QuantityStepperButton(
-                                                icon = "+",
-                                                enabled = !readOnly,
-                                                color = sectionColor,
-                                                onClick = { onChange(name, (currentMl + 1).toString()) }
-                                            )
                                             if (!readOnly) {
                                                 QuantityStepperButton(
                                                     icon = "✕",
@@ -1022,23 +1041,43 @@ private fun AddNoteDialog(
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         availableNotes.forEach { name ->
                             val isSelected = name == selectedNote
+                            val contentColor = if (isSelected) {
+                                val luminance = 0.299f * sectionColor.red + 0.587f * sectionColor.green + 0.114f * sectionColor.blue
+                                if (luminance < 0.55f) Color.White else Color(0xFF1C1B1F)
+                            } else {
+                                QuestionOnSurface
+                            }
                             Surface(
                                 shape = RoundedCornerShape(10.dp),
-                                color = if (isSelected) sectionColor.copy(alpha = 0.12f) else Color.Transparent,
-                                border = BorderStroke(1.dp, if (isSelected) sectionColor else QuestionOutlineVariant),
+                                color = if (isSelected) sectionColor else Color.White,
+                                border = BorderStroke(if (isSelected) 2.dp else 1.dp, if (isSelected) sectionColor else QuestionOutlineVariant),
+                                elevation = if (isSelected) 2.dp else 0.dp,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(10.dp))
                                     .clickable { selectedNote = name }
                             ) {
-                                Text(
-                                    text = name,
-                                    fontFamily = bodyFont,
-                                    fontSize = 15.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Bold,
-                                    color = if (isSelected) sectionColor else QuestionOnSurface,
-                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)
-                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    if (isSelected) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = null,
+                                            tint = contentColor,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                    }
+                                    Text(
+                                        text = name,
+                                        fontFamily = bodyFont,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = contentColor
+                                    )
+                                }
                             }
                         }
                     }

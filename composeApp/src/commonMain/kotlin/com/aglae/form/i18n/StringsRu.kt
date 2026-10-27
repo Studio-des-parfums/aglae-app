@@ -148,7 +148,8 @@ object StringsRu : Strings {
     override val allergyDetailsLabel = "Укажите ваши известные аллергии"
     override val liabilityQuestion = "Если да, хотите ли вы продолжить, сняв с нас ответственность?"
     override val liabilityDeclineWarning = "В случае известной аллергии мы не можем нести ответственность: пожалуйста, согласитесь снять с нас ответственность, чтобы продолжить, либо вернитесь назад."
-    override val rgpdQuestion = "В рамках GDPR можем ли мы сохранить вашу формулу?"
+    override val rgpdQuestion = "В рамках GDPR разрешаете ли вы сохранить вашу формулу?"
+    override val rgpdDescription = "GDPR защищает ваши персональные данные. Это разрешение позволяет Studio des Parfums сохранить вашу формулу, чтобы вы могли заказать её повторно или найти при следующем визите."
     override val pregnancyQuestion = "Вы беременны или кормите грудью?"
 
     override val pregnancyDialogTitle = "Пожалуйста, обратитесь к парфюмеру"
@@ -219,9 +220,9 @@ object StringsRu : Strings {
 
     override val perfumeIntensityTitle = "Какую интенсивность вы предпочитаете?"
     override val perfumeIntensitySubtitle = "Выберите силу вашего аромата"
-    override val perfumeIntensityLight = "Лёгкая"
+    override val perfumeIntensityLight = "Лёгкая (аромат для кожи)"
     override val perfumeIntensityModerate = "Умеренная"
-    override val perfumeIntensityStrong = "Насыщенная"
+    override val perfumeIntensityStrong = "Насыщенная (со шлейфом)"
 
     override val perfumeNameTitle = "Дайте название вашему аромату"
     override val perfumeNameLabel = "Название аромата"
@@ -235,6 +236,7 @@ object StringsRu : Strings {
     override val successTitle = "Благодарим вас!"
     override val successMessageNew = "Ваша формула успешно сохранена."
     override val successMessageExisting = "Ваша формула успешно сохранена\nи добавлена в ваш существующий профиль."
+    override val successEmailNotice = "Вы получите первое письмо сразу после мастер-класса, а второе — в ближайшие дни."
 
 
     override val languageSelectorContentDescription = "Сменить язык"

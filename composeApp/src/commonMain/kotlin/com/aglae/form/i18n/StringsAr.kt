@@ -115,7 +115,8 @@ object StringsAr : Strings {
     override val allergyDetailsLabel = "يُرجى تحديد حساسياتكم المعروفة"
     override val liabilityQuestion = "في حال الإجابة بنعم، هل ترغبون في المتابعة مع إعفائنا من المسؤولية؟"
     override val liabilityDeclineWarning = "في حال وجود حساسية معروفة، لا يمكننا تحمّل المسؤولية: يُرجى الموافقة على إعفائنا من المسؤولية للمتابعة، أو الرجوع إلى الخطوة السابقة."
-    override val rgpdQuestion = "في إطار اللائحة العامة لحماية البيانات، هل يمكننا الاحتفاظ بتركيبة عطركم؟"
+    override val rgpdQuestion = "في إطار حماية البيانات (RGPD)، هل تسمحون بحفظ تركيبة عطركم؟"
+    override val rgpdDescription = "تضمن اللائحة العامة حماية بياناتكم الشخصية. يتيح هذا الإذن حفظ تركيبتكم للرجوع إليها لاحقاً أو إعادة طلبها."
     override val pregnancyQuestion = "هل أنتِ حامل أو مرضعة؟"
 
     override val pregnancyDialogTitle = "يُرجى التوجه إلى العطّار"
@@ -186,9 +187,9 @@ object StringsAr : Strings {
 
     override val perfumeIntensityTitle = "ما هي الكثافة التي تفضّلونها؟"
     override val perfumeIntensitySubtitle = "اختاروا قوة عطركم"
-    override val perfumeIntensityLight = "خفيفة"
+    override val perfumeIntensityLight = "خفيفة (عطر البشرة)"
     override val perfumeIntensityModerate = "معتدلة"
-    override val perfumeIntensityStrong = "قوية"
+    override val perfumeIntensityStrong = "قوية (فوحان)"
 
     override val perfumeNameTitle = "أطلقوا اسمًا على عطركم"
     override val perfumeNameLabel = "اسم العطر"
@@ -202,6 +203,7 @@ object StringsAr : Strings {
     override val successTitle = "شكرًا لكم!"
     override val successMessageNew = "تم تسجيل تركيبة عطركم بنجاح."
     override val successMessageExisting = "تم تسجيل تركيبة عطركم بنجاح\nوإضافتها إلى ملفكم الشخصي الحالي."
+    override val successEmailNotice = "ستتلقون بريدًا إلكترونيًا مباشرةً بعد ورشة العمل، ثم بريدًا آخر في الأيام القادمة."
 
 
     override val languageSelectorContentDescription = "تغيير اللغة"

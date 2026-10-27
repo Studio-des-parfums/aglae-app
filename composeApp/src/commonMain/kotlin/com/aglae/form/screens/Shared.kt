@@ -26,7 +26,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -34,10 +36,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -245,29 +249,103 @@ fun HomeFooterLink(onClick: () -> Unit) {
     }
 }
 
+// ── Contrôleur global de zoom de police ──
+class TextZoomController(
+    val scaleFactor: Float,
+    val level: Int,
+    val toggle: () -> Unit
+)
+
+val LocalTextZoom = staticCompositionLocalOf {
+    TextZoomController(1f, 0) {}
+}
+
+@Composable
+fun TextZoomButton(modifier: Modifier = Modifier) {
+    val zoom = LocalTextZoom.current
+    val currentDensity = LocalDensity.current
+    // Garde le bouton lui-même à une taille fixe et compacte
+    CompositionLocalProvider(
+        LocalDensity provides Density(
+            density = currentDensity.density,
+            fontScale = 1.0f
+        )
+    ) {
+        Surface(
+            modifier = modifier
+                .clip(PillShapeCompat)
+                .clickable { zoom.toggle() },
+            shape = PillShapeCompat,
+            color = if (zoom.level > 0) Color(0xFF1C1B1F) else Color.White.copy(alpha = 0.85f),
+            border = BorderStroke(
+                1.dp,
+                if (zoom.level > 0) Color(0xFF1C1B1F) else QuestionOutlineVariant.copy(alpha = 0.6f)
+            ),
+            elevation = if (zoom.level > 0) 2.dp else 0.dp
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = "a",
+                    fontFamily = questionBodyFont(),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (zoom.level > 0) Color.White else Color.Black
+                )
+                Text(
+                    text = "A",
+                    fontFamily = questionBodyFont(),
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (zoom.level > 0) Color.White else Color.Black
+                )
+                if (zoom.level > 0) {
+                    Text(
+                        text = if (zoom.level == 1) "+20%" else "+40%",
+                        fontFamily = questionBodyFont(),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White.copy(alpha = 0.85f)
+                    )
+                }
+            }
+        }
+    }
+}
+
 // ── Bouton flottant "Accueil", affiché en superposition sur les écrans du parcours ──
 @Composable
 fun BoxScope.HomeButton(onClick: () -> Unit, enabled: Boolean = true) {
     val strings = LocalStrings.current
-    TextButton(
-        onClick = onClick,
-        enabled = enabled,
+    Row(
         modifier = Modifier
             .align(Alignment.TopEnd)
             .padding(top = 16.dp, end = 16.dp),
-        colors = ButtonDefaults.textButtonColors(
-            contentColor = OnSurfaceVariant,
-            disabledContentColor = OnSurfaceVariant.copy(alpha = 0.38f)
-        )
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Icon(
-            imageVector = Icons.Default.Home,
-            contentDescription = strings.goHomeContentDescription,
-            modifier = Modifier.size(18.dp),
-            tint = OnSurfaceVariant
-        )
-        Spacer(modifier = Modifier.width(6.dp))
-        Text(text = strings.home, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        TextZoomButton()
+
+        TextButton(
+            onClick = onClick,
+            enabled = enabled,
+            colors = ButtonDefaults.textButtonColors(
+                contentColor = OnSurfaceVariant,
+                disabledContentColor = OnSurfaceVariant.copy(alpha = 0.38f)
+            )
+        ) {
+            Icon(
+                imageVector = Icons.Default.Home,
+                contentDescription = strings.goHomeContentDescription,
+                modifier = Modifier.size(18.dp),
+                tint = OnSurfaceVariant
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(text = strings.home, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        }
     }
 }
 
@@ -381,19 +459,26 @@ fun QuestionScreenScaffold(
             }
         }
 
-        TextButton(
-            onClick = onGoHome,
+        Row(
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .padding(top = 32.dp, end = 32.dp),
-            colors = ButtonDefaults.textButtonColors(contentColor = QuestionOnSurfaceVariant)
+                .padding(top = 28.dp, end = 28.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Icon(
-                imageVector = Icons.Default.Home,
-                contentDescription = LocalStrings.current.goHomeContentDescription,
-                modifier = Modifier.size(20.dp),
-                tint = QuestionOnSurfaceVariant
-            )
+            TextZoomButton()
+
+            TextButton(
+                onClick = onGoHome,
+                colors = ButtonDefaults.textButtonColors(contentColor = QuestionOnSurfaceVariant)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Home,
+                    contentDescription = LocalStrings.current.goHomeContentDescription,
+                    modifier = Modifier.size(20.dp),
+                    tint = QuestionOnSurfaceVariant
+                )
+            }
         }
     }
 }
@@ -438,9 +523,9 @@ fun QuestionOptionCard(
             .clip(PillShapeCompat)
             .clickable(onClick = onClick),
         shape = PillShapeCompat,
-        color = if (isSelected) QuestionPrimary.copy(alpha = 0.10f) else QuestionSurfaceContainerLowest.copy(alpha = 0.80f),
-        border = BorderStroke(1.dp, if (isSelected) QuestionPrimary.copy(alpha = 0.4f) else QuestionOutlineVariant),
-        elevation = 0.dp
+        color = if (isSelected) Color(0xFF1C1B1F) else QuestionSurfaceContainerLowest.copy(alpha = 0.85f),
+        border = BorderStroke(if (isSelected) 2.dp else 1.dp, if (isSelected) Color(0xFF1C1B1F) else QuestionOutlineVariant),
+        elevation = if (isSelected) 3.dp else 0.dp
     ) {
         Row(
             modifier = Modifier
@@ -454,22 +539,24 @@ fun QuestionOptionCard(
                 fontFamily = questionBodyFont(),
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.Black
+                color = if (isSelected) Color.White else Color.Black
             )
             Box(
                 modifier = Modifier
-                    .size(24.dp)
+                    .size(26.dp)
+                    .background(if (isSelected) Color.White else Color.Transparent, CircleShape)
                     .border(
-                        border = BorderStroke(1.5.dp, QuestionPrimary.copy(alpha = if (isSelected) 1f else 0.5f)),
+                        border = BorderStroke(1.5.dp, if (isSelected) Color.White else QuestionOutlineVariant.copy(alpha = 0.7f)),
                         shape = CircleShape
                     ),
                 contentAlignment = Alignment.Center
             ) {
                 if (isSelected) {
-                    Box(
-                        modifier = Modifier
-                            .size(12.dp)
-                            .background(QuestionPrimary, CircleShape)
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = null,
+                        tint = Color(0xFF1C1B1F),
+                        modifier = Modifier.size(16.dp)
                     )
                 }
             }
@@ -477,7 +564,7 @@ fun QuestionOptionCard(
     }
 }
 
-// ── Bouton d'action principal ("Suivant", etc.), translucide, façon verre dépoli ──
+// ── Bouton d'action principal ("Suivant", "Choisir mes notes", etc.) ──
 @Composable
 fun QuestionActionButton(
     text: String,
@@ -489,25 +576,25 @@ fun QuestionActionButton(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier
-            .padding(top = 16.dp)
-            .widthIn(min = 200.dp),
+            .padding(top = 12.dp)
+            .widthIn(min = 220.dp),
         shape = PillShapeCompat,
-        border = BorderStroke(1.dp, if (enabled) QuestionTertiaryContainer else QuestionOutlineVariant),
+        border = BorderStroke(1.dp, if (enabled) Color(0xFF1C1B1F) else QuestionOutlineVariant.copy(alpha = 0.5f)),
         colors = ButtonDefaults.buttonColors(
-            backgroundColor = QuestionTertiaryContainer.copy(alpha = 0.30f),
-            contentColor = QuestionOnSurfaceVariant,
-            disabledBackgroundColor = QuestionTertiaryContainer.copy(alpha = 0.30f),
-            disabledContentColor = QuestionOnSurfaceVariant.copy(alpha = 0.55f)
+            backgroundColor = Color(0xFF1C1B1F),
+            contentColor = Color.White,
+            disabledBackgroundColor = QuestionTertiaryContainer.copy(alpha = 0.25f),
+            disabledContentColor = QuestionOnSurfaceVariant.copy(alpha = 0.40f)
         ),
         contentPadding = PaddingValues(horizontal = 48.dp, vertical = 16.dp),
-        elevation = ButtonDefaults.elevation(defaultElevation = 0.dp, pressedElevation = 0.dp)
+        elevation = ButtonDefaults.elevation(defaultElevation = if (enabled) 3.dp else 0.dp, pressedElevation = if (enabled) 6.dp else 0.dp)
     ) {
         Text(
             text = text,
             fontFamily = questionBodyFont(),
-            fontSize = 14.sp,
+            fontSize = 15.sp,
             fontWeight = FontWeight.Bold,
-            letterSpacing = 1.5.sp
+            letterSpacing = 1.2.sp
         )
     }
 }

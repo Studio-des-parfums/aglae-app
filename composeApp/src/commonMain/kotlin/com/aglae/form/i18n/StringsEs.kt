@@ -115,7 +115,8 @@ object StringsEs : Strings {
     override val allergyDetailsLabel = "Indica tus alergias conocidas"
     override val liabilityQuestion = "En caso afirmativo, ¿deseas continuar eximiéndonos de responsabilidad?"
     override val liabilityDeclineWarning = "En caso de alergia conocida, no podemos ser responsables: por favor, acepta eximirnos de responsabilidad para continuar, o vuelve atrás."
-    override val rgpdQuestion = "En el marco del RGPD, ¿podemos conservar tu fórmula?"
+    override val rgpdQuestion = "En el marco del RGPD, ¿autorizas a conservar tu fórmula?"
+    override val rgpdDescription = "El RGPD protege tus datos personales. Esta autorización permite guardar la fórmula de tu creación para que puedas pedirla de nuevo o recuperarla en futuras visitas."
     override val pregnancyQuestion = "¿Estás embarazada o en periodo de lactancia?"
 
     override val pregnancyDialogTitle = "Por favor, consulta con el perfumista"
@@ -186,9 +187,9 @@ object StringsEs : Strings {
 
     override val perfumeIntensityTitle = "¿Qué intensidad prefieres?"
     override val perfumeIntensitySubtitle = "Elige la fuerza de tu perfume"
-    override val perfumeIntensityLight = "Ligero"
+    override val perfumeIntensityLight = "Ligero (perfume de piel)"
     override val perfumeIntensityModerate = "Moderado"
-    override val perfumeIntensityStrong = "Fuerte"
+    override val perfumeIntensityStrong = "Fuerte (estela)"
 
     override val perfumeNameTitle = "Dale un nombre a tu perfume"
     override val perfumeNameLabel = "Nombre del perfume"
@@ -202,6 +203,7 @@ object StringsEs : Strings {
     override val successTitle = "¡Gracias!"
     override val successMessageNew = "Tu fórmula se ha guardado correctamente."
     override val successMessageExisting = "Tu fórmula se ha guardado correctamente\ny añadido a tu perfil existente."
+    override val successEmailNotice = "Recibirás un primer email directamente después del taller y otro en los próximos días."
 
 
     override val languageSelectorContentDescription = "Cambiar idioma"

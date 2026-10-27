@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -305,6 +306,36 @@ fun SuccessScreen(
                 lineHeight = 28.sp
             )
 
+            Surface(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                shape = RoundedCornerShape(16.dp),
+                color = Color.White.copy(alpha = 0.90f),
+                border = BorderStroke(1.dp, QuestionOutlineVariant.copy(alpha = 0.6f)),
+                elevation = 1.dp
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Email,
+                        contentDescription = null,
+                        tint = QuestionPrimary,
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Text(
+                        text = strings.successEmailNotice,
+                        fontFamily = questionBodyFont(),
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.Black,
+                        lineHeight = 22.sp,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
 
             Button(
@@ -314,9 +345,9 @@ fun SuccessScreen(
                     .widthIn(max = 320.dp)
                     .height(56.dp),
                 shape = PillShape,
-                border = BorderStroke(1.dp, Color(0xFF755D4B)),
+                border = BorderStroke(1.dp, Color(0xFF1C1B1F)),
                 colors = ButtonDefaults.buttonColors(
-                    backgroundColor = Color(0xFF755D4B),
+                    backgroundColor = Color(0xFF1C1B1F),
                     contentColor = Color.White,
                 )
             ) {

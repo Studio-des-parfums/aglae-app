@@ -20,7 +20,9 @@ import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.aglae.form.i18n.Language
@@ -38,6 +40,7 @@ import com.aglae.form.screens.FormulaChoiceScreen
 import com.aglae.form.screens.FormulaDetailModal
 import com.aglae.form.screens.FormulaHistoryScreen
 import com.aglae.form.screens.HomeScreen
+import com.aglae.form.screens.LocalTextZoom
 import com.aglae.form.screens.PrinterSettingsScreen
 import com.aglae.form.screens.NoteQuantitiesScreen
 import com.aglae.form.screens.NotesDetailScreen
@@ -51,6 +54,7 @@ import com.aglae.form.screens.RecapScreen
 import com.aglae.form.screens.SuccessScreen
 import com.aglae.form.screens.SupervisorHomeScreen
 import com.aglae.form.screens.SupervisorSessionDetailScreen
+import com.aglae.form.screens.TextZoomController
 
 // ── Point d'entrée de l'application ──
 // Le design system (couleurs, formes) vit dans Theme.kt. Tous les écrans vivent dans le
@@ -61,6 +65,19 @@ import com.aglae.form.screens.SupervisorSessionDetailScreen
 @Composable
 fun App() {
     var language by remember { mutableStateOf(Language.default) }
+    var textZoomLevel by remember { mutableStateOf(0) }
+    val textZoomFactor = when (textZoomLevel) {
+        1 -> 1.20f
+        2 -> 1.38f
+        else -> 1.0f
+    }
+    val textZoomController = remember(textZoomLevel, textZoomFactor) {
+        TextZoomController(
+            scaleFactor = textZoomFactor,
+            level = textZoomLevel,
+            toggle = { textZoomLevel = (textZoomLevel + 1) % 3 }
+        )
+    }
 
     // Enregistre le loader d'images Coil (moteur réseau Ktor), utilisé par AsyncImage pour les
     // photos d'atelier (voir screens/AtelierScreen.kt). Idempotent : safe à rappeler à chaque
@@ -71,10 +88,16 @@ fun App() {
             .build()
     }
 
+    val currentDensity = LocalDensity.current
     CompositionLocalProvider(
         LocalStrings provides stringsFor(language),
         LocalLanguage provides language,
-        LocalLayoutDirection provides if (language.isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr
+        LocalLayoutDirection provides if (language.isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr,
+        LocalTextZoom provides textZoomController,
+        LocalDensity provides Density(
+            density = currentDensity.density,
+            fontScale = currentDensity.fontScale * textZoomFactor
+        )
     ) {
         AppContent(language = language, onLanguageChange = { language = it })
     }
@@ -309,7 +332,10 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                 )
                 "pyramidExplanation" -> PyramidExplanationScreen(
                     onNext = { vm.screen = "notesSelection" },
-                    onBack = { vm.screen = "atelierChoice" }
+                    onBack = {
+                        vm.resetNotesAndDownstream()
+                        vm.screen = "atelierChoice"
+                    }
                 )
                 "notesSelection" -> {
                     // Tant que le client est sur cet écran, on relit périodiquement les notes de

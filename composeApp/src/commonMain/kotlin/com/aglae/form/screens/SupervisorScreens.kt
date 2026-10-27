@@ -1498,22 +1498,42 @@ private fun SupervisorAddNoteDialog(
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         availableNotes.forEach { name ->
                             val isSelected = name == selectedNote
+                            val contentColor = if (isSelected) {
+                                val luminance = 0.299f * sectionColor.red + 0.587f * sectionColor.green + 0.114f * sectionColor.blue
+                                if (luminance < 0.55f) Color.White else Color(0xFF1C1B1F)
+                            } else {
+                                OnSurface
+                            }
                             Surface(
                                 shape = RoundedCornerShape(10.dp),
-                                color = if (isSelected) sectionColor.copy(alpha = 0.12f) else Color.Transparent,
-                                border = BorderStroke(1.dp, if (isSelected) sectionColor else OutlineVariant),
+                                color = if (isSelected) sectionColor else Color.Transparent,
+                                border = BorderStroke(if (isSelected) 2.dp else 1.dp, if (isSelected) sectionColor else OutlineVariant),
+                                elevation = if (isSelected) 2.dp else 0.dp,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(10.dp))
                                     .clickable { selectedNote = name }
                             ) {
-                                Text(
-                                    text = name,
-                                    fontSize = 15.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Bold,
-                                    color = if (isSelected) sectionColor else OnSurface,
-                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)
-                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    if (isSelected) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = null,
+                                            tint = contentColor,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                    }
+                                    Text(
+                                        text = name,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = contentColor
+                                    )
+                                }
                             }
                         }
                     }
@@ -1567,9 +1587,9 @@ fun SupervisorNoteChip(
             .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
-        color = Color.Transparent,
-        border = BorderStroke(1.dp, if (isSelected) Primary else OutlineVariant),
-        elevation = 0.dp
+        color = if (isSelected) Primary else Color.Transparent,
+        border = BorderStroke(if (isSelected) 2.dp else 1.dp, if (isSelected) Primary else OutlineVariant),
+        elevation = if (isSelected) 2.dp else 0.dp
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 12.dp),
@@ -1580,7 +1600,7 @@ fun SupervisorNoteChip(
                 Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = null,
-                    tint = Primary,
+                    tint = Color.White,
                     modifier = Modifier.size(14.dp)
                 )
                 Spacer(Modifier.width(4.dp))
@@ -1589,7 +1609,7 @@ fun SupervisorNoteChip(
                 text = if (code.isNullOrBlank()) name else "$code — $name",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.Black,
+                color = if (isSelected) Color.White else Color.Black,
                 textAlign = TextAlign.Center,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis

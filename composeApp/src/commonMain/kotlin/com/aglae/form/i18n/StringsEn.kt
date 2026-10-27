@@ -115,7 +115,8 @@ object StringsEn : Strings {
     override val allergyDetailsLabel = "Please specify your known allergies"
     override val liabilityQuestion = "If so, would you like to proceed by waiving our liability?"
     override val liabilityDeclineWarning = "In the case of a known allergy, we cannot be held liable: please agree to waive our liability to continue, or go back."
-    override val rgpdQuestion = "Under GDPR, may we keep your formula on file?"
+    override val rgpdQuestion = "Under GDPR, do you authorize Studio des Parfums to keep your formula on file?"
+    override val rgpdDescription = "The GDPR (General Data Protection Regulation) protects your personal data. This authorization allows Studio des Parfums to save your custom fragrance formula so that you can easily reorder it anytime or retrieve it during future visits."
     override val pregnancyQuestion = "Are you pregnant or breastfeeding?"
 
     override val pregnancyDialogTitle = "Please speak with your perfumer"
@@ -186,9 +187,9 @@ object StringsEn : Strings {
 
     override val perfumeIntensityTitle = "What intensity do you prefer?"
     override val perfumeIntensitySubtitle = "Choose how strong your perfume should be"
-    override val perfumeIntensityLight = "Light"
+    override val perfumeIntensityLight = "Light (skin scent)"
     override val perfumeIntensityModerate = "Moderate"
-    override val perfumeIntensityStrong = "Strong"
+    override val perfumeIntensityStrong = "Heavy (sillage)"
 
     override val perfumeNameTitle = "Give your fragrance a name"
     override val perfumeNameLabel = "Fragrance name"
@@ -202,6 +203,7 @@ object StringsEn : Strings {
     override val successTitle = "Thank you!"
     override val successMessageNew = "Your formula has been successfully saved."
     override val successMessageExisting = "Your formula has been successfully saved\nand added to your existing profile."
+    override val successEmailNotice = "You will receive an email right after your workshop, followed by another one in the coming days."
 
 
     override val languageSelectorContentDescription = "Change language"

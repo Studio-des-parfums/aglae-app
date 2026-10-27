@@ -129,6 +129,7 @@ interface Strings {
     val liabilityQuestion: String
     val liabilityDeclineWarning: String
     val rgpdQuestion: String
+    val rgpdDescription: String
     val pregnancyQuestion: String
 
     // ── Modal grossesse/allaitement (réponse "Oui" à pregnancyQuestion) ──
@@ -220,6 +221,7 @@ interface Strings {
     val successTitle: String
     val successMessageNew: String
     val successMessageExisting: String
+    val successEmailNotice: String
 
     // ── Language selector ──
     val languageSelectorContentDescription: String
