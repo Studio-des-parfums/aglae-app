@@ -345,9 +345,9 @@ fun SuccessScreen(
                     .widthIn(max = 320.dp)
                     .height(56.dp),
                 shape = PillShape,
-                border = BorderStroke(1.dp, Color(0xFF1C1B1F)),
+                border = BorderStroke(1.dp, QuestionPrimary),
                 colors = ButtonDefaults.buttonColors(
-                    backgroundColor = Color(0xFF1C1B1F),
+                    backgroundColor = QuestionPrimary,
                     contentColor = Color.White,
                 )
             ) {

@@ -276,10 +276,10 @@ fun TextZoomButton(modifier: Modifier = Modifier) {
                 .clip(PillShapeCompat)
                 .clickable { zoom.toggle() },
             shape = PillShapeCompat,
-            color = if (zoom.level > 0) Color(0xFF1C1B1F) else Color.White.copy(alpha = 0.85f),
+            color = if (zoom.level > 0) QuestionPrimary else Color.White.copy(alpha = 0.85f),
             border = BorderStroke(
                 1.dp,
-                if (zoom.level > 0) Color(0xFF1C1B1F) else QuestionOutlineVariant.copy(alpha = 0.6f)
+                if (zoom.level > 0) QuestionPrimary else QuestionOutlineVariant.copy(alpha = 0.6f)
             ),
             elevation = if (zoom.level > 0) 2.dp else 0.dp
         ) {
@@ -523,8 +523,8 @@ fun QuestionOptionCard(
             .clip(PillShapeCompat)
             .clickable(onClick = onClick),
         shape = PillShapeCompat,
-        color = if (isSelected) Color(0xFF1C1B1F) else QuestionSurfaceContainerLowest.copy(alpha = 0.85f),
-        border = BorderStroke(if (isSelected) 2.dp else 1.dp, if (isSelected) Color(0xFF1C1B1F) else QuestionOutlineVariant),
+        color = if (isSelected) QuestionPrimary else QuestionSurfaceContainerLowest.copy(alpha = 0.85f),
+        border = BorderStroke(if (isSelected) 2.dp else 1.dp, if (isSelected) QuestionPrimary else QuestionOutlineVariant),
         elevation = if (isSelected) 3.dp else 0.dp
     ) {
         Row(
@@ -555,7 +555,7 @@ fun QuestionOptionCard(
                     Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = null,
-                        tint = Color(0xFF1C1B1F),
+                        tint = QuestionPrimary,
                         modifier = Modifier.size(16.dp)
                     )
                 }
@@ -579,9 +579,9 @@ fun QuestionActionButton(
             .padding(top = 12.dp)
             .widthIn(min = 220.dp),
         shape = PillShapeCompat,
-        border = BorderStroke(1.dp, if (enabled) Color(0xFF1C1B1F) else QuestionOutlineVariant.copy(alpha = 0.5f)),
+        border = BorderStroke(1.dp, if (enabled) QuestionPrimary else QuestionOutlineVariant.copy(alpha = 0.5f)),
         colors = ButtonDefaults.buttonColors(
-            backgroundColor = Color(0xFF1C1B1F),
+            backgroundColor = QuestionPrimary,
             contentColor = Color.White,
             disabledBackgroundColor = QuestionTertiaryContainer.copy(alpha = 0.25f),
             disabledContentColor = QuestionOnSurfaceVariant.copy(alpha = 0.40f)

@@ -154,7 +154,7 @@ private fun AtelierCard(atelier: AtelierItem, languageCode: String, isSelected: 
             .clickable(onClick = onClick),
         shape = CardShape,
         color = Color.White.copy(alpha = 0.85f),
-        border = BorderStroke(if (isSelected) 3.dp else 1.dp, if (isSelected) Color(0xFF1C1B1F) else QuestionOutlineVariant.copy(alpha = 0.5f)),
+        border = BorderStroke(if (isSelected) 3.dp else 1.dp, if (isSelected) QuestionPrimary else QuestionOutlineVariant.copy(alpha = 0.5f)),
         elevation = if (isSelected) 4.dp else 1.dp
     ) {
         Column {
@@ -176,7 +176,7 @@ private fun AtelierCard(atelier: AtelierItem, languageCode: String, isSelected: 
                 if (isSelected) {
                     Surface(
                         shape = CircleShape,
-                        color = Color(0xFF1C1B1F),
+                        color = QuestionPrimary,
                         elevation = 4.dp,
                         modifier = Modifier
                             .align(Alignment.TopEnd)
@@ -201,7 +201,7 @@ private fun AtelierCard(atelier: AtelierItem, languageCode: String, isSelected: 
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(if (isSelected) Color(0xFF1C1B1F) else Color.Transparent)
+                    .background(if (isSelected) QuestionPrimary else Color.Transparent)
                     .padding(horizontal = 8.dp, vertical = 8.dp)
             ) {
                 Text(

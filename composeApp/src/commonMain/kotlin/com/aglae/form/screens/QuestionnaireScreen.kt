@@ -762,10 +762,10 @@ fun QuestionnaireScreen(
                                                         .clip(RoundedCornerShape(10.dp))
                                                         .clickable { sub.onOptionSelected(option) },
                                                     shape = RoundedCornerShape(10.dp),
-                                                    color = if (isSel) Color(0xFF1C1B1F) else Color(0xFFF9F9F9),
+                                                    color = if (isSel) QuestionPrimary else Color(0xFFF9F9F9),
                                                     border = BorderStroke(
                                                         if (isSel) 2.dp else 1.dp,
-                                                        if (isSel) Color(0xFF1C1B1F) else QuestionOutlineVariant.copy(alpha = 0.6f)
+                                                        if (isSel) QuestionPrimary else QuestionOutlineVariant.copy(alpha = 0.6f)
                                                     ),
                                                     elevation = if (isSel) 2.dp else 0.dp
                                                 ) {
