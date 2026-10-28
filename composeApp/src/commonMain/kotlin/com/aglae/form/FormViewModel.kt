@@ -162,6 +162,12 @@ class FormViewModel(private val scope: CoroutineScope) {
     var noteCountBounds by mutableStateOf<NoteCountBounds?>(null)
     var noteCountError by mutableStateOf<String?>(null)
 
+    // Validation des sélections hors normes autorisée par le superviseur
+    var notesOutOfRangeApprovedBySupervisor by mutableStateOf(false)
+
+    // Statut de validation de la formule : "" (initial), "pending_validation" (attente superviseur), "validated" (validé)
+    var formulaStatus by mutableStateOf("")
+
     // Toutes les règles ingrédients (incompatibility, max_dosage, group_limit, note_count,
     // recommendation), chargées avec les mêmes dépendances (taille de flacon / coffret) que
     // `noteCountBounds`. Utilisée pour évaluer un clic sur une note dans notesDetail — voir
@@ -309,11 +315,59 @@ class FormViewModel(private val scope: CoroutineScope) {
         pendingRuleWarningNoteName = null
     }
 
+    // ── Vérification si le nombre de notes choisies par famille respecte les bornes ──
+    fun areNoteCountsWithinBounds(): Boolean {
+        val bounds = noteCountBounds
+        fun checkFamily(count: Int, min: Int?, max: Int?): Boolean {
+            if (min != null && count < min) return false
+            if (max != null && count > max) return false
+            return true
+        }
+        val topOk = bounds?.let { checkFamily(selectedTopNotes.size, it.minTop, it.maxTop) } ?: true
+        val heartOk = bounds?.let { checkFamily(selectedHeartNotes.size, it.minHeart, it.maxHeart) } ?: true
+        val baseOk = bounds?.let { checkFamily(selectedBaseNotes.size, it.minBase, it.maxBase) } ?: true
+        val boosterOk = selectedBoosterNotes.size in 1..2
+        return topOk && heartOk && baseOk && boosterOk
+    }
+
+    // ── Liste textuelle des anomalies hors normes ──
+    fun getOutOfRangeIssues(strings: Strings): List<String> {
+        val bounds = noteCountBounds
+        val issues = mutableListOf<String>()
+        fun check(familyName: String, count: Int, min: Int?, max: Int?) {
+            if (min != null && count < min) {
+                issues.add("$familyName : $count sélectionnée(s) (minimum recommandé : $min)")
+            } else if (max != null && count > max) {
+                issues.add("$familyName : $count sélectionnée(s) (maximum recommandé : $max)")
+            }
+        }
+        if (bounds != null) {
+            check(strings.topNotesName, selectedTopNotes.size, bounds.minTop, bounds.maxTop)
+            check(strings.heartNotesName, selectedHeartNotes.size, bounds.minHeart, bounds.maxHeart)
+            check(strings.baseNotesName, selectedBaseNotes.size, bounds.minBase, bounds.maxBase)
+        }
+        if (selectedBoosterNotes.size !in 1..2) {
+            issues.add("${strings.boosterNotesName} : ${selectedBoosterNotes.size} sélectionnée(s) (recommandé : 1 à 2)")
+        }
+        return issues
+    }
+
+    // Approuve la sélection hors normes (par action superviseur)
+    fun approveOutOfRangeNotes() {
+        notesOutOfRangeApprovedBySupervisor = true
+        noteCountError = null
+        sendAnswer("notesHorsNormesApproved", "true")
+    }
+
     // ── Validation du nombre de notes choisies par famille, au clic sur "Valider ma formule" ──
     // L'utilisateur peut sélectionner autant de notes qu'il veut dans notesDetail ; ce n'est qu'à
     // la confirmation qu'on vérifie le respect des bornes min/max renvoyées par le back. Retourne
-    // true (et vide `noteCountError`) si tout est valide ou si aucune borne n'est connue.
+    // true (et vide `noteCountError`) si tout est valide ou si le superviseur a autorisé le hors normes.
     fun validateNoteCounts(strings: Strings): Boolean {
+        if (notesOutOfRangeApprovedBySupervisor) {
+            noteCountError = null
+            return true
+        }
         val bounds = noteCountBounds
 
         fun checkFamily(count: Int, min: Int?, max: Int?, familyName: String): String? = when {
@@ -412,6 +466,8 @@ class FormViewModel(private val scope: CoroutineScope) {
         noteRecommendation = null
         perfumeIntensity = ""
         perfumeName = ""
+        notesOutOfRangeApprovedBySupervisor = false
+        formulaStatus = ""
         submitError = null
         submissionResult = null
         suggestQuantitiesError = null
@@ -429,6 +485,9 @@ class FormViewModel(private val scope: CoroutineScope) {
         sendAnswer("options", "")
         sendAnswer("perfumeIntensity", "")
         sendAnswer("perfumeName", "")
+        sendAnswer("formulaStatus", "")
+        sendAnswer("notesHorsNormesApproved", "")
+        sendAnswer("notesOutOfRange", "")
     }
 
     // Sélectionne l'atelier, ce qui détermine le coffret (notes proposées) et le volume de
@@ -498,6 +557,8 @@ class FormViewModel(private val scope: CoroutineScope) {
         boosterNoteQuantities = emptyMap()
         perfumeName = ""
         perfumeIntensity = ""
+        notesOutOfRangeApprovedBySupervisor = false
+        formulaStatus = ""
         submitError = null
         submissionResult = null
         hasExistingFormula = ""
@@ -617,7 +678,7 @@ class FormViewModel(private val scope: CoroutineScope) {
             // Pas de volume exploitable : on laisse la saisie manuelle.
             return
         }
-        val volumeForNotesMl = totalVolumeMl - selectedBoosterNotes.size * BOOSTER_QUANTITY_ML
+        val volumeForNotesMl = maxOf(5.0, totalVolumeMl - selectedBoosterNotes.size * BOOSTER_QUANTITY_ML)
         if (isSuggestingQuantities) return
         isSuggestingQuantities = true
         suggestQuantitiesError = null
@@ -635,12 +696,73 @@ class FormViewModel(private val scope: CoroutineScope) {
                 topNoteQuantities = response.topNotes.associate { it.name to it.quantityMl.toString() }
                 heartNoteQuantities = response.heartNotes.associate { it.name to it.quantityMl.toString() }
                 baseNoteQuantities = response.baseNotes.associate { it.name to it.quantityMl.toString() }
+                val boosterQuantities = selectedBoosterNotes.associateWith { BOOSTER_QUANTITY_ML.toInt().toString() }
+                boosterNoteQuantities = boosterQuantities
+
+                // Synchronise immédiatement les dosages calculés sur la session active pour
+                // que le superviseur puisse les consulter et les modifier en direct.
+                sendAnswer("topNoteQuantities", topNoteQuantities.entries.joinToString(",") { "${it.key}:${it.value}" })
+                sendAnswer("heartNoteQuantities", heartNoteQuantities.entries.joinToString(",") { "${it.key}:${it.value}" })
+                sendAnswer("baseNoteQuantities", baseNoteQuantities.entries.joinToString(",") { "${it.key}:${it.value}" })
+                sendAnswer("boosterNoteQuantities", boosterQuantities.entries.joinToString(",") { "${it.key}:${it.value}" })
             } catch (e: Exception) {
                 // L'IA a échoué : on laisse les champs vides, la saisie manuelle reste possible.
                 suggestQuantitiesError = e.message ?: strings.networkError
             } finally {
                 isSuggestingQuantities = false
             }
+        }
+    }
+
+    // ── Démarre la phase d'attente de validation de formule par le superviseur ──
+    fun startFormulaValidation(strings: Strings) {
+        formulaStatus = "pending_validation"
+        screen = "waitingFormulaValidation"
+        sendAnswer("formulaStatus", "pending_validation")
+        sendAnswer("topNotes", selectedTopNotes.joinToString(","))
+        sendAnswer("heartNotes", selectedHeartNotes.joinToString(","))
+        sendAnswer("baseNotes", selectedBaseNotes.joinToString(","))
+        sendAnswer("boosterNotes", selectedBoosterNotes.joinToString(","))
+        sendAnswer("perfumeIntensity", perfumeIntensity)
+        if (!areNoteCountsWithinBounds()) {
+            sendAnswer("notesOutOfRange", "true")
+        }
+        suggestNoteQuantities(strings)
+    }
+
+    // ── Polling du statut de validation de la formule (appelé depuis waitingFormulaValidation) ──
+    suspend fun pollFormulaValidation() {
+        val sessionId = currentSessionId ?: return
+        try {
+            val detail = ApiClient.fetchSessionDetail(sessionId)
+            val byKey = detail.answers.associateBy { it.questionKey }
+            val status = byKey["formulaStatus"]?.answerValue
+            if (status == "validated") {
+                formulaStatus = "validated"
+                if (byKey["notesHorsNormesApproved"]?.answerValue == "true") {
+                    notesOutOfRangeApprovedBySupervisor = true
+                }
+                refreshNotesFromSession()
+                screen = "noteQuantities"
+            }
+        } catch (_: Exception) {}
+    }
+
+    // ── Validation rapide sur place avec le code superviseur (si présent aux côtés du client) ──
+    suspend fun verifyAndApproveFormulaLocally(pin: String): Boolean {
+        return try {
+            val supervisor = ApiClient.verifySupervisorIdentifier(pin)
+            if (supervisor != null) {
+                supervisorUser = supervisor
+                notesOutOfRangeApprovedBySupervisor = true
+                formulaStatus = "validated"
+                sendAnswer("formulaStatus", "validated")
+                sendAnswer("notesHorsNormesApproved", "true")
+                screen = "noteQuantities"
+                true
+            } else false
+        } catch (_: Exception) {
+            false
         }
     }
 
@@ -731,6 +853,10 @@ class FormViewModel(private val scope: CoroutineScope) {
         value("pregnancyAnswer")?.let { pregnancyAnswer = it }
         value("perfumeIntensity")?.let { perfumeIntensity = it }
         value("perfumeName")?.let { perfumeName = it }
+        value("formulaStatus")?.let { formulaStatus = it }
+        if (value("notesHorsNormesApproved") == "true") {
+            notesOutOfRangeApprovedBySupervisor = true
+        }
         csvToSet(value("topNotes"))?.let { selectedTopNotes = it }
         csvToSet(value("heartNotes"))?.let { selectedHeartNotes = it }
         csvToSet(value("baseNotes"))?.let { selectedBaseNotes = it }

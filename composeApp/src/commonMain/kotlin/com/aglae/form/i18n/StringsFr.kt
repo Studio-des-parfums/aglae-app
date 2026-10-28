@@ -185,6 +185,22 @@ object StringsFr : Strings {
     override val noteQuantitiesSuggestFailed = "Le calcul automatique n'a pas pu se faire, saisissez les quantités manuellement."
     override val mlPlaceholder = "ml"
 
+    override val waitingFormulaTitle = "Création de votre formule"
+    override val waitingFormulaSubtitle = "Votre parfumeur valide actuellement les proportions et dosages de votre composition olfactive."
+    override val waitingFormulaPendingBadge = "En cours de validation par votre parfumeur…"
+    override val waitingFormulaNotice = "Vous recevrez les dosages exacts de votre création dans quelques instants."
+    override val waitingFormulaSupervisorQuickValidate = "Validation sur place"
+    override val waitingFormulaValidatedMessage = "Votre formule a été validée !"
+
+    override val horsNormesBadge = "Hors normes"
+    override val horsNormesDialogTitle = "Sélection personnalisée hors normes"
+    override val horsNormesDialogSubtitle = "Votre sélection ne respecte pas les proportions recommandées :"
+    override val horsNormesDialogAskSupervisor = "Faire valider par le parfumeur"
+    override val horsNormesDialogPinValidate = "Valider par code superviseur"
+    override val horsNormesDialogModify = "Modifier ma sélection"
+    override val validateMyFormulaHorsNormes = "Valider ma formule (hors normes)"
+    override val horsNormesApprovedBadge = "Autorisé par le superviseur"
+
     override val perfumeIntensityTitle = "Quelle intensité préférez-vous ?"
     override val perfumeIntensitySubtitle = "Choisissez la force de votre parfum"
     override val perfumeIntensityLight = "Léger (parfum de peau)"

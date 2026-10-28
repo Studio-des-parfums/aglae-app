@@ -55,6 +55,7 @@ import com.aglae.form.screens.SuccessScreen
 import com.aglae.form.screens.SupervisorHomeScreen
 import com.aglae.form.screens.SupervisorSessionDetailScreen
 import com.aglae.form.screens.TextZoomController
+import com.aglae.form.screens.WaitingFormulaValidationScreen
 
 // ── Point d'entrée de l'application ──
 // Le design system (couleurs, formes) vit dans Theme.kt. Tous les écrans vivent dans le
@@ -348,42 +349,75 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                         }
                     }
                     NotesSelectionScreen(
-                    selectedCounts = mapOf(
-                        "Notes de tête" to vm.selectedTopNotes.size,
-                        "Notes de cœur" to vm.selectedHeartNotes.size,
-                        "Notes de fond" to vm.selectedBaseNotes.size,
-                        "Notes booster" to vm.selectedBoosterNotes.size
-                    ),
-                    selectedTopNotes = vm.selectedTopNotes,
-                    selectedHeartNotes = vm.selectedHeartNotes,
-                    selectedBaseNotes = vm.selectedBaseNotes,
-                    selectedBoosterNotes = vm.selectedBoosterNotes,
-                    bounds = vm.noteCountBounds,
-                    onSectionClick = { section ->
-                        vm.selectedNoteSection = section
-                        vm.noteCountError = null
-                        vm.screen = "notesDetail"
-                    },
-                    noteCountError = vm.noteCountError,
-                    onConfirm = {
-                        if (vm.validateNoteCounts(strings)) {
+                        selectedCounts = mapOf(
+                            "Notes de tête" to vm.selectedTopNotes.size,
+                            "Notes de cœur" to vm.selectedHeartNotes.size,
+                            "Notes de fond" to vm.selectedBaseNotes.size,
+                            "Notes booster" to vm.selectedBoosterNotes.size
+                        ),
+                        selectedTopNotes = vm.selectedTopNotes,
+                        selectedHeartNotes = vm.selectedHeartNotes,
+                        selectedBaseNotes = vm.selectedBaseNotes,
+                        selectedBoosterNotes = vm.selectedBoosterNotes,
+                        bounds = vm.noteCountBounds,
+                        onSectionClick = { section ->
+                            vm.selectedNoteSection = section
+                            vm.noteCountError = null
+                            vm.screen = "notesDetail"
+                        },
+                        noteCountError = vm.noteCountError,
+                        isApprovedBySupervisor = vm.notesOutOfRangeApprovedBySupervisor,
+                        outOfRangeIssues = vm.getOutOfRangeIssues(strings),
+                        onRequestSupervisorApproval = {
                             vm.screen = "perfumeIntensity"
-                        }
-                    },
-                    onBack = { vm.screen = "pyramidExplanation" },
-                    onGoHome = { vm.resetAll() }
+                        },
+                        onVerifySupervisorPin = { pin ->
+                            vm.verifyAndApproveFormulaLocally(pin)
+                        },
+                        onConfirm = {
+                            if (vm.validateNoteCounts(strings)) {
+                                vm.screen = "perfumeIntensity"
+                            }
+                        },
+                        onBack = { vm.screen = "pyramidExplanation" },
+                        onGoHome = { vm.resetAll() }
                     )
                 }
                 "perfumeIntensity" -> PerfumeIntensityScreen(
                     selectedIntensity = vm.perfumeIntensity,
                     onIntensitySelected = { vm.perfumeIntensity = it; vm.sendAnswer("perfumeIntensity", it) },
                     onNext = {
-                        vm.screen = "noteQuantities"
-                        vm.suggestNoteQuantities(strings)
+                        vm.startFormulaValidation(strings)
                     },
                     onBack = { vm.screen = "notesSelection" },
                     onGoHome = { vm.resetAll() }
                 )
+                "waitingFormulaValidation" -> {
+                    // Polling continu de la session pour détecter la validation ou modification par le superviseur
+                    LaunchedEffect(vm.currentSessionId) {
+                        while (vm.currentSessionId != null && vm.formulaStatus != "validated") {
+                            delay(2500)
+                            vm.pollFormulaValidation()
+                        }
+                    }
+                    WaitingFormulaValidationScreen(
+                        selectedTopNotes = vm.selectedTopNotes,
+                        selectedHeartNotes = vm.selectedHeartNotes,
+                        selectedBaseNotes = vm.selectedBaseNotes,
+                        selectedBoosterNotes = vm.selectedBoosterNotes,
+                        intensity = vm.perfumeIntensity,
+                        isOutOfRange = !vm.areNoteCountsWithinBounds(),
+                        onSupervisorQuickValidate = { pin ->
+                            vm.verifyAndApproveFormulaLocally(pin)
+                        },
+                        onBack = {
+                            vm.formulaStatus = ""
+                            vm.sendAnswer("formulaStatus", "")
+                            vm.screen = "perfumeIntensity"
+                        },
+                        onGoHome = { vm.resetAll() }
+                    )
+                }
                 "noteQuantities" -> NoteQuantitiesScreen(
                     topNotes = vm.selectedTopNotes.toList(),
                     heartNotes = vm.selectedHeartNotes.toList(),
@@ -518,11 +552,10 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                                 vm.sendAnswer("heartNotes", vm.selectedHeartNotes.joinToString(","))
                             }
                             "Notes booster" -> {
-                                // Plafond de 2 boosters : retirer reste toujours possible, ajouter
-                                // seulement sous le plafond (clic au-delà silencieusement ignoré).
+                                // Plafond élargi pour permettre les compositions hors normes validées par le superviseur
                                 vm.selectedBoosterNotes = when {
                                     name in vm.selectedBoosterNotes -> vm.selectedBoosterNotes - name
-                                    vm.selectedBoosterNotes.size < 2 -> vm.selectedBoosterNotes + name
+                                    vm.selectedBoosterNotes.size < 4 -> vm.selectedBoosterNotes + name
                                     else -> vm.selectedBoosterNotes
                                 }
                                 // Pré-remplit/nettoie la quantité : valeur fixe au départ, mais

@@ -199,6 +199,24 @@ interface Strings {
     val noteQuantitiesSuggestFailed: String
     val mlPlaceholder: String
 
+    // ── Waiting formula validation screen (superviseur valide/modifie) ──
+    val waitingFormulaTitle: String get() = "Création de votre formule"
+    val waitingFormulaSubtitle: String get() = "Votre parfumeur valide actuellement les proportions et dosages de votre composition olfactive."
+    val waitingFormulaPendingBadge: String get() = "En cours de validation par votre parfumeur…"
+    val waitingFormulaNotice: String get() = "Vous recevrez les dosages exacts de votre création dans quelques instants."
+    val waitingFormulaSupervisorQuickValidate: String get() = "Validation sur place"
+    val waitingFormulaValidatedMessage: String get() = "Votre formule a été validée !"
+
+    // ── Validation hors normes ──
+    val horsNormesBadge: String get() = "Hors normes"
+    val horsNormesDialogTitle: String get() = "Sélection personnalisée hors normes"
+    val horsNormesDialogSubtitle: String get() = "Votre sélection ne respecte pas les proportions recommandées :"
+    val horsNormesDialogAskSupervisor: String get() = "Faire valider par le parfumeur"
+    val horsNormesDialogPinValidate: String get() = "Valider par code superviseur"
+    val horsNormesDialogModify: String get() = "Modifier ma sélection"
+    val validateMyFormulaHorsNormes: String get() = "Valider ma formule (hors normes)"
+    val horsNormesApprovedBadge: String get() = "Autorisé par le superviseur"
+
     // ── Perfume intensity screen ──
     val perfumeIntensityTitle: String
     val perfumeIntensitySubtitle: String

@@ -9,6 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -22,7 +23,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -141,12 +144,23 @@ fun NotesSelectionScreen(
     bounds: NoteCountBounds?,
     onSectionClick: (String) -> Unit,
     noteCountError: String?,
+    isApprovedBySupervisor: Boolean = false,
+    outOfRangeIssues: List<String> = emptyList(),
+    onRequestSupervisorApproval: () -> Unit = {},
+    onVerifySupervisorPin: (suspend (String) -> Boolean)? = null,
     onConfirm: () -> Unit,
     onBack: () -> Unit,
     onGoHome: () -> Unit
 ) {
     val strings = LocalStrings.current
     val bodyFont = questionBodyFont()
+    val scope = rememberCoroutineScope()
+
+    var showHorsNormesDialog by remember { mutableStateOf(false) }
+    var showPinDialog by remember { mutableStateOf(false) }
+    var pinCode by remember { mutableStateOf("") }
+    var pinError by remember { mutableStateOf<String?>(null) }
+    var isVerifyingPin by remember { mutableStateOf(false) }
 
     fun shortSectionName(name: String): String = when (name) {
         "Notes de tête" -> strings.topNotesShortName
@@ -203,22 +217,22 @@ fun NotesSelectionScreen(
     )
 
     // Déblocage séquentiel : une famille n'est ouvrable qu'une fois que TOUTES les familles qui
-    // la précèdent (dans l'ordre fond→cœur→tête→booster) ont atteint leur minimum de notes. La
-    // première famille (fond) est toujours ouvrable.
+    // la précèdent (dans l'ordre fond→cœur→tête→booster) ont atteint leur minimum de notes,
+    // ou si au moins une note a été choisie, ou si le superviseur a autorisé le hors normes.
     fun isUnlocked(name: String): Boolean {
+        if (isApprovedBySupervisor) return true
         val order = selectionOrder(name)
         if (order <= 1) return true
         return sections.filter { selectionOrder(it.name) < order }.all { previous ->
             val (min, _) = boundsFor(previous.name) ?: (null to null)
             val count = selectedCounts[previous.name] ?: 0
-            min == null || count >= min
+            min == null || count >= min || count > 0
         }
     }
 
     // Le bouton "Valider ma formule" reste désactivé tant que le nombre de notes choisies dans
     // chaque famille ne respecte pas ses bornes min/max (quand elles sont connues). Aucune borne
-    // connue pour une famille = pas de contrainte sur celle-ci (comportement identique à avant
-    // le chargement des règles, ou si le back n'en a défini aucune).
+    // connue pour une famille = pas de contrainte sur celle-ci.
     val allFamiliesValid = sections.all { section ->
         val (min, max) = boundsFor(section.name) ?: (null to null)
         isCountWithinBounds(selectedCounts[section.name] ?: 0, min, max)
@@ -313,9 +327,6 @@ fun NotesSelectionScreen(
 
                             val count = selectedCounts[section.name] ?: 0
                             val (min, max) = boundsFor(section.name) ?: (null to null)
-                            // Le détail min/max par famille ne s'affiche plus ici : il est donné
-                            // sur l'écran de sélection détaillée de la famille (NotesDetailScreen).
-                            // Cette carte ne montre que le nombre de notes déjà choisies.
                             if (count > 0) {
                                 Text(
                                     text = strings.noteSelectedCount(count),
@@ -343,7 +354,41 @@ fun NotesSelectionScreen(
                 }
             }
 
-            if (noteCountError != null) {
+            if (isApprovedBySupervisor) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFFE8F5E9),
+                    border = BorderStroke(1.dp, Color(0xFF2E7D32)),
+                    modifier = Modifier.padding(vertical = 4.dp)
+                ) {
+                    Text(
+                        text = "✓ " + strings.horsNormesApprovedBadge,
+                        fontFamily = bodyFont,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF2E7D32),
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
+            } else if (!allFamiliesValid && selectedCounts.values.sum() > 0) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFFFFF3E0),
+                    border = BorderStroke(1.dp, Color(0xFFFFA000)),
+                    modifier = Modifier.padding(vertical = 4.dp)
+                ) {
+                    Text(
+                        text = "⚠ " + strings.horsNormesBadge + " — Validation superviseur requise",
+                        fontFamily = bodyFont,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF8D6E63),
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
+            }
+
+            if (noteCountError != null && !isApprovedBySupervisor) {
                 Text(
                     text = noteCountError,
                     fontFamily = bodyFont,
@@ -357,10 +402,222 @@ fun NotesSelectionScreen(
 
             val totalSelected = selectedCounts.values.sum()
             QuestionActionButton(
-                text = strings.validateMyFormula,
-                onClick = onConfirm,
-                enabled = totalSelected > 0 && allFamiliesValid
+                text = if (allFamiliesValid || isApprovedBySupervisor) strings.validateMyFormula else strings.validateMyFormulaHorsNormes,
+                onClick = {
+                    if (allFamiliesValid || isApprovedBySupervisor) {
+                        onConfirm()
+                    } else {
+                        showHorsNormesDialog = true
+                    }
+                },
+                enabled = totalSelected > 0
             )
+        }
+    }
+
+    if (showHorsNormesDialog) {
+        Dialog(onDismissRequest = { showHorsNormesDialog = false }) {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = QuestionSurface,
+                border = BorderStroke(1.dp, QuestionOutlineVariant),
+                modifier = Modifier.fillMaxWidth().widthIn(max = 500.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFFFFF3E0),
+                        modifier = Modifier.size(52.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text("✨", fontSize = 26.sp)
+                        }
+                    }
+
+                    Text(
+                        text = strings.horsNormesDialogTitle,
+                        fontFamily = questionHeadlineFont(),
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = QuestionPrimary,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Text(
+                        text = strings.horsNormesDialogSubtitle,
+                        fontFamily = bodyFont,
+                        fontSize = 14.sp,
+                        color = QuestionOnSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Column(
+                        modifier = Modifier.fillMaxWidth().background(Color.White.copy(alpha = 0.6f), RoundedCornerShape(12.dp)).padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        if (outOfRangeIssues.isNotEmpty()) {
+                            outOfRangeIssues.forEach { issue ->
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text("•", color = QuestionPrimary, fontWeight = FontWeight.Bold)
+                                    Text(issue, fontFamily = bodyFont, fontSize = 13.sp, color = QuestionPrimary, fontWeight = FontWeight.SemiBold)
+                                }
+                            }
+                        } else {
+                            Text("Nombre de notes en dehors des proportions recommandées.", fontFamily = bodyFont, fontSize = 13.sp, color = QuestionPrimary)
+                        }
+                    }
+
+                    Text(
+                        text = "Votre composition peut être validée par votre parfumeur / superviseur avant le dosage.",
+                        fontFamily = bodyFont,
+                        fontSize = 13.sp,
+                        color = QuestionOnSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = {
+                                showHorsNormesDialog = false
+                                onRequestSupervisorApproval()
+                            },
+                            shape = PillShapeCompat,
+                            colors = ButtonDefaults.buttonColors(backgroundColor = QuestionPrimary, contentColor = Color.White),
+                            modifier = Modifier.fillMaxWidth().height(48.dp)
+                        ) {
+                            Text(strings.horsNormesDialogAskSupervisor, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        }
+
+                        if (onVerifySupervisorPin != null) {
+                            OutlinedButton(
+                                onClick = {
+                                    showHorsNormesDialog = false
+                                    pinCode = ""
+                                    pinError = null
+                                    showPinDialog = true
+                                },
+                                shape = PillShapeCompat,
+                                border = BorderStroke(1.dp, QuestionPrimary),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = QuestionPrimary),
+                                modifier = Modifier.fillMaxWidth().height(48.dp)
+                            ) {
+                                Text(strings.horsNormesDialogPinValidate, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            }
+                        }
+
+                        TextButton(
+                            onClick = { showHorsNormesDialog = false },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(strings.horsNormesDialogModify, color = QuestionOnSurfaceVariant, fontSize = 14.sp)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showPinDialog && onVerifySupervisorPin != null) {
+        Dialog(onDismissRequest = { if (!isVerifyingPin) showPinDialog = false }) {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = QuestionSurface,
+                border = BorderStroke(1.dp, QuestionOutlineVariant),
+                modifier = Modifier.fillMaxWidth().widthIn(max = 420.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Validation superviseur sur place",
+                        fontFamily = questionHeadlineFont(),
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = QuestionPrimary,
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        text = "Entrez votre identifiant / code superviseur pour autoriser cette formule immédiatement :",
+                        fontFamily = bodyFont,
+                        fontSize = 13.sp,
+                        color = QuestionOnSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+
+                    OutlinedTextField(
+                        value = pinCode,
+                        onValueChange = { pinCode = it; pinError = null },
+                        label = { Text("Code superviseur") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        colors = TextFieldDefaults.outlinedTextFieldColors(
+                            focusedBorderColor = QuestionPrimary,
+                            focusedLabelColor = QuestionPrimary,
+                            cursorColor = QuestionPrimary
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    if (pinError != null) {
+                        Text(
+                            text = pinError!!,
+                            color = Color(0xFFBA1A1A),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        TextButton(
+                            onClick = { showPinDialog = false },
+                            enabled = !isVerifyingPin,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(strings.cancel, color = QuestionOnSurfaceVariant)
+                        }
+                        Button(
+                            onClick = {
+                                isVerifyingPin = true
+                                pinError = null
+                                scope.launch {
+                                    val ok = onVerifySupervisorPin(pinCode)
+                                    isVerifyingPin = false
+                                    if (ok) {
+                                        showPinDialog = false
+                                    } else {
+                                        pinError = "Identifiant superviseur invalide"
+                                    }
+                                }
+                            },
+                            enabled = pinCode.isNotBlank() && !isVerifyingPin,
+                            shape = PillShapeCompat,
+                            colors = ButtonDefaults.buttonColors(backgroundColor = QuestionPrimary, contentColor = Color.White),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            if (isVerifyingPin) {
+                                CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+                            } else {
+                                Text("Valider", fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -1141,6 +1398,292 @@ private fun AddNoteDialog(
                             fontWeight = FontWeight.Bold,
                             color = if (selectedNote != null && quantityMl > 0) sectionColor else QuestionOnSurfaceVariant.copy(alpha = 0.38f)
                         )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ── Écran d'attente : validation et ajustement des dosages par le superviseur ──
+
+@Composable
+fun WaitingFormulaValidationScreen(
+    selectedTopNotes: Set<String>,
+    selectedHeartNotes: Set<String>,
+    selectedBaseNotes: Set<String>,
+    selectedBoosterNotes: Set<String>,
+    intensity: String,
+    isOutOfRange: Boolean,
+    onSupervisorQuickValidate: suspend (String) -> Boolean,
+    onBack: () -> Unit,
+    onGoHome: () -> Unit
+) {
+    val strings = LocalStrings.current
+    val bodyFont = questionBodyFont()
+    val scope = rememberCoroutineScope()
+
+    var showPinDialog by remember { mutableStateOf(false) }
+    var pinCode by remember { mutableStateOf("") }
+    var pinError by remember { mutableStateOf<String?>(null) }
+    var isVerifyingPin by remember { mutableStateOf(false) }
+
+    QuestionScreenScaffold(
+        onBack = onBack,
+        onGoHome = onGoHome,
+        showTitle = false,
+        bottomPadding = 24.dp
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.fillMaxWidth().widthIn(max = 640.dp).padding(vertical = 12.dp)
+        ) {
+            QuestionPill(text = "Studio des Parfums — Formulation")
+
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = Color.White.copy(alpha = 0.85f),
+                border = BorderStroke(1.dp, QuestionOutlineVariant),
+                elevation = 0.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.padding(28.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(72.dp)
+                            .background(Color(0xFFFFF8F5), CircleShape)
+                            .clip(CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            color = QuestionPrimary,
+                            strokeWidth = 3.dp,
+                            modifier = Modifier.size(48.dp)
+                        )
+                    }
+
+                    Text(
+                        text = strings.waitingFormulaTitle,
+                        fontFamily = questionHeadlineFont(),
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = QuestionPrimary,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Surface(
+                        shape = PillShapeCompat,
+                        color = QuestionPrimary.copy(alpha = 0.12f),
+                        border = BorderStroke(1.dp, QuestionPrimary.copy(alpha = 0.35f))
+                    ) {
+                        Text(
+                            text = strings.waitingFormulaPendingBadge,
+                            fontFamily = bodyFont,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = QuestionPrimary,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                        )
+                    }
+
+                    Text(
+                        text = strings.waitingFormulaSubtitle,
+                        fontFamily = bodyFont,
+                        fontSize = 16.sp,
+                        color = QuestionOnSurface,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 22.sp
+                    )
+
+                    Text(
+                        text = strings.waitingFormulaNotice,
+                        fontFamily = bodyFont,
+                        fontSize = 14.sp,
+                        fontStyle = FontStyle.Italic,
+                        color = QuestionOnSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+
+                    if (isOutOfRange) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFFFFF3E0),
+                            border = BorderStroke(1.dp, Color(0xFFFFA000)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Text("✨", fontSize = 18.sp)
+                                Text(
+                                    text = "Formule sur-mesure personnalisée (hors proportions habituelles). Votre parfumeur adapte spécialement les dosages.",
+                                    fontFamily = bodyFont,
+                                    fontSize = 13.sp,
+                                    color = Color(0xFF5D4037),
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+
+                    Divider(color = QuestionOutlineVariant, thickness = 0.5.dp)
+
+                    // Récapitulatif des notes choisies
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (intensity.isNotBlank()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Intensité souhaitée", fontFamily = bodyFont, fontSize = 14.sp, color = QuestionOnSurfaceVariant)
+                                Text(intensity, fontFamily = bodyFont, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = QuestionPrimary)
+                            }
+                        }
+
+                        val families = listOf(
+                            "Notes de tête" to selectedTopNotes,
+                            "Notes de cœur" to selectedHeartNotes,
+                            "Notes de fond" to selectedBaseNotes,
+                            "Boosters" to selectedBoosterNotes
+                        ).filter { it.second.isNotEmpty() }
+
+                        families.forEach { (label, notes) ->
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(label, fontFamily = bodyFont, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colorForSection(label))
+                                    Text("${notes.size} note(s)", fontFamily = bodyFont, fontSize = 12.sp, color = QuestionOnSurfaceVariant)
+                                }
+                                Text(
+                                    notes.joinToString(" • "),
+                                    fontFamily = bodyFont,
+                                    fontSize = 13.sp,
+                                    color = QuestionOnSurface,
+                                    modifier = Modifier.padding(top = 2.dp, bottom = 4.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            TextButton(
+                onClick = {
+                    pinCode = ""
+                    pinError = null
+                    showPinDialog = true
+                }
+            ) {
+                Text(
+                    text = strings.waitingFormulaSupervisorQuickValidate,
+                    fontFamily = bodyFont,
+                    fontSize = 13.sp,
+                    color = QuestionOnSurfaceVariant.copy(alpha = 0.7f)
+                )
+            }
+        }
+    }
+
+    if (showPinDialog) {
+        Dialog(onDismissRequest = { if (!isVerifyingPin) showPinDialog = false }) {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = QuestionSurface,
+                border = BorderStroke(1.dp, QuestionOutlineVariant),
+                modifier = Modifier.fillMaxWidth().widthIn(max = 420.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Validation sur place",
+                        fontFamily = questionHeadlineFont(),
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = QuestionPrimary,
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        text = "Entrez votre identifiant / code superviseur pour valider et afficher la formule au client :",
+                        fontFamily = bodyFont,
+                        fontSize = 13.sp,
+                        color = QuestionOnSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+
+                    OutlinedTextField(
+                        value = pinCode,
+                        onValueChange = { pinCode = it; pinError = null },
+                        label = { Text("Code superviseur") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        colors = TextFieldDefaults.outlinedTextFieldColors(
+                            focusedBorderColor = QuestionPrimary,
+                            focusedLabelColor = QuestionPrimary,
+                            cursorColor = QuestionPrimary
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    if (pinError != null) {
+                        Text(
+                            text = pinError!!,
+                            color = Color(0xFFBA1A1A),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        TextButton(
+                            onClick = { showPinDialog = false },
+                            enabled = !isVerifyingPin,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(strings.cancel, color = QuestionOnSurfaceVariant)
+                        }
+                        Button(
+                            onClick = {
+                                isVerifyingPin = true
+                                pinError = null
+                                scope.launch {
+                                    val ok = onSupervisorQuickValidate(pinCode)
+                                    isVerifyingPin = false
+                                    if (ok) {
+                                        showPinDialog = false
+                                    } else {
+                                        pinError = "Identifiant superviseur invalide"
+                                    }
+                                }
+                            },
+                            enabled = pinCode.isNotBlank() && !isVerifyingPin,
+                            shape = PillShapeCompat,
+                            colors = ButtonDefaults.buttonColors(backgroundColor = QuestionPrimary, contentColor = Color.White),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            if (isVerifyingPin) {
+                                CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+                            } else {
+                                Text("Valider", fontWeight = FontWeight.Bold)
+                            }
+                        }
                     }
                 }
             }

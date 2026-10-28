@@ -231,6 +231,16 @@ fun SessionCard(
     val isMine = currentSupervisorId != null && session.supervisorId == currentSupervisorId
     val isAssigned = session.supervisorId != null
 
+    var sessionAnswers by remember(session.id) { mutableStateOf<List<AnswerEntry>?>(null) }
+    LaunchedEffect(session.id) {
+        try {
+            sessionAnswers = ApiClient.fetchSessionDetail(session.id).answers
+        } catch (_: Exception) {}
+    }
+    val formulaPending = sessionAnswers?.find { it.questionKey == "formulaStatus" }?.answerValue == "pending_validation"
+    val isOutOfRange = sessionAnswers?.find { it.questionKey == "notesOutOfRange" }?.answerValue == "true"
+    val isFormulaValidated = sessionAnswers?.find { it.questionKey == "formulaStatus" }?.answerValue == "validated"
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -239,7 +249,7 @@ fun SessionCard(
         shape = CardShape,
         backgroundColor = if (isMine) Primary.copy(alpha = 0.10f) else Surface,
         elevation = if (isMine) 0.dp else 1.dp,
-        border = BorderStroke(1.dp, if (isMine) Primary else OutlineVariant)
+        border = BorderStroke(1.dp, if (formulaPending) Color(0xFFFFA000) else if (isMine) Primary else OutlineVariant)
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -264,9 +274,19 @@ fun SessionCard(
                         )
                     }
                 }
-                when {
-                    isMine -> StatusPill(text = "Moi", color = Primary)
-                    isAssigned -> StatusPill(text = session.supervisorName ?: "", color = Outline)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    if (formulaPending) {
+                        StatusPill(text = "⏳ À valider", color = Color(0xFFC9A227))
+                    } else if (isFormulaValidated) {
+                        StatusPill(text = "✓ Validé", color = Color(0xFF2E7D32))
+                    }
+                    if (isOutOfRange) {
+                        StatusPill(text = "⚠ Hors normes", color = Color(0xFFBA1A1A))
+                    }
+                    when {
+                        isMine -> StatusPill(text = "Moi", color = Primary)
+                        isAssigned -> StatusPill(text = session.supervisorName ?: "", color = Outline)
+                    }
                 }
             }
             Text(
@@ -445,6 +465,26 @@ fun SupervisorSessionDetailScreen(
         }
     }
 
+    var isValidatingFormula by remember { mutableStateOf(false) }
+    var formulaValidationSuccess by remember { mutableStateOf(false) }
+    fun validateFormula(targetStatus: String = "validated") {
+        scope.launch {
+            isValidatingFormula = true
+            try {
+                ApiClient.updateSingleAnswer(sessionId, "formulaStatus", targetStatus)
+                ApiClient.updateSingleAnswer(sessionId, "notesHorsNormesApproved", "true")
+                answers = answers.filter { it.questionKey !in setOf("formulaStatus", "notesHorsNormesApproved") } +
+                    listOf(
+                        AnswerEntry(questionKey = "formulaStatus", answerValue = targetStatus),
+                        AnswerEntry(questionKey = "notesHorsNormesApproved", answerValue = "true")
+                    )
+                formulaValidationSuccess = true
+            } catch (_: Exception) {} finally {
+                isValidatingFormula = false
+            }
+        }
+    }
+
     fun load() {
         scope.launch {
             isLoading = true
@@ -511,6 +551,13 @@ fun SupervisorSessionDetailScreen(
             catalogError = ingredientsError,
             isSaving = isSavingNotes,
             onSave = { updated -> saveNotesBatch(updated) },
+            onSaveAndValidate = { updated ->
+                saveNotesBatch(updated + listOf(
+                    AnswerEntry(questionKey = "formulaStatus", answerValue = "validated"),
+                    AnswerEntry(questionKey = "notesHorsNormesApproved", answerValue = "true")
+                ))
+                notesQuantitiesScreenOpen = false
+            },
             onBack = { notesQuantitiesScreenOpen = false }
         )
         return
@@ -612,6 +659,132 @@ fun SupervisorSessionDetailScreen(
                                     fontSize = 14.sp,
                                     modifier = Modifier.padding(top = 4.dp)
                                 )
+                            }
+                        }
+                    }
+
+                    // ── Validation de la formule par le superviseur ──
+                    val isFormulaPending = answers.find { it.questionKey == "formulaStatus" }?.answerValue == "pending_validation"
+                    val isFormulaValidated = answers.find { it.questionKey == "formulaStatus" }?.answerValue == "validated"
+                    val isHorsNormesFlagged = answers.find { it.questionKey == "notesOutOfRange" }?.answerValue == "true"
+
+                    if (isFormulaPending) {
+                        Card(
+                            shape = CardShape,
+                            backgroundColor = Color(0xFFFFF8E1),
+                            border = BorderStroke(1.5.dp, Color(0xFFFFA000)),
+                            elevation = 2.dp,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Text("⏳", fontSize = 20.sp)
+                                        Text(
+                                            text = "Formule en attente de validation",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 16.sp,
+                                            color = Color(0xFF5D4037)
+                                        )
+                                    }
+                                    StatusPill(text = "Validation requise", color = Color(0xFFFFA000))
+                                }
+
+                                Text(
+                                    text = "Le participant a sélectionné ses notes et attend votre validation / ajustement des dosages avant d'accéder à sa formule.",
+                                    fontSize = 14.sp,
+                                    color = OnSurface
+                                )
+
+                                if (isHorsNormesFlagged) {
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = Color(0xFFFDECEA),
+                                        border = BorderStroke(1.dp, Color(0xFFBA1A1A)),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Text(
+                                            text = "⚠ Composition hors normes : la sélection dépasse ou n'atteint pas les bornes standards. En tant que superviseur, vous pouvez autoriser et valider cette formule.",
+                                            color = Color(0xFFBA1A1A),
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            modifier = Modifier.padding(10.dp)
+                                        )
+                                    }
+                                }
+
+                                if (formulaValidationSuccess) {
+                                    Text(
+                                        text = "✓ Formule validée et transmise à la tablette client !",
+                                        color = Color(0xFF2E7D32),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp
+                                    )
+                                }
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    OutlinedButton(
+                                        onClick = { notesQuantitiesScreenOpen = true },
+                                        shape = PillShape,
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Icon(Icons.Filled.Edit, contentDescription = null, tint = Primary, modifier = Modifier.size(16.dp))
+                                        Spacer(Modifier.width(4.dp))
+                                        Text("Modifier dosages (ml)", color = OnSurface, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    }
+                                    Button(
+                                        onClick = { validateFormula("validated") },
+                                        enabled = !isValidatingFormula,
+                                        shape = PillShape,
+                                        colors = ButtonDefaults.buttonColors(backgroundColor = Primary, contentColor = OnPrimary),
+                                        modifier = Modifier.weight(1.3f)
+                                    ) {
+                                        if (isValidatingFormula) {
+                                            CircularProgressIndicator(color = OnPrimary, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+                                        } else {
+                                            Text("✓ Valider et envoyer", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else if (isFormulaValidated) {
+                        Surface(
+                            shape = CardShape,
+                            color = Color(0xFFE8F5E9),
+                            border = BorderStroke(1.dp, Color(0xFF2E7D32)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(14.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text("✓", color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                    Text(
+                                        text = "Formule validée et transmise au client",
+                                        color = Color(0xFF2E7D32),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp
+                                    )
+                                }
+                                TextButton(onClick = { notesQuantitiesScreenOpen = true }) {
+                                    Text("Réajuster", color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                }
                             }
                         }
                     }
@@ -1129,6 +1302,9 @@ fun NotesQuantitiesAnswerCard(
         names.sumOf { name -> quantities[name]?.toDoubleOrNull() ?: 0.0 }
     }
 
+    val isHorsNormes = answers.find { it.questionKey == "notesOutOfRange" }?.answerValue == "true"
+    val isApproved = answers.find { it.questionKey == "notesHorsNormesApproved" }?.answerValue == "true"
+
     Card(
         shape = CardShape,
         backgroundColor = Surface,
@@ -1141,13 +1317,24 @@ fun NotesQuantitiesAnswerCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Formule (notes & quantités)",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp,
-                    color = OnSurfaceVariant,
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.weight(1f)
-                )
+                ) {
+                    Text(
+                        text = "Formule (notes & quantités)",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        color = OnSurfaceVariant
+                    )
+                    if (isHorsNormes) {
+                        StatusPill(
+                            text = if (isApproved) "Hors normes (autorisé)" else "Hors normes",
+                            color = if (isApproved) Color(0xFF2E7D32) else Color(0xFFBA1A1A)
+                        )
+                    }
+                }
                 TextButton(onClick = onEdit) {
                     Icon(Icons.Filled.Edit, contentDescription = "Modifier", tint = Primary, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(4.dp))
@@ -1211,6 +1398,7 @@ fun SupervisorNotesQuantitiesScreen(
     catalogError: String?,
     isSaving: Boolean,
     onSave: (List<AnswerEntry>) -> Unit,
+    onSaveAndValidate: ((List<AnswerEntry>) -> Unit)? = null,
     onBack: () -> Unit
 ) {
     var addNotePickerSection by remember { mutableStateOf<String?>(null) }
@@ -1304,20 +1492,37 @@ fun SupervisorNotesQuantitiesScreen(
                 if (isSaving) {
                     CircularProgressIndicator(color = Primary, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
                 } else {
-                    TextButton(
-                        onClick = {
-                            val updated = sectionKeys.map { key -> AnswerEntry(questionKey = key, answerValue = localNames[key].orEmpty().joinToString(",")) } +
-                                quantityKeys.map { key -> AnswerEntry(questionKey = key, answerValue = serializeNoteQuantities(localQuantities[key].orEmpty())) }
-                            onSave(updated)
-                            hasChanges = false
-                        },
-                        enabled = hasChanges
-                    ) {
-                        Text(
-                            "Enregistrer",
-                            color = if (hasChanges) Color.Black else OnSurface.copy(alpha = 0.38f),
-                            fontWeight = FontWeight.Bold
-                        )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(
+                            onClick = {
+                                val updated = sectionKeys.map { key -> AnswerEntry(questionKey = key, answerValue = localNames[key].orEmpty().joinToString(",")) } +
+                                    quantityKeys.map { key -> AnswerEntry(questionKey = key, answerValue = serializeNoteQuantities(localQuantities[key].orEmpty())) }
+                                onSave(updated)
+                                hasChanges = false
+                            },
+                            enabled = hasChanges
+                        ) {
+                            Text(
+                                "Enregistrer",
+                                color = if (hasChanges) Color.Black else OnSurface.copy(alpha = 0.38f),
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        if (onSaveAndValidate != null) {
+                            Button(
+                                onClick = {
+                                    val updated = sectionKeys.map { key -> AnswerEntry(questionKey = key, answerValue = localNames[key].orEmpty().joinToString(",")) } +
+                                        quantityKeys.map { key -> AnswerEntry(questionKey = key, answerValue = serializeNoteQuantities(localQuantities[key].orEmpty())) }
+                                    onSaveAndValidate(updated)
+                                    hasChanges = false
+                                },
+                                shape = PillShape,
+                                colors = ButtonDefaults.buttonColors(backgroundColor = Primary, contentColor = OnPrimary),
+                                elevation = ButtonDefaults.elevation(0.dp, 0.dp)
+                            ) {
+                                Text("Valider & envoyer", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            }
+                        }
                     }
                 }
             }
