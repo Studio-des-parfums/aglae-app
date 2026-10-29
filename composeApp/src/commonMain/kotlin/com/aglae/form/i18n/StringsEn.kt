@@ -41,6 +41,23 @@ object StringsEn : Strings {
     override val accountCheckYes = "Yes, I already have a formula"
     override val accountCheckNo = "No, this is my first time"
 
+    override val textZoomTitle = "Text size"
+    override val textZoomStandard = "Standard"
+    override val textZoomLarge = "Large (+20%)"
+    override val textZoomExtraLarge = "Extra large (+40%)"
+
+    override val onboardingTitle = "Your Experience Guide"
+    override val onboardingSubtitle = "Here are a few helpful tools to guide you throughout your perfume creation:"
+    override val onboardingZoomTitle = "Enlarge text"
+    override val onboardingZoomDesc = "Tap this button at the top right anytime to adjust the text size for your comfort."
+    override val onboardingHomeTitle = "Back to home"
+    override val onboardingHomeDesc = "This button allows you to return to the beginning or change language at any time."
+    override val onboardingHelpBtnTitle = "Help button ( i )"
+    override val onboardingHelpBtnDesc = "Access this guide and tips anytime by tapping this button at the top."
+    override val onboardingPerfumerNotice = "If you have any questions or encounter any issues, feel free to ask your perfumer by your side."
+    override val onboardingGotIt = "Got it"
+    override val helpButtonContentDescription = "Help & Guide"
+
     override val contactSearchTitle = "Let's find your formula"
     override val contactSearchSubtitle = "Enter your email or your phone number"
     override val emailLabel = "Email"

@@ -47,6 +47,25 @@ interface Strings {
     val accountCheckYes: String
     val accountCheckNo: String
 
+    // ── Contrôleur de taille du texte ──
+    val textZoomTitle: String get() = "Taille du texte"
+    val textZoomStandard: String get() = "Standard"
+    val textZoomLarge: String get() = "Grand (+20%)"
+    val textZoomExtraLarge: String get() = "Très grand (+40%)"
+
+    // ── Onboarding / Aide repères ──
+    val onboardingTitle: String get() = "Guide de votre parcours"
+    val onboardingSubtitle: String get() = "Voici quelques repères utiles pour vous accompagner tout au long de votre création :"
+    val onboardingZoomTitle: String get() = "Agrandir le texte"
+    val onboardingZoomDesc: String get() = "Cliquez sur ce bouton en haut à droite à tout moment pour adapter la taille des textes à votre confort de lecture."
+    val onboardingHomeTitle: String get() = "Retour à l'accueil"
+    val onboardingHomeDesc: String get() = "Ce bouton vous permet de revenir au point de départ et de changer de langue si nécessaire."
+    val onboardingHelpBtnTitle: String get() = "Bouton d'aide ( i )"
+    val onboardingHelpBtnDesc: String get() = "Retrouvez ce guide et ces explications à tout moment en cliquant sur ce bouton en haut."
+    val onboardingPerfumerNotice: String get() = "Si vous rencontrez la moindre difficulté ou question, n'hésitez pas à solliciter votre parfumeur à vos côtés."
+    val onboardingGotIt: String get() = "J'ai compris"
+    val helpButtonContentDescription: String get() = "Aide et repères"
+
     // ── Contact search screen ──
     val contactSearchTitle: String
     val contactSearchSubtitle: String

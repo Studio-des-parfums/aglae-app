@@ -41,6 +41,23 @@ object StringsAr : Strings {
     override val accountCheckYes = "نعم، لدي تركيبة عطر بالفعل"
     override val accountCheckNo = "لا، هذه هي المرة الأولى"
 
+    override val textZoomTitle = "حجم النص"
+    override val textZoomStandard = "قياسي"
+    override val textZoomLarge = "كبير (+20%)"
+    override val textZoomExtraLarge = "كبير جداً (+40%)"
+
+    override val onboardingTitle = "دليل تجربتكم"
+    override val onboardingSubtitle = "إليكم بعض الإرشادات المفيدة لمساعدتكم طوال مرحلة ابتكار عطركم:"
+    override val onboardingZoomTitle = "تكبير النص"
+    override val onboardingZoomDesc = "اضغطوا على هذا الزر أعلى اليمين في أي وقت لتعديل حجم النص لراحتكم."
+    override val onboardingHomeTitle = "العودة للرئيسية"
+    override val onboardingHomeDesc = "يتيح لكم هذا الزر العودة إلى البداية أو تغيير اللغة في أي وقت."
+    override val onboardingHelpBtnTitle = "زر المساعدة ( i )"
+    override val onboardingHelpBtnDesc = "يمكنكم مراجعة هذا الدليل في أي وقت بالضغط على هذا الزر في الأعلى."
+    override val onboardingPerfumerNotice = "إذا واجهتكم أي صعوبة أو كان لديكم أي استفسار، لا تترددوا في طلب مساعدة خبير العطور بجانبكم."
+    override val onboardingGotIt = "فهمت"
+    override val helpButtonContentDescription = "المساعدة والإرشادات"
+
     override val contactSearchTitle = "لنبحث عن تركيبة عطركم"
     override val contactSearchSubtitle = "يُرجى إدخال بريدكم الإلكتروني أو رقم هاتفكم"
     override val emailLabel = "البريد الإلكتروني"

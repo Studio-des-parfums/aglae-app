@@ -376,6 +376,7 @@ fun questionBodyFont() = FontFamily(
 fun QuestionScreenScaffold(
     onBack: (() -> Unit)?,
     onGoHome: () -> Unit,
+    onOpenHelp: (() -> Unit)? = null,
     showTitle: Boolean = true,
     logoHeight: Dp = 120.dp,
     titleSpacing: Dp = 48.dp,
@@ -466,6 +467,31 @@ fun QuestionScreenScaffold(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            if (onOpenHelp != null) {
+                Surface(
+                    modifier = Modifier
+                        .clip(PillShapeCompat)
+                        .clickable { onOpenHelp() },
+                    shape = PillShapeCompat,
+                    color = Color.White.copy(alpha = 0.85f),
+                    border = BorderStroke(1.dp, QuestionOutlineVariant.copy(alpha = 0.6f))
+                ) {
+                    Box(
+                        modifier = Modifier.size(36.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "i",
+                            fontFamily = questionHeadlineFont(),
+                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = QuestionPrimary
+                        )
+                    }
+                }
+            }
+
             TextZoomButton()
 
             TextButton(

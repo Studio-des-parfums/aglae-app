@@ -1,27 +1,249 @@
 package com.aglae.form.screens
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import com.aglae.form.QuestionOnSurface
 import com.aglae.form.QuestionOnSurfaceVariant
 import com.aglae.form.QuestionOutlineVariant
 import com.aglae.form.QuestionPrimary
+import com.aglae.form.QuestionSurface
 import com.aglae.form.i18n.LocalStrings
 import com.aglae.form.i18n.localizedKeyboardOptions
 import com.aglae.form.network.CustomerSearchResult
+
+// ── Dialogue d'onboarding : présente les repères de l'interface en haut d'écran ──
+@Composable
+fun OnboardingHelpDialog(
+    onDismiss: () -> Unit
+) {
+    val strings = LocalStrings.current
+    val bodyFont = questionBodyFont()
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = QuestionSurface,
+            elevation = 16.dp,
+            border = BorderStroke(1.dp, QuestionOutlineVariant.copy(alpha = 0.5f)),
+            modifier = Modifier
+                .fillMaxWidth()
+                .widthIn(max = 520.dp)
+                .padding(vertical = 12.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(24.dp)
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Surface(
+                    shape = PillShapeCompat,
+                    color = QuestionPrimary.copy(alpha = 0.10f),
+                    border = BorderStroke(1.dp, QuestionPrimary.copy(alpha = 0.25f))
+                ) {
+                    Text(
+                        text = "Studio des Parfums",
+                        fontFamily = bodyFont,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = QuestionPrimary,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp)
+                    )
+                }
+
+                Text(
+                    text = strings.onboardingTitle,
+                    fontFamily = questionHeadlineFont(),
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = QuestionPrimary,
+                    textAlign = TextAlign.Center
+                )
+
+                Text(
+                    text = strings.onboardingSubtitle,
+                    fontFamily = bodyFont,
+                    fontSize = 14.sp,
+                    color = QuestionOnSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 20.sp
+                )
+
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // 1. Bouton grandir le texte
+                    OnboardingFeatureItem(
+                        iconContent = {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                Text("a", fontFamily = bodyFont, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = QuestionPrimary)
+                                Text("A", fontFamily = bodyFont, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = QuestionPrimary)
+                            }
+                        },
+                        title = strings.onboardingZoomTitle,
+                        description = strings.onboardingZoomDesc
+                    )
+
+                    // 2. Bouton accueil
+                    OnboardingFeatureItem(
+                        iconContent = {
+                            Icon(
+                                imageVector = Icons.Default.Home,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                tint = QuestionPrimary
+                            )
+                        },
+                        title = strings.onboardingHomeTitle,
+                        description = strings.onboardingHomeDesc
+                    )
+
+                    // 3. Bouton aide "i"
+                    OnboardingFeatureItem(
+                        iconContent = {
+                            Text(
+                                text = "i",
+                                fontFamily = questionHeadlineFont(),
+                                fontStyle = FontStyle.Italic,
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = QuestionPrimary
+                            )
+                        },
+                        title = strings.onboardingHelpBtnTitle,
+                        description = strings.onboardingHelpBtnDesc
+                    )
+                }
+
+                // Encadré parfumeur
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color(0xFFFFF3E0),
+                    border = BorderStroke(1.dp, Color(0xFFFFA000).copy(alpha = 0.45f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text("✨", fontSize = 20.sp)
+                        Text(
+                            text = strings.onboardingPerfumerNotice,
+                            fontFamily = bodyFont,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF5D4037),
+                            lineHeight = 18.sp,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+
+                Button(
+                    onClick = onDismiss,
+                    shape = PillShapeCompat,
+                    colors = ButtonDefaults.buttonColors(
+                        backgroundColor = QuestionPrimary,
+                        contentColor = Color.White
+                    ),
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    elevation = ButtonDefaults.elevation(0.dp, 0.dp)
+                ) {
+                    Text(
+                        text = strings.onboardingGotIt,
+                        fontFamily = bodyFont,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun OnboardingFeatureItem(
+    iconContent: @Composable () -> Unit,
+    title: String,
+    description: String
+) {
+    val bodyFont = questionBodyFont()
+
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = Color.White.copy(alpha = 0.70f),
+        border = BorderStroke(1.dp, QuestionOutlineVariant.copy(alpha = 0.4f)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Surface(
+                shape = PillShapeCompat,
+                color = Color.White,
+                border = BorderStroke(1.dp, QuestionOutlineVariant.copy(alpha = 0.6f)),
+                modifier = Modifier.size(36.dp)
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    iconContent()
+                }
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    fontFamily = bodyFont,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black
+                )
+                Text(
+                    text = description,
+                    fontFamily = bodyFont,
+                    fontSize = 12.sp,
+                    color = QuestionOnSurfaceVariant,
+                    lineHeight = 16.sp,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            }
+        }
+    }
+}
 
 // ── Écran : le client a-t-il déjà une formule chez nous ? ──
 @Composable
@@ -33,8 +255,19 @@ fun AccountCheckScreen(
 ) {
     val strings = LocalStrings.current
     val bodyFont = questionBodyFont()
+    var showOnboarding by remember { mutableStateOf(true) }
 
-    QuestionScreenScaffold(onBack = null, onGoHome = onGoHome) {
+    if (showOnboarding) {
+        OnboardingHelpDialog(
+            onDismiss = { showOnboarding = false }
+        )
+    }
+
+    QuestionScreenScaffold(
+        onBack = null,
+        onGoHome = onGoHome,
+        onOpenHelp = { showOnboarding = true }
+    ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(32.dp),

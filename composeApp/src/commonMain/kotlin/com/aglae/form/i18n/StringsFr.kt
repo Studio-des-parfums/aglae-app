@@ -41,6 +41,18 @@ object StringsFr : Strings {
     override val accountCheckYes = "Oui, j'ai déjà une formule"
     override val accountCheckNo = "Non, c'est la première fois"
 
+    override val onboardingTitle = "Guide de votre parcours"
+    override val onboardingSubtitle = "Voici quelques repères utiles pour vous accompagner tout au long de votre création :"
+    override val onboardingZoomTitle = "Agrandir le texte"
+    override val onboardingZoomDesc = "Cliquez sur ce bouton en haut à droite à tout moment pour adapter la taille des textes à votre confort de lecture."
+    override val onboardingHomeTitle = "Retour à l'accueil"
+    override val onboardingHomeDesc = "Ce bouton vous permet de revenir au point de départ et de changer de langue si nécessaire."
+    override val onboardingHelpBtnTitle = "Bouton d'aide ( i )"
+    override val onboardingHelpBtnDesc = "Retrouvez ce guide et ces explications à tout moment en cliquant sur ce bouton en haut."
+    override val onboardingPerfumerNotice = "Si vous rencontrez la moindre difficulté ou question, n'hésitez pas à solliciter votre parfumeur à vos côtés."
+    override val onboardingGotIt = "J'ai compris"
+    override val helpButtonContentDescription = "Aide et repères"
+
     override val contactSearchTitle = "Retrouvons votre formule"
     override val contactSearchSubtitle = "Renseignez votre email ou votre téléphone"
     override val emailLabel = "Email"

@@ -74,6 +74,23 @@ object StringsRu : Strings {
     override val accountCheckYes = "Да, у меня уже есть формула"
     override val accountCheckNo = "Нет, я здесь впервые"
 
+    override val textZoomTitle = "Размер текста"
+    override val textZoomStandard = "Стандартный"
+    override val textZoomLarge = "Крупный (+20%)"
+    override val textZoomExtraLarge = "Очень крупный (+40%)"
+
+    override val onboardingTitle = "Гид по вашему визиту"
+    override val onboardingSubtitle = "Вот несколько полезных подсказок для комфортного создания вашего аромата:"
+    override val onboardingZoomTitle = "Увеличить текст"
+    override val onboardingZoomDesc = "Нажмите эту кнопку в правом верхнем углу в любой момент, чтобы настроить удобный размер шрифта."
+    override val onboardingHomeTitle = "На главную"
+    override val onboardingHomeDesc = "Эта кнопка позволяет вернуться в начало или сменить язык в любой момент."
+    override val onboardingHelpBtnTitle = "Кнопка помощи ( i )"
+    override val onboardingHelpBtnDesc = "Вы всегда можете открыть эту подсказку снова, нажав эту кнопку вверху."
+    override val onboardingPerfumerNotice = "Если у вас возникнут трудности или вопросы, пожалуйста, обратитесь к парфюмеру рядом с вами."
+    override val onboardingGotIt = "Понятно"
+    override val helpButtonContentDescription = "Помощь и подсказки"
+
     override val contactSearchTitle = "Найдём вашу формулу"
     override val contactSearchSubtitle = "Укажите ваш email или номер телефона"
     override val emailLabel = "Email"

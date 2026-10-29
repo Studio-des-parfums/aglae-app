@@ -41,6 +41,23 @@ object StringsEs : Strings {
     override val accountCheckYes = "Sí, ya tengo una fórmula"
     override val accountCheckNo = "No, es la primera vez"
 
+    override val textZoomTitle = "Tamaño del texto"
+    override val textZoomStandard = "Estándar"
+    override val textZoomLarge = "Grande (+20%)"
+    override val textZoomExtraLarge = "Muy grande (+40%)"
+
+    override val onboardingTitle = "Guía de su experiencia"
+    override val onboardingSubtitle = "Aquí tiene algunas herramientas útiles para acompañarle durante su creación:"
+    override val onboardingZoomTitle = "Agrandar texto"
+    override val onboardingZoomDesc = "Toque este botón arriba a la derecha en cualquier momento para ajustar el tamaño del texto."
+    override val onboardingHomeTitle = "Volver al inicio"
+    override val onboardingHomeDesc = "Este botón le permite volver al principio o cambiar de idioma en cualquier momento."
+    override val onboardingHelpBtnTitle = "Botón de ayuda ( i )"
+    override val onboardingHelpBtnDesc = "Vuelva a consultar esta guía en cualquier momento tocando este botón arriba."
+    override val onboardingPerfumerNotice = "Si tiene alguna pregunta o dificultad, no dude en consultar con su perfumista a su lado."
+    override val onboardingGotIt = "Entendido"
+    override val helpButtonContentDescription = "Ayuda y guía"
+
     override val contactSearchTitle = "Encontremos tu fórmula"
     override val contactSearchSubtitle = "Indica tu email o tu número de teléfono"
     override val emailLabel = "Email"
