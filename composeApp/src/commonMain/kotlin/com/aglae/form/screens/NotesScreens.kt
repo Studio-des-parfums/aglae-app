@@ -964,6 +964,8 @@ private class NoteFamily(
 )
 
 // ── Écran : quantité (ml) pour chaque note sélectionnée, groupée par famille ──
+// L'utilisateur visualise ses notes en mL pendant que le superviseur valide la formule.
+// Les modifications sont verrouillées et le bouton Suivant reste inactif tant que non validé.
 @Composable
 fun NoteQuantitiesScreen(
     topNotes: List<String>,
@@ -990,14 +992,21 @@ fun NoteQuantitiesScreen(
     onRemoveBoosterNote: (String) -> Unit = {},
     isLoadingSuggestions: Boolean = false,
     suggestionsFailed: Boolean = false,
+    isFormulaValidated: Boolean = false,
+    onSupervisorQuickValidate: (suspend (String) -> Boolean)? = null,
     onNext: () -> Unit,
     onBack: () -> Unit,
     onGoHome: () -> Unit
 ) {
     val strings = LocalStrings.current
     val bodyFont = questionBodyFont()
+    val scope = rememberCoroutineScope()
     // Famille (clé de section, ex "Notes de fond") pour laquelle le picker d'ajout est ouvert.
     var addNotePickerSection by remember { mutableStateOf<String?>(null) }
+    var showPinDialog by remember { mutableStateOf(false) }
+    var pinCode by remember { mutableStateOf("") }
+    var pinError by remember { mutableStateOf<String?>(null) }
+    var isVerifyingPin by remember { mutableStateOf(false) }
 
     val families = listOf(
         NoteFamily("Notes booster", boosterNotes, boosterQuantities, onBoosterQuantityChange, emptyList(), { _, _ -> }, onRemoveBoosterNote),
@@ -1013,12 +1022,11 @@ fun NoteQuantitiesScreen(
             modifier = Modifier.fillMaxWidth().widthIn(max = 560.dp)
         ) {
             if (isLoadingSuggestions) {
-                // Le dosage IA n'est pas encore arrivé : on masque le formulaire (les champs
-                // seraient vides) et on affiche un vrai écran de chargement à la place.
+                // Le dosage IA n'est pas encore arrivé : on affiche un écran de chargement
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp)
                 ) {
                     CircularProgressIndicator(color = QuestionPrimary)
                     Spacer(modifier = Modifier.height(16.dp))
@@ -1033,7 +1041,7 @@ fun NoteQuantitiesScreen(
             } else {
                 QuestionPill(text = strings.noteQuantitiesTitle)
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
                 Text(
                     text = strings.noteQuantitiesSubtitle,
@@ -1046,8 +1054,6 @@ fun NoteQuantitiesScreen(
                 )
 
                 if (suggestionsFailed) {
-                    // Le dosage IA a échoué : on ne bloque jamais la saisie, on informe juste
-                    // que les ml n'ont pas pu être pré-remplis et que la saisie reste manuelle.
                     Text(
                         text = strings.noteQuantitiesSuggestFailed,
                         fontFamily = bodyFont,
@@ -1058,7 +1064,92 @@ fun NoteQuantitiesScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // ── Bandeau de statut de validation par le parfumeur / superviseur ──
+                if (!isFormulaValidated) {
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = Color(0xFFFFF8F5),
+                        border = BorderStroke(1.dp, QuestionOutlineVariant),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                color = QuestionPrimary,
+                                strokeWidth = 2.5.dp,
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = strings.waitingFormulaPendingBadge,
+                                    fontFamily = bodyFont,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = QuestionPrimary
+                                )
+                                Text(
+                                    text = strings.waitingFormulaSubtitle,
+                                    fontFamily = bodyFont,
+                                    fontSize = 12.sp,
+                                    color = QuestionOnSurfaceVariant,
+                                    modifier = Modifier.padding(top = 2.dp)
+                                )
+                            }
+                            if (onSupervisorQuickValidate != null) {
+                                OutlinedButton(
+                                    onClick = {
+                                        pinCode = ""
+                                        pinError = null
+                                        showPinDialog = true
+                                    },
+                                    shape = PillShapeCompat,
+                                    border = BorderStroke(1.dp, QuestionPrimary.copy(alpha = 0.5f)),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = QuestionPrimary),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                                ) {
+                                    Text("Parfumeur", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = Color(0xFFE8F5E9),
+                        border = BorderStroke(1.dp, Color(0xFF2E7D32).copy(alpha = 0.35f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Surface(
+                                shape = androidx.compose.foundation.shape.CircleShape,
+                                color = Color(0xFF2E7D32),
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text("✓", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            Text(
+                                text = strings.waitingFormulaValidatedMessage,
+                                fontFamily = bodyFont,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF2E7D32)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
 
                 val grandTotalMl = families.sumOf { family ->
                     family.names.sumOf { name -> family.quantities[name]?.toDoubleOrNull() ?: 0.0 }
@@ -1071,10 +1162,9 @@ fun NoteQuantitiesScreen(
                     families.forEach { family ->
                         val sectionKey = family.sectionKey
                         val names = family.names
-                        // Le booster ne peut pas être agrandi (pas de catalogue d'ajout dédié),
-                        // mais sa quantité reste éditable et il reste supprimable comme les autres.
-                        val isBooster = sectionKey == "Notes booster"
-                        val canAddMore = !isBooster && family.availableNotes.isNotEmpty()
+                        // L'utilisateur visualise ses notes en ml mais ne peut pas modifier la composition
+                        val readOnly = true
+                        val canAddMore = false
                         if (names.isNotEmpty() || canAddMore) {
                             val sectionColor = colorForSection(sectionKey)
                             val title = when (sectionKey) {
@@ -1083,7 +1173,6 @@ fun NoteQuantitiesScreen(
                                 "Notes booster" -> strings.boosterNotesName
                                 else -> strings.baseNotesName
                             }
-                            val readOnly = false
                             val quantities = family.quantities
                             val onChange = family.onQuantityChange
                             val totalFamilyMl = names.sumOf { name ->
@@ -1094,9 +1183,7 @@ fun NoteQuantitiesScreen(
                                 Surface(
                                     shape = RoundedCornerShape(10.dp),
                                     color = sectionColor,
-                                    modifier = Modifier
-                                        .wrapContentWidth()
-                                        .let { if (canAddMore) it.clickable { addNotePickerSection = sectionKey } else it }
+                                    modifier = Modifier.wrapContentWidth()
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
@@ -1116,16 +1203,6 @@ fun NoteQuantitiesScreen(
                                                 fontSize = 14.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 color = Color.White.copy(alpha = 0.85f)
-                                            )
-                                        }
-                                        if (canAddMore) {
-                                            Spacer(Modifier.width(8.dp))
-                                            Text(
-                                                text = "+",
-                                                fontFamily = bodyFont,
-                                                fontSize = 16.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color.White
                                             )
                                         }
                                     }
@@ -1171,52 +1248,117 @@ fun NoteQuantitiesScreen(
                                                     modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp)
                                                 )
                                             }
-                                            if (!readOnly) {
-                                                QuantityStepperButton(
-                                                    icon = "✕",
-                                                    enabled = true,
-                                                    color = Color(0xFFBA1A1A),
-                                                    onClick = { family.onRemoveNote(name) }
-                                                )
-                                            }
                                         }
                                     }
-                                }
-                                if (names.isEmpty() && canAddMore) {
-                                    Text(
-                                        text = "Aucune note — touchez le titre pour en ajouter",
-                                        fontFamily = bodyFont,
-                                        fontSize = 13.sp,
-                                        fontStyle = FontStyle.Italic,
-                                        color = QuestionOnSurfaceVariant
-                                    )
                                 }
                             }
                         }
                     }
                 }
 
+                Spacer(modifier = Modifier.height(24.dp))
+
                 QuestionActionButton(
-                    text = strings.next,
+                    text = if (isFormulaValidated) strings.next else "En attente de validation…",
                     onClick = onNext,
-                    enabled = true
+                    enabled = isFormulaValidated
                 )
             }
         }
     }
 
-    val pickerSection = addNotePickerSection
-    if (pickerSection != null) {
-        val family = families.first { it.sectionKey == pickerSection }
-        AddNoteDialog(
-            sectionColor = colorForSection(pickerSection),
-            availableNotes = family.availableNotes,
-            onDismiss = { addNotePickerSection = null },
-            onConfirm = { name, qty ->
-                family.onAddNote(name, qty)
-                addNotePickerSection = null
+    if (showPinDialog && onSupervisorQuickValidate != null) {
+        Dialog(onDismissRequest = { if (!isVerifyingPin) showPinDialog = false }) {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = QuestionSurface,
+                border = BorderStroke(1.dp, QuestionOutlineVariant),
+                modifier = Modifier.fillMaxWidth().widthIn(max = 420.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Validation par le parfumeur",
+                        fontFamily = questionHeadlineFont(),
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = QuestionPrimary,
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        text = "Entrez votre identifiant / code superviseur pour valider la formule du client :",
+                        fontFamily = bodyFont,
+                        fontSize = 13.sp,
+                        color = QuestionOnSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+
+                    OutlinedTextField(
+                        value = pinCode,
+                        onValueChange = { pinCode = it; pinError = null },
+                        label = { Text("Code superviseur") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        colors = TextFieldDefaults.outlinedTextFieldColors(
+                            focusedBorderColor = QuestionPrimary,
+                            focusedLabelColor = QuestionPrimary,
+                            cursorColor = QuestionPrimary
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    if (pinError != null) {
+                        Text(
+                            text = pinError!!,
+                            color = Color(0xFFBA1A1A),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        TextButton(
+                            onClick = { showPinDialog = false },
+                            enabled = !isVerifyingPin,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(strings.cancel, color = QuestionOnSurfaceVariant)
+                        }
+                        Button(
+                            onClick = {
+                                isVerifyingPin = true
+                                pinError = null
+                                scope.launch {
+                                    val ok = onSupervisorQuickValidate(pinCode)
+                                    isVerifyingPin = false
+                                    if (ok) {
+                                        showPinDialog = false
+                                    } else {
+                                        pinError = "Identifiant superviseur invalide"
+                                    }
+                                }
+                            },
+                            enabled = pinCode.isNotBlank() && !isVerifyingPin,
+                            shape = PillShapeCompat,
+                            colors = ButtonDefaults.buttonColors(backgroundColor = QuestionPrimary, contentColor = Color.White),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            if (isVerifyingPin) {
+                                CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+                            } else {
+                                Text("Valider", fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
             }
-        )
+        }
     }
     }
 }
@@ -1408,289 +1550,4 @@ private fun AddNoteDialog(
     }
 }
 
-// ── Écran d'attente : validation et ajustement des dosages par le superviseur ──
-
-@Composable
-fun WaitingFormulaValidationScreen(
-    selectedTopNotes: Set<String>,
-    selectedHeartNotes: Set<String>,
-    selectedBaseNotes: Set<String>,
-    selectedBoosterNotes: Set<String>,
-    intensity: String,
-    isOutOfRange: Boolean,
-    onSupervisorQuickValidate: suspend (String) -> Boolean,
-    onBack: () -> Unit,
-    onGoHome: () -> Unit
-) {
-    val strings = LocalStrings.current
-    val bodyFont = questionBodyFont()
-    val scope = rememberCoroutineScope()
-
-    var showPinDialog by remember { mutableStateOf(false) }
-    var pinCode by remember { mutableStateOf("") }
-    var pinError by remember { mutableStateOf<String?>(null) }
-    var isVerifyingPin by remember { mutableStateOf(false) }
-
-    QuestionScreenScaffold(
-        onBack = onBack,
-        onGoHome = onGoHome,
-        showTitle = false,
-        bottomPadding = 24.dp
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.fillMaxWidth().widthIn(max = 640.dp).padding(vertical = 12.dp)
-        ) {
-            QuestionPill(text = "Studio des Parfums — Formulation")
-
-            Surface(
-                shape = RoundedCornerShape(24.dp),
-                color = Color.White.copy(alpha = 0.85f),
-                border = BorderStroke(1.dp, QuestionOutlineVariant),
-                elevation = 0.dp,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier.padding(28.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(72.dp)
-                            .background(Color(0xFFFFF8F5), CircleShape)
-                            .clip(CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(
-                            color = QuestionPrimary,
-                            strokeWidth = 3.dp,
-                            modifier = Modifier.size(48.dp)
-                        )
-                    }
-
-                    Text(
-                        text = strings.waitingFormulaTitle,
-                        fontFamily = questionHeadlineFont(),
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = QuestionPrimary,
-                        textAlign = TextAlign.Center
-                    )
-
-                    Surface(
-                        shape = PillShapeCompat,
-                        color = QuestionPrimary.copy(alpha = 0.12f),
-                        border = BorderStroke(1.dp, QuestionPrimary.copy(alpha = 0.35f))
-                    ) {
-                        Text(
-                            text = strings.waitingFormulaPendingBadge,
-                            fontFamily = bodyFont,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = QuestionPrimary,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
-                        )
-                    }
-
-                    Text(
-                        text = strings.waitingFormulaSubtitle,
-                        fontFamily = bodyFont,
-                        fontSize = 16.sp,
-                        color = QuestionOnSurface,
-                        textAlign = TextAlign.Center,
-                        lineHeight = 22.sp
-                    )
-
-                    Text(
-                        text = strings.waitingFormulaNotice,
-                        fontFamily = bodyFont,
-                        fontSize = 14.sp,
-                        fontStyle = FontStyle.Italic,
-                        color = QuestionOnSurfaceVariant,
-                        textAlign = TextAlign.Center
-                    )
-
-                    if (isOutOfRange) {
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = Color(0xFFFFF3E0),
-                            border = BorderStroke(1.dp, Color(0xFFFFA000)),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                Text("✨", fontSize = 18.sp)
-                                Text(
-                                    text = "Formule sur-mesure personnalisée (hors proportions habituelles). Votre parfumeur adapte spécialement les dosages.",
-                                    fontFamily = bodyFont,
-                                    fontSize = 13.sp,
-                                    color = Color(0xFF5D4037),
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        }
-                    }
-
-                    Divider(color = QuestionOutlineVariant, thickness = 0.5.dp)
-
-                    // Récapitulatif des notes choisies
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        if (intensity.isNotBlank()) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text("Intensité souhaitée", fontFamily = bodyFont, fontSize = 14.sp, color = QuestionOnSurfaceVariant)
-                                Text(intensity, fontFamily = bodyFont, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = QuestionPrimary)
-                            }
-                        }
-
-                        val families = listOf(
-                            "Notes de tête" to selectedTopNotes,
-                            "Notes de cœur" to selectedHeartNotes,
-                            "Notes de fond" to selectedBaseNotes,
-                            "Boosters" to selectedBoosterNotes
-                        ).filter { it.second.isNotEmpty() }
-
-                        families.forEach { (label, notes) ->
-                            Column(modifier = Modifier.fillMaxWidth()) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(label, fontFamily = bodyFont, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colorForSection(label))
-                                    Text("${notes.size} note(s)", fontFamily = bodyFont, fontSize = 12.sp, color = QuestionOnSurfaceVariant)
-                                }
-                                Text(
-                                    notes.joinToString(" • "),
-                                    fontFamily = bodyFont,
-                                    fontSize = 13.sp,
-                                    color = QuestionOnSurface,
-                                    modifier = Modifier.padding(top = 2.dp, bottom = 4.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            TextButton(
-                onClick = {
-                    pinCode = ""
-                    pinError = null
-                    showPinDialog = true
-                }
-            ) {
-                Text(
-                    text = strings.waitingFormulaSupervisorQuickValidate,
-                    fontFamily = bodyFont,
-                    fontSize = 13.sp,
-                    color = QuestionOnSurfaceVariant.copy(alpha = 0.7f)
-                )
-            }
-        }
-    }
-
-    if (showPinDialog) {
-        Dialog(onDismissRequest = { if (!isVerifyingPin) showPinDialog = false }) {
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = QuestionSurface,
-                border = BorderStroke(1.dp, QuestionOutlineVariant),
-                modifier = Modifier.fillMaxWidth().widthIn(max = 420.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(24.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = "Validation sur place",
-                        fontFamily = questionHeadlineFont(),
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = QuestionPrimary,
-                        textAlign = TextAlign.Center
-                    )
-                    Text(
-                        text = "Entrez votre identifiant / code superviseur pour valider et afficher la formule au client :",
-                        fontFamily = bodyFont,
-                        fontSize = 13.sp,
-                        color = QuestionOnSurfaceVariant,
-                        textAlign = TextAlign.Center
-                    )
-
-                    OutlinedTextField(
-                        value = pinCode,
-                        onValueChange = { pinCode = it; pinError = null },
-                        label = { Text("Code superviseur") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        colors = TextFieldDefaults.outlinedTextFieldColors(
-                            focusedBorderColor = QuestionPrimary,
-                            focusedLabelColor = QuestionPrimary,
-                            cursorColor = QuestionPrimary
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    if (pinError != null) {
-                        Text(
-                            text = pinError!!,
-                            color = Color(0xFFBA1A1A),
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        TextButton(
-                            onClick = { showPinDialog = false },
-                            enabled = !isVerifyingPin,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(strings.cancel, color = QuestionOnSurfaceVariant)
-                        }
-                        Button(
-                            onClick = {
-                                isVerifyingPin = true
-                                pinError = null
-                                scope.launch {
-                                    val ok = onSupervisorQuickValidate(pinCode)
-                                    isVerifyingPin = false
-                                    if (ok) {
-                                        showPinDialog = false
-                                    } else {
-                                        pinError = "Identifiant superviseur invalide"
-                                    }
-                                }
-                            },
-                            enabled = pinCode.isNotBlank() && !isVerifyingPin,
-                            shape = PillShapeCompat,
-                            colors = ButtonDefaults.buttonColors(backgroundColor = QuestionPrimary, contentColor = Color.White),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            if (isVerifyingPin) {
-                                CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
-                            } else {
-                                Text("Valider", fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
 

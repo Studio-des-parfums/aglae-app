@@ -55,7 +55,6 @@ import com.aglae.form.screens.SuccessScreen
 import com.aglae.form.screens.SupervisorHomeScreen
 import com.aglae.form.screens.SupervisorSessionDetailScreen
 import com.aglae.form.screens.TextZoomController
-import com.aglae.form.screens.WaitingFormulaValidationScreen
 
 // ── Point d'entrée de l'application ──
 // Le design system (couleurs, formes) vit dans Theme.kt. Tous les écrans vivent dans le
@@ -399,24 +398,95 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                     onBack = { vm.screen = "notesSelection" },
                     onGoHome = { vm.resetAll() }
                 )
-                "waitingFormulaValidation" -> {
-                    // Polling continu de la session pour détecter la validation ou modification par le superviseur
-                    LaunchedEffect(vm.currentSessionId) {
+                "noteQuantities" -> {
+                    // Polling continu de la session tant que la formule n'a pas été validée par le parfumeur
+                    LaunchedEffect(vm.currentSessionId, vm.formulaStatus) {
                         while (vm.currentSessionId != null && vm.formulaStatus != "validated") {
                             delay(2500)
                             vm.pollFormulaValidation()
                         }
                     }
-                    WaitingFormulaValidationScreen(
-                        selectedTopNotes = vm.selectedTopNotes,
-                        selectedHeartNotes = vm.selectedHeartNotes,
-                        selectedBaseNotes = vm.selectedBaseNotes,
-                        selectedBoosterNotes = if (vm.hasBoosters) vm.selectedBoosterNotes else emptySet(),
-                        intensity = vm.perfumeIntensity,
-                        isOutOfRange = !vm.areNoteCountsWithinBounds(),
+                    NoteQuantitiesScreen(
+                        topNotes = vm.selectedTopNotes.toList(),
+                        heartNotes = vm.selectedHeartNotes.toList(),
+                        baseNotes = vm.selectedBaseNotes.toList(),
+                        boosterNotes = if (vm.hasBoosters) vm.selectedBoosterNotes.toList() else emptyList(),
+                        topQuantities = vm.topNoteQuantities,
+                        heartQuantities = vm.heartNoteQuantities,
+                        baseQuantities = vm.baseNoteQuantities,
+                        boosterQuantities = if (vm.hasBoosters) {
+                            vm.selectedBoosterNotes.associateWith { name ->
+                                vm.boosterNoteQuantities[name] ?: FormViewModel.BOOSTER_QUANTITY_ML.toInt().toString()
+                            }
+                        } else emptyMap(),
+                        availableTopNotes = notesCatalog?.topNotes.orEmpty().map { it.name }.filter { it !in vm.selectedTopNotes },
+                        availableHeartNotes = notesCatalog?.heartNotes.orEmpty().map { it.name }.filter { it !in vm.selectedHeartNotes },
+                        availableBaseNotes = notesCatalog?.baseNotes.orEmpty().map { it.name }.filter { it !in vm.selectedBaseNotes },
+                        isLoadingSuggestions = vm.isSuggestingQuantities,
+                        suggestionsFailed = vm.suggestQuantitiesError != null,
+                        isFormulaValidated = vm.formulaStatus == "validated",
                         onSupervisorQuickValidate = { pin ->
                             vm.verifyAndApproveFormulaLocally(pin)
                         },
+                        onTopQuantityChange = { name, qty ->
+                            vm.topNoteQuantities = vm.topNoteQuantities + (name to qty)
+                            vm.sendAnswer("topNoteQuantities", vm.topNoteQuantities.entries.joinToString(",") { "${it.key}:${it.value}" })
+                        },
+                        onHeartQuantityChange = { name, qty ->
+                            vm.heartNoteQuantities = vm.heartNoteQuantities + (name to qty)
+                            vm.sendAnswer("heartNoteQuantities", vm.heartNoteQuantities.entries.joinToString(",") { "${it.key}:${it.value}" })
+                        },
+                        onBaseQuantityChange = { name, qty ->
+                            vm.baseNoteQuantities = vm.baseNoteQuantities + (name to qty)
+                            vm.sendAnswer("baseNoteQuantities", vm.baseNoteQuantities.entries.joinToString(",") { "${it.key}:${it.value}" })
+                        },
+                        onBoosterQuantityChange = { name, qty ->
+                            vm.boosterNoteQuantities = vm.boosterNoteQuantities + (name to qty)
+                            vm.sendAnswer("boosterNoteQuantities", vm.boosterNoteQuantities.entries.joinToString(",") { "${it.key}:${it.value}" })
+                        },
+                        onRemoveBoosterNote = { name ->
+                            vm.selectedBoosterNotes = vm.selectedBoosterNotes - name
+                            vm.boosterNoteQuantities = vm.boosterNoteQuantities - name
+                            vm.sendAnswer("boosterNotes", vm.selectedBoosterNotes.joinToString(","))
+                            vm.sendAnswer("boosterNoteQuantities", vm.boosterNoteQuantities.entries.joinToString(",") { "${it.key}:${it.value}" })
+                        },
+                        onAddTopNote = { name, qty ->
+                            vm.selectedTopNotes = vm.selectedTopNotes + name
+                            vm.topNoteQuantities = vm.topNoteQuantities + (name to qty)
+                            vm.sendAnswer("topNotes", vm.selectedTopNotes.joinToString(","))
+                            vm.sendAnswer("topNoteQuantities", vm.topNoteQuantities.entries.joinToString(",") { "${it.key}:${it.value}" })
+                        },
+                        onAddHeartNote = { name, qty ->
+                            vm.selectedHeartNotes = vm.selectedHeartNotes + name
+                            vm.heartNoteQuantities = vm.heartNoteQuantities + (name to qty)
+                            vm.sendAnswer("heartNotes", vm.selectedHeartNotes.joinToString(","))
+                            vm.sendAnswer("heartNoteQuantities", vm.heartNoteQuantities.entries.joinToString(",") { "${it.key}:${it.value}" })
+                        },
+                        onAddBaseNote = { name, qty ->
+                            vm.selectedBaseNotes = vm.selectedBaseNotes + name
+                            vm.baseNoteQuantities = vm.baseNoteQuantities + (name to qty)
+                            vm.sendAnswer("baseNotes", vm.selectedBaseNotes.joinToString(","))
+                            vm.sendAnswer("baseNoteQuantities", vm.baseNoteQuantities.entries.joinToString(",") { "${it.key}:${it.value}" })
+                        },
+                        onRemoveTopNote = { name ->
+                            vm.selectedTopNotes = vm.selectedTopNotes - name
+                            vm.topNoteQuantities = vm.topNoteQuantities - name
+                            vm.sendAnswer("topNotes", vm.selectedTopNotes.joinToString(","))
+                            vm.sendAnswer("topNoteQuantities", vm.topNoteQuantities.entries.joinToString(",") { "${it.key}:${it.value}" })
+                        },
+                        onRemoveHeartNote = { name ->
+                            vm.selectedHeartNotes = vm.selectedHeartNotes - name
+                            vm.heartNoteQuantities = vm.heartNoteQuantities - name
+                            vm.sendAnswer("heartNotes", vm.selectedHeartNotes.joinToString(","))
+                            vm.sendAnswer("heartNoteQuantities", vm.heartNoteQuantities.entries.joinToString(",") { "${it.key}:${it.value}" })
+                        },
+                        onRemoveBaseNote = { name ->
+                            vm.selectedBaseNotes = vm.selectedBaseNotes - name
+                            vm.baseNoteQuantities = vm.baseNoteQuantities - name
+                            vm.sendAnswer("baseNotes", vm.selectedBaseNotes.joinToString(","))
+                            vm.sendAnswer("baseNoteQuantities", vm.baseNoteQuantities.entries.joinToString(",") { "${it.key}:${it.value}" })
+                        },
+                        onNext = { vm.screen = "perfumeName" },
                         onBack = {
                             vm.formulaStatus = ""
                             vm.sendAnswer("formulaStatus", "")
@@ -425,86 +495,6 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                         onGoHome = { vm.resetAll() }
                     )
                 }
-                "noteQuantities" -> NoteQuantitiesScreen(
-                    topNotes = vm.selectedTopNotes.toList(),
-                    heartNotes = vm.selectedHeartNotes.toList(),
-                    baseNotes = vm.selectedBaseNotes.toList(),
-                    boosterNotes = if (vm.hasBoosters) vm.selectedBoosterNotes.toList() else emptyList(),
-                    topQuantities = vm.topNoteQuantities,
-                    heartQuantities = vm.heartNoteQuantities,
-                    baseQuantities = vm.baseNoteQuantities,
-                    boosterQuantities = if (vm.hasBoosters) {
-                        vm.selectedBoosterNotes.associateWith { name ->
-                            vm.boosterNoteQuantities[name] ?: FormViewModel.BOOSTER_QUANTITY_ML.toInt().toString()
-                        }
-                    } else emptyMap(),
-                    availableTopNotes = notesCatalog?.topNotes.orEmpty().map { it.name }.filter { it !in vm.selectedTopNotes },
-                    availableHeartNotes = notesCatalog?.heartNotes.orEmpty().map { it.name }.filter { it !in vm.selectedHeartNotes },
-                    availableBaseNotes = notesCatalog?.baseNotes.orEmpty().map { it.name }.filter { it !in vm.selectedBaseNotes },
-                    isLoadingSuggestions = vm.isSuggestingQuantities,
-                    suggestionsFailed = vm.suggestQuantitiesError != null,
-                    onTopQuantityChange = { name, qty ->
-                        vm.topNoteQuantities = vm.topNoteQuantities + (name to qty)
-                        vm.sendAnswer("topNoteQuantities", vm.topNoteQuantities.entries.joinToString(",") { "${it.key}:${it.value}" })
-                    },
-                    onHeartQuantityChange = { name, qty ->
-                        vm.heartNoteQuantities = vm.heartNoteQuantities + (name to qty)
-                        vm.sendAnswer("heartNoteQuantities", vm.heartNoteQuantities.entries.joinToString(",") { "${it.key}:${it.value}" })
-                    },
-                    onBaseQuantityChange = { name, qty ->
-                        vm.baseNoteQuantities = vm.baseNoteQuantities + (name to qty)
-                        vm.sendAnswer("baseNoteQuantities", vm.baseNoteQuantities.entries.joinToString(",") { "${it.key}:${it.value}" })
-                    },
-                    onBoosterQuantityChange = { name, qty ->
-                        vm.boosterNoteQuantities = vm.boosterNoteQuantities + (name to qty)
-                        vm.sendAnswer("boosterNoteQuantities", vm.boosterNoteQuantities.entries.joinToString(",") { "${it.key}:${it.value}" })
-                    },
-                    onRemoveBoosterNote = { name ->
-                        vm.selectedBoosterNotes = vm.selectedBoosterNotes - name
-                        vm.boosterNoteQuantities = vm.boosterNoteQuantities - name
-                        vm.sendAnswer("boosterNotes", vm.selectedBoosterNotes.joinToString(","))
-                        vm.sendAnswer("boosterNoteQuantities", vm.boosterNoteQuantities.entries.joinToString(",") { "${it.key}:${it.value}" })
-                    },
-                    onAddTopNote = { name, qty ->
-                        vm.selectedTopNotes = vm.selectedTopNotes + name
-                        vm.topNoteQuantities = vm.topNoteQuantities + (name to qty)
-                        vm.sendAnswer("topNotes", vm.selectedTopNotes.joinToString(","))
-                        vm.sendAnswer("topNoteQuantities", vm.topNoteQuantities.entries.joinToString(",") { "${it.key}:${it.value}" })
-                    },
-                    onAddHeartNote = { name, qty ->
-                        vm.selectedHeartNotes = vm.selectedHeartNotes + name
-                        vm.heartNoteQuantities = vm.heartNoteQuantities + (name to qty)
-                        vm.sendAnswer("heartNotes", vm.selectedHeartNotes.joinToString(","))
-                        vm.sendAnswer("heartNoteQuantities", vm.heartNoteQuantities.entries.joinToString(",") { "${it.key}:${it.value}" })
-                    },
-                    onAddBaseNote = { name, qty ->
-                        vm.selectedBaseNotes = vm.selectedBaseNotes + name
-                        vm.baseNoteQuantities = vm.baseNoteQuantities + (name to qty)
-                        vm.sendAnswer("baseNotes", vm.selectedBaseNotes.joinToString(","))
-                        vm.sendAnswer("baseNoteQuantities", vm.baseNoteQuantities.entries.joinToString(",") { "${it.key}:${it.value}" })
-                    },
-                    onRemoveTopNote = { name ->
-                        vm.selectedTopNotes = vm.selectedTopNotes - name
-                        vm.topNoteQuantities = vm.topNoteQuantities - name
-                        vm.sendAnswer("topNotes", vm.selectedTopNotes.joinToString(","))
-                        vm.sendAnswer("topNoteQuantities", vm.topNoteQuantities.entries.joinToString(",") { "${it.key}:${it.value}" })
-                    },
-                    onRemoveHeartNote = { name ->
-                        vm.selectedHeartNotes = vm.selectedHeartNotes - name
-                        vm.heartNoteQuantities = vm.heartNoteQuantities - name
-                        vm.sendAnswer("heartNotes", vm.selectedHeartNotes.joinToString(","))
-                        vm.sendAnswer("heartNoteQuantities", vm.heartNoteQuantities.entries.joinToString(",") { "${it.key}:${it.value}" })
-                    },
-                    onRemoveBaseNote = { name ->
-                        vm.selectedBaseNotes = vm.selectedBaseNotes - name
-                        vm.baseNoteQuantities = vm.baseNoteQuantities - name
-                        vm.sendAnswer("baseNotes", vm.selectedBaseNotes.joinToString(","))
-                        vm.sendAnswer("baseNoteQuantities", vm.baseNoteQuantities.entries.joinToString(",") { "${it.key}:${it.value}" })
-                    },
-                    onNext = { vm.screen = "perfumeName" },
-                    onBack = { vm.screen = "perfumeIntensity" },
-                    onGoHome = { vm.resetAll() }
-                )
                 "perfumeName" -> PerfumeNameScreen(
                     perfumeName = vm.perfumeName,
                     onPerfumeNameChange = { vm.perfumeName = it; vm.sendAnswer("perfumeName", it, 350L) },
@@ -633,6 +623,7 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                 )
                 "success" -> SuccessScreen(
                     customerWasExisting = vm.submissionResult?.customerWasExisting == true,
+                    customerEmail = vm.email.ifBlank { vm.searchEmail }.ifBlank { null },
                     onDone = { vm.resetAll() }
                 )
                 "supervisor" -> SupervisorHomeScreen(
