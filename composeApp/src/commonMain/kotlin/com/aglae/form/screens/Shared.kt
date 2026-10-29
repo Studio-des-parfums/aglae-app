@@ -18,6 +18,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.Icon
+import androidx.compose.material.Slider
+import androidx.compose.material.SliderDefaults
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.material.TextButton
@@ -60,6 +62,7 @@ import com.aglae.form.QuestionSurfaceContainerLowest
 import com.aglae.form.QuestionTertiaryContainer
 import com.aglae.form.SurfaceContainerLowest
 import com.aglae.form.i18n.LocalStrings
+import kotlin.math.roundToInt
 import org.jetbrains.compose.resources.Font
 import org.jetbrains.compose.resources.painterResource
 import aglae_form.composeapp.generated.resources.Res
@@ -253,11 +256,102 @@ fun HomeFooterLink(onClick: () -> Unit) {
 class TextZoomController(
     val scaleFactor: Float,
     val level: Int,
-    val toggle: () -> Unit
+    val toggle: () -> Unit,
+    val setLevel: (Int) -> Unit = {}
 )
 
 val LocalTextZoom = staticCompositionLocalOf {
-    TextZoomController(1f, 0) {}
+    TextZoomController(1f, 0, {}, {})
+}
+
+// ── Curseur de réglage de la taille de texte (3 paliers : Standard, +20%, +40%) ──
+@Composable
+fun TextZoomSlider(modifier: Modifier = Modifier) {
+    val zoom = LocalTextZoom.current
+    val strings = LocalStrings.current
+    val bodyFont = questionBodyFont()
+    val currentDensity = LocalDensity.current
+
+    // Garde le curseur lui-même à une taille fixe et lisible indépendamment du zoom
+    CompositionLocalProvider(
+        LocalDensity provides Density(
+            density = currentDensity.density,
+            fontScale = 1.0f
+        )
+    ) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = Color.White.copy(alpha = 0.85f),
+            border = BorderStroke(1.dp, QuestionOutlineVariant.copy(alpha = 0.5f)),
+            elevation = 0.dp,
+            modifier = modifier.widthIn(max = 380.dp).fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = strings.textZoomTitle,
+                        fontFamily = bodyFont,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = QuestionOnSurfaceVariant
+                    )
+                    Text(
+                        text = when (zoom.level) {
+                            1 -> strings.textZoomLarge
+                            2 -> strings.textZoomExtraLarge
+                            else -> strings.textZoomStandard
+                        },
+                        fontFamily = bodyFont,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = QuestionPrimary
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = "A",
+                        fontFamily = bodyFont,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (zoom.level == 0) QuestionPrimary else QuestionOnSurfaceVariant
+                    )
+                    Slider(
+                        value = zoom.level.toFloat(),
+                        onValueChange = { zoom.setLevel(it.roundToInt()) },
+                        valueRange = 0f..2f,
+                        steps = 1,
+                        modifier = Modifier.weight(1f),
+                        colors = SliderDefaults.colors(
+                            thumbColor = QuestionPrimary,
+                            activeTrackColor = QuestionPrimary,
+                            inactiveTrackColor = QuestionOutlineVariant.copy(alpha = 0.6f),
+                            activeTickColor = Color.White,
+                            inactiveTickColor = QuestionPrimary.copy(alpha = 0.7f)
+                        )
+                    )
+                    Text(
+                        text = "A",
+                        fontFamily = bodyFont,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (zoom.level == 2) QuestionPrimary else QuestionOnSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable

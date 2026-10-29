@@ -76,7 +76,8 @@ fun App() {
         TextZoomController(
             scaleFactor = textZoomFactor,
             level = textZoomLevel,
-            toggle = { textZoomLevel = (textZoomLevel + 1) % 3 }
+            toggle = { textZoomLevel = (textZoomLevel + 1) % 3 },
+            setLevel = { textZoomLevel = it.coerceIn(0, 2) }
         )
     }
 

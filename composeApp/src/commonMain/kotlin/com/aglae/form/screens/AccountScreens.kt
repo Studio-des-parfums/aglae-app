@@ -295,6 +295,10 @@ fun AccountCheckScreen(
                 onClick = onNext,
                 enabled = answer.isNotEmpty()
             )
+
+            TextZoomSlider(
+                modifier = Modifier.padding(top = 8.dp)
+            )
         }
     }
 }
