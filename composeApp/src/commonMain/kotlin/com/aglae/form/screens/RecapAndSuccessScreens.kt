@@ -124,9 +124,9 @@ fun RecapScreen(
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
-                        color = sectionColor.copy(alpha = 0.10f).compositeOver(Color.White.copy(alpha = 0.90f)),
+                        color = sectionColor.copy(alpha = 0.14f).compositeOver(Color.White),
                         elevation = 0.dp,
-                        border = BorderStroke(2.dp, sectionColor.copy(alpha = 0.80f))
+                        border = BorderStroke(2.5.dp, sectionColor.copy(alpha = 0.85f))
                     ) {
                         Column(modifier = Modifier.padding(20.dp)) {
                             Row(
