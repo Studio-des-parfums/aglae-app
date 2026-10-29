@@ -205,7 +205,7 @@ private fun AtelierCard(atelier: AtelierItem, languageCode: String, isSelected: 
                     .padding(horizontal = 8.dp, vertical = 8.dp)
             ) {
                 Text(
-                    text = atelier.displayName(languageCode),
+                    text = atelier.displayName("fr"),
                     fontFamily = bodyFont,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,

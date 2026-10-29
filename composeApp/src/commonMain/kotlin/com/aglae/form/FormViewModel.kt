@@ -505,7 +505,7 @@ class FormViewModel(private val scope: CoroutineScope) {
         selectedAtelierId = atelier.id
         preselectedAtelierId = null
         selectedBoxSetId = atelier.coffretId
-        selectedBoxSetName = atelier.displayName(languageCode)
+        selectedBoxSetName = atelier.displayName("fr")
         quantity = atelier.volumeMl?.let { "${it}ml" } ?: ""
         catalogReloadKey++
         sendAnswer("atelierId", atelier.id.toString())
@@ -678,14 +678,9 @@ class FormViewModel(private val scope: CoroutineScope) {
                 return true
             }
 
-            "waitingFormulaValidation" -> {
+            "noteQuantities" -> {
                 formulaStatus = ""
                 sendAnswer("formulaStatus", "")
-                screen = "perfumeIntensity"
-                return true
-            }
-
-            "noteQuantities" -> {
                 screen = "perfumeIntensity"
                 return true
             }
@@ -870,10 +865,10 @@ class FormViewModel(private val scope: CoroutineScope) {
         }
     }
 
-    // ── Démarre la phase d'attente de validation de formule par le superviseur ──
+    // ── Démarre la phase de validation de formule par le superviseur et affiche directement les dosages ──
     fun startFormulaValidation(strings: Strings) {
         formulaStatus = "pending_validation"
-        screen = "waitingFormulaValidation"
+        screen = "noteQuantities"
         sendAnswer("formulaStatus", "pending_validation")
         sendAnswer("topNotes", selectedTopNotes.joinToString(","))
         sendAnswer("heartNotes", selectedHeartNotes.joinToString(","))
@@ -890,7 +885,7 @@ class FormViewModel(private val scope: CoroutineScope) {
         suggestNoteQuantities(strings)
     }
 
-    // ── Polling du statut de validation de la formule (appelé depuis waitingFormulaValidation) ──
+    // ── Polling du statut de validation de la formule (appelé pendant noteQuantities) ──
     suspend fun pollFormulaValidation() {
         val sessionId = currentSessionId ?: return
         try {
@@ -902,9 +897,8 @@ class FormViewModel(private val scope: CoroutineScope) {
                 if (byKey["notesHorsNormesApproved"]?.answerValue == "true") {
                     notesOutOfRangeApprovedBySupervisor = true
                 }
-                refreshNotesFromSession()
-                screen = "noteQuantities"
             }
+            refreshNotesFromSession()
         } catch (_: Exception) {}
     }
 
@@ -918,7 +912,6 @@ class FormViewModel(private val scope: CoroutineScope) {
                 formulaStatus = "validated"
                 sendAnswer("formulaStatus", "validated")
                 sendAnswer("notesHorsNormesApproved", "true")
-                screen = "noteQuantities"
                 true
             } else false
         } catch (_: Exception) {
@@ -1033,7 +1026,7 @@ class FormViewModel(private val scope: CoroutineScope) {
                 if (atelier != null) {
                     selectedAtelierId = atelier.id
                     selectedBoxSetId = atelier.coffretId
-                    selectedBoxSetName = atelier.displayName(languageCode)
+                    selectedBoxSetName = atelier.displayName("fr")
                     quantity = atelier.volumeMl?.let { "${it}ml" } ?: quantity
                 }
             } catch (_: Exception) {}
