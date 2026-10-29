@@ -16,6 +16,7 @@ import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SupervisorAccount
@@ -90,21 +91,45 @@ fun SupervisorHomeScreen(
     // null = toutes les salles confondues.
     var selectedRoom by remember { mutableStateOf<String?>(null) }
 
-    fun load() {
-        scope.launch {
+    suspend fun fetchSessions(silent: Boolean = false) {
+        if (!silent) {
             isLoading = true
             error = null
-            try {
-                sessions = ApiClient.fetchActiveSessions(selectedRoom)
-            } catch (e: Exception) {
-                error = e.message ?: "Erreur reseau"
-            } finally {
+        }
+        try {
+            sessions = ApiClient.fetchActiveSessions(selectedRoom)
+            if (!silent) error = null
+        } catch (e: Exception) {
+            if (!silent) {
+                error = e.message ?: "Erreur réseau"
+            }
+        } finally {
+            if (!silent) {
                 isLoading = false
             }
         }
     }
 
-    LaunchedEffect(selectedRoom) { load() }
+    fun load() {
+        scope.launch { fetchSessions(silent = false) }
+    }
+
+    fun cancelSession(sessionId: Int) {
+        scope.launch {
+            try {
+                ApiClient.cancelSession(sessionId)
+                fetchSessions(silent = true)
+            } catch (_: Exception) {}
+        }
+    }
+
+    LaunchedEffect(selectedRoom) {
+        fetchSessions(silent = false)
+        while (true) {
+            delay(4000)
+            fetchSessions(silent = true)
+        }
+    }
 
     val (floatA, floatB, dotAlpha) = rememberFloatingBackground()
 
@@ -207,10 +232,11 @@ fun SupervisorHomeScreen(
                                 scope.launch {
                                     try {
                                         ApiClient.assignSupervisorToSession(session.id, supervisorUser!!.id)
-                                        load()
+                                        fetchSessions(silent = true)
                                     } catch (_: Exception) { }
                                 }
                             }} else null,
+                            onCancel = { cancelSession(session.id) },
                             onClick = { onSessionClick(session.id) }
                         )
                     }
@@ -226,20 +252,45 @@ fun SessionCard(
     session: SessionItem,
     currentSupervisorId: Int? = null,
     onAssign: (() -> Unit)? = null,
+    onCancel: (() -> Unit)? = null,
     onClick: () -> Unit
 ) {
     val isMine = currentSupervisorId != null && session.supervisorId == currentSupervisorId
     val isAssigned = session.supervisorId != null
 
-    var sessionAnswers by remember(session.id) { mutableStateOf<List<AnswerEntry>?>(null) }
-    LaunchedEffect(session.id) {
-        try {
-            sessionAnswers = ApiClient.fetchSessionDetail(session.id).answers
-        } catch (_: Exception) {}
+    val formulaPending = session.formulaStatus == "pending_validation"
+    val isOutOfRange = session.notesOutOfRange == "true"
+    val isFormulaValidated = session.formulaStatus == "validated"
+
+    var showCancelDialog by remember { mutableStateOf(false) }
+
+    if (showCancelDialog && onCancel != null) {
+        AlertDialog(
+            onDismissRequest = { showCancelDialog = false },
+            title = { Text("Fermer cette session ?", fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    "Voulez-vous vraiment clore la session ${session.customerName?.let { "de \"$it\"" } ?: "#${session.id}"} ?"
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showCancelDialog = false
+                        onCancel()
+                    },
+                    colors = ButtonDefaults.buttonColors(backgroundColor = Color(0xFFBA1A1A), contentColor = Color.White)
+                ) {
+                    Text("Fermer la session")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCancelDialog = false }) {
+                    Text("Annuler")
+                }
+            }
+        )
     }
-    val formulaPending = sessionAnswers?.find { it.questionKey == "formulaStatus" }?.answerValue == "pending_validation"
-    val isOutOfRange = sessionAnswers?.find { it.questionKey == "notesOutOfRange" }?.answerValue == "true"
-    val isFormulaValidated = sessionAnswers?.find { it.questionKey == "formulaStatus" }?.answerValue == "validated"
 
     Card(
         modifier = Modifier
@@ -260,18 +311,35 @@ fun SessionCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Surface(
-                    shape = CircleShape,
-                    color = Primary.copy(alpha = 0.12f),
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            Icons.Filled.SupervisorAccount,
-                            contentDescription = null,
-                            tint = Primary,
-                            modifier = Modifier.size(22.dp)
-                        )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Surface(
+                        shape = CircleShape,
+                        color = Primary.copy(alpha = 0.12f),
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.Filled.SupervisorAccount,
+                                contentDescription = null,
+                                tint = Primary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
+                    if (!session.room.isNullOrBlank()) {
+                        Surface(
+                            shape = PillShape,
+                            color = OutlineVariant.copy(alpha = 0.5f),
+                            modifier = Modifier.clip(PillShape)
+                        ) {
+                            Text(
+                                text = session.room,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = OnSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            )
+                        }
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -286,6 +354,19 @@ fun SessionCard(
                     when {
                         isMine -> StatusPill(text = "Moi", color = Primary)
                         isAssigned -> StatusPill(text = session.supervisorName ?: "", color = Outline)
+                    }
+                    if (onCancel != null) {
+                        IconButton(
+                            onClick = { showCancelDialog = true },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                Icons.Filled.Close,
+                                contentDescription = "Fermer session",
+                                tint = OnSurfaceVariant.copy(alpha = 0.6f),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -501,6 +582,50 @@ fun SupervisorSessionDetailScreen(
         }
     }
 
+    var showCancelSessionDialog by remember { mutableStateOf(false) }
+    var isCancellingSession by remember { mutableStateOf(false) }
+
+    fun cancelThisSession() {
+        scope.launch {
+            isCancellingSession = true
+            try {
+                ApiClient.cancelSession(sessionId)
+                onBack()
+            } catch (_: Exception) {
+            } finally {
+                isCancellingSession = false
+            }
+        }
+    }
+
+    if (showCancelSessionDialog) {
+        AlertDialog(
+            onDismissRequest = { showCancelSessionDialog = false },
+            title = { Text("Fermer cette session ?", fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    "Voulez-vous vraiment clore définitivement la session ${session?.customerName?.let { "de \"$it\"" } ?: "#$sessionId"} ?"
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showCancelSessionDialog = false
+                        cancelThisSession()
+                    },
+                    colors = ButtonDefaults.buttonColors(backgroundColor = Color(0xFFBA1A1A), contentColor = Color.White)
+                ) {
+                    Text("Fermer la session")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCancelSessionDialog = false }) {
+                    Text("Annuler")
+                }
+            }
+        )
+    }
+
     LaunchedEffect(sessionId) { load() }
 
     LaunchedEffect(sessionId) {
@@ -508,6 +633,7 @@ fun SupervisorSessionDetailScreen(
             delay(3000)
             try {
                 val detail = ApiClient.fetchSessionDetail(sessionId)
+                session = detail.session
                 answers = detail.answers
             } catch (_: Exception) {}
         }
@@ -589,8 +715,22 @@ fun SupervisorSessionDetailScreen(
                     text = "Session #$sessionId",
                     fontWeight = FontWeight.Bold,
                     fontSize = 20.sp,
-                    color = OnSurface
+                    color = OnSurface,
+                    modifier = Modifier.weight(1f)
                 )
+                OutlinedButton(
+                    onClick = { showCancelSessionDialog = true },
+                    enabled = !isCancellingSession && !isLoading,
+                    shape = PillShape,
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = Color(0xFFBA1A1A)
+                    ),
+                    border = BorderStroke(1.dp, Color(0xFFBA1A1A).copy(alpha = 0.5f)),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Text("Fermer la session", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+                Spacer(Modifier.width(8.dp))
             }
         }
 

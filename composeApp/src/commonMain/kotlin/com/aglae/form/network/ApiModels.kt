@@ -447,7 +447,10 @@ data class SessionItem(
     @SerialName("started_at") val startedAt: String = "",
     @SerialName("updated_at") val updatedAt: String? = null,
     @SerialName("supervisor_id") val supervisorId: Int? = null,
-    @SerialName("supervisor_name") val supervisorName: String? = null
+    @SerialName("supervisor_name") val supervisorName: String? = null,
+    @SerialName("formula_status") val formulaStatus: String? = null,
+    @SerialName("notes_out_of_range") val notesOutOfRange: String? = null,
+    @SerialName("answers_count") val answersCount: Int? = null
 )
 
 @Serializable

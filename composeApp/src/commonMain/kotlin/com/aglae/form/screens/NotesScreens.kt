@@ -142,6 +142,7 @@ fun NotesSelectionScreen(
     selectedBaseNotes: Set<String> = emptySet(),
     selectedBoosterNotes: Set<String> = emptySet(),
     bounds: NoteCountBounds?,
+    hasBoosters: Boolean = true,
     onSectionClick: (String) -> Unit,
     noteCountError: String?,
     isApprovedBySupervisor: Boolean = false,
@@ -181,12 +182,12 @@ fun NotesSelectionScreen(
     // Bornes (min, max) applicables à une section donnée, `null` si aucune contrainte connue
     // pour cette famille (auquel cas aucun texte de borne n'est affiché sur la carte).
     // "Notes booster" n'a pas de bornes serveur : 1 à 2 boosters est une contrainte UI fixe (voir
-    // applyToggle dans App.kt, qui applique le même plafond de 2 au clic).
+    // applyToggle dans App.kt, qui applique le même plafond de 2 au clic) si la formule propose des boosters.
     fun boundsFor(name: String): Pair<Int?, Int?>? = when (name) {
         "Notes de tête" -> bounds?.let { it.minTop to it.maxTop }
         "Notes de cœur" -> bounds?.let { it.minHeart to it.maxHeart }
         "Notes de fond" -> bounds?.let { it.minBase to it.maxBase }
-        "Notes booster" -> 1 to 2
+        "Notes booster" -> if (hasBoosters) 1 to 2 else null
         else -> null
     }
 
@@ -209,12 +210,14 @@ fun NotesSelectionScreen(
         else -> 4
     }
 
-    val sections = listOf(
-        NotesSectionData("Notes de fond", strings.baseNotesDescription),
-        NotesSectionData("Notes de cœur", strings.heartNotesDescription),
-        NotesSectionData("Notes de tête", strings.topNotesDescription),
-        NotesSectionData("Notes booster", strings.boosterNotesDescription)
-    )
+    val sections = buildList {
+        add(NotesSectionData("Notes de fond", strings.baseNotesDescription))
+        add(NotesSectionData("Notes de cœur", strings.heartNotesDescription))
+        add(NotesSectionData("Notes de tête", strings.topNotesDescription))
+        if (hasBoosters) {
+            add(NotesSectionData("Notes booster", strings.boosterNotesDescription))
+        }
+    }
 
     // Déblocage séquentiel : une famille n'est ouvrable qu'une fois que TOUTES les familles qui
     // la précèdent (dans l'ordre fond→cœur→tête→booster) ont atteint leur minimum de notes,

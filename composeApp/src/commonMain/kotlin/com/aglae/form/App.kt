@@ -257,9 +257,9 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                     gender = vm.gender,
                     onGenderChange = { vm.gender = it; vm.sendAnswer("gender", it) },
                     firstName = vm.firstName,
-                    onFirstNameChange = { vm.firstName = it; vm.sendAnswer("firstName", it) },
+                    onFirstNameChange = { vm.firstName = it; vm.sendAnswer("firstName", it, 350L) },
                     lastName = vm.lastName,
-                    onLastNameChange = { vm.lastName = it; vm.sendAnswer("lastName", it) },
+                    onLastNameChange = { vm.lastName = it; vm.sendAnswer("lastName", it, 350L) },
                     day = vm.day,
                     onDayChange = { vm.day = it; vm.sendAnswer("birthDay", it) },
                     month = vm.month,
@@ -267,21 +267,21 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                     year = vm.year,
                     onYearChange = { vm.year = it; vm.sendAnswer("birthYear", it) },
                     profession = vm.profession,
-                    onProfessionChange = { vm.profession = it; vm.sendAnswer("profession", it) },
+                    onProfessionChange = { vm.profession = it; vm.sendAnswer("profession", it, 350L) },
                     country = vm.country,
-                    onCountryChange = { vm.country = it; vm.sendAnswer("country", it) },
+                    onCountryChange = { vm.country = it; vm.sendAnswer("country", it, 350L) },
                     city = vm.city,
-                    onCityChange = { vm.city = it; vm.sendAnswer("city", it) },
+                    onCityChange = { vm.city = it; vm.sendAnswer("city", it, 350L) },
                     bookingSource = vm.bookingSource,
-                    onBookingSourceChange = { vm.bookingSource = it; vm.sendAnswer("bookingSource", it) },
+                    onBookingSourceChange = { vm.bookingSource = it; vm.sendAnswer("bookingSource", it, 350L) },
                     phone = vm.phone,
-                    onPhoneChange = { vm.phone = it; vm.sendAnswer("phone", it) },
+                    onPhoneChange = { vm.phone = it; vm.sendAnswer("phone", it, 350L) },
                     email = vm.email,
-                    onEmailChange = { vm.email = it; vm.sendAnswer("email", it) },
+                    onEmailChange = { vm.email = it; vm.sendAnswer("email", it, 350L) },
                     allergyAnswer = vm.allergyAnswer,
                     onAllergyAnswerChange = { vm.allergyAnswer = it; vm.sendAnswer("hasAllergy", it) },
                     allergyDetails = vm.allergyDetails,
-                    onAllergyDetailsChange = { vm.allergyDetails = it; vm.sendAnswer("allergyDetails", it) },
+                    onAllergyDetailsChange = { vm.allergyDetails = it; vm.sendAnswer("allergyDetails", it, 350L) },
                     liabilityAnswer = vm.liabilityAnswer,
                     onLiabilityAnswerChange = { vm.liabilityAnswer = it; vm.sendAnswer("liabilityAccepted", it) },
                     rgpdAnswer = vm.rgpdAnswer,
@@ -349,17 +349,20 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                         }
                     }
                     NotesSelectionScreen(
-                        selectedCounts = mapOf(
-                            "Notes de tête" to vm.selectedTopNotes.size,
-                            "Notes de cœur" to vm.selectedHeartNotes.size,
-                            "Notes de fond" to vm.selectedBaseNotes.size,
-                            "Notes booster" to vm.selectedBoosterNotes.size
-                        ),
+                        selectedCounts = buildMap {
+                            put("Notes de tête", vm.selectedTopNotes.size)
+                            put("Notes de cœur", vm.selectedHeartNotes.size)
+                            put("Notes de fond", vm.selectedBaseNotes.size)
+                            if (vm.hasBoosters) {
+                                put("Notes booster", vm.selectedBoosterNotes.size)
+                            }
+                        },
                         selectedTopNotes = vm.selectedTopNotes,
                         selectedHeartNotes = vm.selectedHeartNotes,
                         selectedBaseNotes = vm.selectedBaseNotes,
                         selectedBoosterNotes = vm.selectedBoosterNotes,
                         bounds = vm.noteCountBounds,
+                        hasBoosters = vm.hasBoosters,
                         onSectionClick = { section ->
                             vm.selectedNoteSection = section
                             vm.noteCountError = null
@@ -404,7 +407,7 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                         selectedTopNotes = vm.selectedTopNotes,
                         selectedHeartNotes = vm.selectedHeartNotes,
                         selectedBaseNotes = vm.selectedBaseNotes,
-                        selectedBoosterNotes = vm.selectedBoosterNotes,
+                        selectedBoosterNotes = if (vm.hasBoosters) vm.selectedBoosterNotes else emptySet(),
                         intensity = vm.perfumeIntensity,
                         isOutOfRange = !vm.areNoteCountsWithinBounds(),
                         onSupervisorQuickValidate = { pin ->
@@ -422,13 +425,15 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                     topNotes = vm.selectedTopNotes.toList(),
                     heartNotes = vm.selectedHeartNotes.toList(),
                     baseNotes = vm.selectedBaseNotes.toList(),
-                    boosterNotes = vm.selectedBoosterNotes.toList(),
+                    boosterNotes = if (vm.hasBoosters) vm.selectedBoosterNotes.toList() else emptyList(),
                     topQuantities = vm.topNoteQuantities,
                     heartQuantities = vm.heartNoteQuantities,
                     baseQuantities = vm.baseNoteQuantities,
-                    boosterQuantities = vm.selectedBoosterNotes.associateWith { name ->
-                        vm.boosterNoteQuantities[name] ?: FormViewModel.BOOSTER_QUANTITY_ML.toInt().toString()
-                    },
+                    boosterQuantities = if (vm.hasBoosters) {
+                        vm.selectedBoosterNotes.associateWith { name ->
+                            vm.boosterNoteQuantities[name] ?: FormViewModel.BOOSTER_QUANTITY_ML.toInt().toString()
+                        }
+                    } else emptyMap(),
                     availableTopNotes = notesCatalog?.topNotes.orEmpty().map { it.name }.filter { it !in vm.selectedTopNotes },
                     availableHeartNotes = notesCatalog?.heartNotes.orEmpty().map { it.name }.filter { it !in vm.selectedHeartNotes },
                     availableBaseNotes = notesCatalog?.baseNotes.orEmpty().map { it.name }.filter { it !in vm.selectedBaseNotes },
@@ -498,7 +503,7 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                 )
                 "perfumeName" -> PerfumeNameScreen(
                     perfumeName = vm.perfumeName,
-                    onPerfumeNameChange = { vm.perfumeName = it; vm.sendAnswer("perfumeName", it) },
+                    onPerfumeNameChange = { vm.perfumeName = it; vm.sendAnswer("perfumeName", it, 350L) },
                     onNext = {
                         vm.screen = "optionsSelection"
                         vm.loadOptions(strings)
@@ -608,10 +613,12 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                     topNotes = vm.selectedTopNotes.map { name -> vm.topNoteQuantities[name]?.takeIf { it.isNotBlank() }?.let { "$name ($it ml)" } ?: name },
                     heartNotes = vm.selectedHeartNotes.map { name -> vm.heartNoteQuantities[name]?.takeIf { it.isNotBlank() }?.let { "$name ($it ml)" } ?: name },
                     baseNotes = vm.selectedBaseNotes.map { name -> vm.baseNoteQuantities[name]?.takeIf { it.isNotBlank() }?.let { "$name ($it ml)" } ?: name },
-                    boosterNotes = vm.selectedBoosterNotes.map { name ->
-                        val ml = vm.boosterNoteQuantities[name] ?: FormViewModel.BOOSTER_QUANTITY_ML.toInt().toString()
-                        "$name ($ml ml)"
-                    },
+                    boosterNotes = if (vm.hasBoosters) {
+                        vm.selectedBoosterNotes.map { name ->
+                            val ml = vm.boosterNoteQuantities[name] ?: FormViewModel.BOOSTER_QUANTITY_ML.toInt().toString()
+                            "$name ($ml ml)"
+                        }
+                    } else emptyList(),
                     options = vm.selectedOptions.toList(),
                     perfumeName = vm.perfumeName,
                     isSubmitting = vm.isSubmitting,

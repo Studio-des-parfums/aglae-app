@@ -215,6 +215,10 @@ class FormViewModel(private val scope: CoroutineScope) {
     var catalogError by mutableStateOf<String?>(null)
     var catalogReloadKey by mutableStateOf(0)
 
+    // Indique si le coffret de l'atelier sélectionné dispose de boosters
+    val hasBoosters: Boolean
+        get() = ingredients?.any { it.type == "booster" } == true
+
     // ── Submission state ──
     var isSubmitting by mutableStateOf(false)
     var submitError by mutableStateOf<String?>(null)
@@ -253,6 +257,10 @@ class FormViewModel(private val scope: CoroutineScope) {
             ingredients = ApiClient.fetchIngredients(coffretId = selectedBoxSetId)
         } catch (e: Exception) {
             catalogError = e.message ?: strings.networkError
+        }
+        if (!hasBoosters) {
+            selectedBoosterNotes = emptySet()
+            boosterNoteQuantities = emptyMap()
         }
         loadNoteCountBounds()
     }
@@ -326,7 +334,7 @@ class FormViewModel(private val scope: CoroutineScope) {
         val topOk = bounds?.let { checkFamily(selectedTopNotes.size, it.minTop, it.maxTop) } ?: true
         val heartOk = bounds?.let { checkFamily(selectedHeartNotes.size, it.minHeart, it.maxHeart) } ?: true
         val baseOk = bounds?.let { checkFamily(selectedBaseNotes.size, it.minBase, it.maxBase) } ?: true
-        val boosterOk = selectedBoosterNotes.size in 1..2
+        val boosterOk = if (hasBoosters) selectedBoosterNotes.size in 1..2 else true
         return topOk && heartOk && baseOk && boosterOk
     }
 
@@ -346,7 +354,7 @@ class FormViewModel(private val scope: CoroutineScope) {
             check(strings.heartNotesName, selectedHeartNotes.size, bounds.minHeart, bounds.maxHeart)
             check(strings.baseNotesName, selectedBaseNotes.size, bounds.minBase, bounds.maxBase)
         }
-        if (selectedBoosterNotes.size !in 1..2) {
+        if (hasBoosters && selectedBoosterNotes.size !in 1..2) {
             issues.add("${strings.boosterNotesName} : ${selectedBoosterNotes.size} sélectionnée(s) (recommandé : 1 à 2)")
         }
         return issues
@@ -376,14 +384,13 @@ class FormViewModel(private val scope: CoroutineScope) {
             else -> null
         }
 
-        // Boosters : bornes UI fixes (1 à 2), indépendantes des règles serveur (`bounds`), donc
-        // vérifiées même si celles-ci n'ont pas pu être chargées.
+        // Boosters : bornes UI fixes (1 à 2) si la formule dispose de boosters, sinon aucune obligation.
         val error = (if (bounds != null) {
             checkFamily(selectedTopNotes.size, bounds.minTop, bounds.maxTop, strings.topNotesName)
                 ?: checkFamily(selectedHeartNotes.size, bounds.minHeart, bounds.maxHeart, strings.heartNotesName)
                 ?: checkFamily(selectedBaseNotes.size, bounds.minBase, bounds.maxBase, strings.baseNotesName)
         } else null)
-            ?: checkFamily(selectedBoosterNotes.size, 1, 2, strings.boosterNotesName)
+            ?: (if (hasBoosters) checkFamily(selectedBoosterNotes.size, 1, 2, strings.boosterNotesName) else null)
 
         noteCountError = error
         return error == null
@@ -584,9 +591,14 @@ class FormViewModel(private val scope: CoroutineScope) {
 
     // ── Démarrage du questionnaire (nouveau client) ──
     fun startQuestionnaireFresh() {
+        val oldSid = currentSessionId
+        currentSessionId = null
         currentQuestion = 0
         screen = "questionnaire"
         scope.launch {
+            if (oldSid != null) {
+                try { ApiClient.cancelSession(oldSid) } catch (_: Exception) {}
+            }
             try {
                 val resp = ApiClient.createSession(null, null, getAssignedRoom())
                 currentSessionId = resp.sessionId
@@ -596,6 +608,8 @@ class FormViewModel(private val scope: CoroutineScope) {
 
     // ── Démarrage du questionnaire pour un client déjà connu (nouvelle formule) ──
     fun startQuestionnaireForExistingCustomer(customer: CustomerSearchResult) {
+        val oldSid = currentSessionId
+        currentSessionId = null
         firstName = customer.firstName ?: ""
         lastName = customer.lastName ?: ""
         gender = customer.gender ?: ""
@@ -606,6 +620,9 @@ class FormViewModel(private val scope: CoroutineScope) {
         currentQuestion = 1
         screen = "questionnaire"
         scope.launch {
+            if (oldSid != null) {
+                try { ApiClient.cancelSession(oldSid) } catch (_: Exception) {}
+            }
             try {
                 val resp = ApiClient.createSession(
                     customerName = "${customer.firstName ?: ""} ${customer.lastName ?: ""}".trim().ifBlank { null },
@@ -678,7 +695,8 @@ class FormViewModel(private val scope: CoroutineScope) {
             // Pas de volume exploitable : on laisse la saisie manuelle.
             return
         }
-        val volumeForNotesMl = maxOf(5.0, totalVolumeMl - selectedBoosterNotes.size * BOOSTER_QUANTITY_ML)
+        val boosterDeduction = if (hasBoosters) selectedBoosterNotes.size * BOOSTER_QUANTITY_ML else 0.0
+        val volumeForNotesMl = maxOf(5.0, totalVolumeMl - boosterDeduction)
         if (isSuggestingQuantities) return
         isSuggestingQuantities = true
         suggestQuantitiesError = null
@@ -722,7 +740,11 @@ class FormViewModel(private val scope: CoroutineScope) {
         sendAnswer("topNotes", selectedTopNotes.joinToString(","))
         sendAnswer("heartNotes", selectedHeartNotes.joinToString(","))
         sendAnswer("baseNotes", selectedBaseNotes.joinToString(","))
-        sendAnswer("boosterNotes", selectedBoosterNotes.joinToString(","))
+        if (hasBoosters) {
+            sendAnswer("boosterNotes", selectedBoosterNotes.joinToString(","))
+        } else {
+            sendAnswer("boosterNotes", "")
+        }
         sendAnswer("perfumeIntensity", perfumeIntensity)
         if (!areNoteCountsWithinBounds()) {
             sendAnswer("notesOutOfRange", "true")
@@ -942,9 +964,11 @@ class FormViewModel(private val scope: CoroutineScope) {
                     topNotes = selectedTopNotes.map { TabletNote(name = it, quantity = topNoteQuantities[it]?.ifBlank { null }) },
                     heartNotes = selectedHeartNotes.map { TabletNote(name = it, quantity = heartNoteQuantities[it]?.ifBlank { null }) },
                     baseNotes = selectedBaseNotes.map { TabletNote(name = it, quantity = baseNoteQuantities[it]?.ifBlank { null }) },
-                    boosterNotes = selectedBoosterNotes.map { name ->
-                        TabletNote(name = name, quantity = boosterNoteQuantities[name] ?: BOOSTER_QUANTITY_ML.toInt().toString())
-                    },
+                    boosterNotes = if (hasBoosters) {
+                        selectedBoosterNotes.map { name ->
+                            TabletNote(name = name, quantity = boosterNoteQuantities[name] ?: BOOSTER_QUANTITY_ML.toInt().toString())
+                        }
+                    } else emptyList(),
                     options = selectedOptions.toList()
                 )
                 submissionResult = ApiClient.submitForm(submission)
@@ -964,10 +988,20 @@ class FormViewModel(private val scope: CoroutineScope) {
         }
     }
 
+    private val answerDebounceJobs = mutableMapOf<String, kotlinx.coroutines.Job>()
+
     // ── Envoi incrémental d'une réponse au fil du questionnaire (supervision live) ──
-    fun sendAnswer(key: String, value: String) {
-        currentSessionId?.let { sid ->
+    fun sendAnswer(key: String, value: String, debounceMs: Long = 0L) {
+        val sid = currentSessionId ?: return
+        if (debounceMs <= 0L) {
+            answerDebounceJobs.remove(key)?.cancel()
             scope.launch {
+                try { ApiClient.updateSingleAnswer(sid, key, value) } catch (_: Exception) {}
+            }
+        } else {
+            answerDebounceJobs[key]?.cancel()
+            answerDebounceJobs[key] = scope.launch {
+                kotlinx.coroutines.delay(debounceMs)
                 try { ApiClient.updateSingleAnswer(sid, key, value) } catch (_: Exception) {}
             }
         }
