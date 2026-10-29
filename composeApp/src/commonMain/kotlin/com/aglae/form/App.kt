@@ -160,6 +160,9 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
         )
     ) {
         PinchZoomContainer {
+        BackHandlerCompat(enabled = vm.screen != "home") {
+            vm.handleBack()
+        }
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center

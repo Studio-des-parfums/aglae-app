@@ -589,6 +589,144 @@ class FormViewModel(private val scope: CoroutineScope) {
         }
     }
 
+    // ── Gestion de la navigation retour (notamment pour le bouton retour natif Android) ──
+    fun handleBack(): Boolean {
+        when (screen) {
+            "home" -> return false
+
+            "printerSettings" -> {
+                screen = "home"
+                return true
+            }
+
+            "accountCheck" -> {
+                resetAll()
+                return true
+            }
+
+            "contactSearch" -> {
+                screen = "accountCheck"
+                return true
+            }
+
+            "customerFound" -> {
+                foundCustomer = null
+                screen = "contactSearch"
+                return true
+            }
+
+            "customerNotFound" -> {
+                screen = "contactSearch"
+                return true
+            }
+
+            "formulaChoice" -> {
+                screen = if (foundCustomer != null) "customerFound" else "accountCheck"
+                return true
+            }
+
+            "formulaHistory" -> {
+                if (selectedFormulaDetail != null || detailError != null) {
+                    selectedFormulaDetail = null
+                    detailError = null
+                } else {
+                    screen = "formulaChoice"
+                }
+                return true
+            }
+
+            "questionnaire" -> {
+                if (hasExistingFormula == "Oui" && currentQuestion == 1) {
+                    screen = "formulaChoice"
+                } else if (currentQuestion > 0) {
+                    currentQuestion--
+                } else {
+                    screen = if (hasExistingFormula == "Oui") "formulaChoice" else "accountCheck"
+                }
+                return true
+            }
+
+            "atelierChoice" -> {
+                currentQuestion = 1
+                screen = "questionnaire"
+                return true
+            }
+
+            "pyramidExplanation" -> {
+                resetNotesAndDownstream()
+                screen = "atelierChoice"
+                return true
+            }
+
+            "notesSelection" -> {
+                screen = "pyramidExplanation"
+                return true
+            }
+
+            "notesDetail" -> {
+                if (pendingRuleWarning != null) {
+                    pendingRuleWarning = null
+                    pendingRuleWarningNoteName = null
+                } else {
+                    screen = "notesSelection"
+                }
+                return true
+            }
+
+            "perfumeIntensity" -> {
+                screen = "notesSelection"
+                return true
+            }
+
+            "waitingFormulaValidation" -> {
+                formulaStatus = ""
+                sendAnswer("formulaStatus", "")
+                screen = "perfumeIntensity"
+                return true
+            }
+
+            "noteQuantities" -> {
+                screen = "perfumeIntensity"
+                return true
+            }
+
+            "perfumeName" -> {
+                screen = "noteQuantities"
+                return true
+            }
+
+            "optionsSelection" -> {
+                screen = "perfumeName"
+                return true
+            }
+
+            "recap" -> {
+                screen = "optionsSelection"
+                return true
+            }
+
+            "success" -> {
+                resetAll()
+                return true
+            }
+
+            "supervisor" -> {
+                screen = "home"
+                return true
+            }
+
+            "supervisorSessionDetail" -> {
+                screen = "supervisor"
+                return true
+            }
+
+            else -> {
+                screen = "home"
+                return true
+            }
+        }
+    }
+
     // ── Démarrage du questionnaire (nouveau client) ──
     fun startQuestionnaireFresh() {
         val oldSid = currentSessionId
