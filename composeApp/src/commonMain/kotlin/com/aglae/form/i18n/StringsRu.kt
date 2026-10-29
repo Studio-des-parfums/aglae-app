@@ -253,7 +253,7 @@ object StringsRu : Strings {
     override val successTitle = "Благодарим вас!"
     override val successMessageNew = "Ваша формула успешно сохранена."
     override val successMessageExisting = "Ваша формула успешно сохранена\nи добавлена в ваш существующий профиль."
-    override val successEmailNotice = "Вы получите первое письмо сразу после мастер-класса, а второе — в ближайшие дни."
+    override val successEmailNotice = "Вы получите свою формулу по электронной почте в ближайшее время, а второе письмо — в последующие дни."
 
 
     override val languageSelectorContentDescription = "Сменить язык"

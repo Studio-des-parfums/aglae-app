@@ -231,7 +231,7 @@ object StringsFr : Strings {
     override val successTitle = "Merci !"
     override val successMessageNew = "Votre formule a bien été enregistrée."
     override val successMessageExisting = "Votre formule a bien été enregistrée\net ajoutée à votre profil existant."
-    override val successEmailNotice = "Vous allez recevoir un premier email directement après votre atelier, puis un second dans les jours qui suivent."
+    override val successEmailNotice = "Vous recevrez par email votre formule sous peu, ainsi qu'un second email dans les jours qui suivent."
 
 
     override val languageSelectorContentDescription = "Changer de langue"

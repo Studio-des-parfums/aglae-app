@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -123,19 +124,29 @@ fun RecapScreen(
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
-                        color = Color.White.copy(alpha = 0.80f),
+                        color = sectionColor.copy(alpha = 0.10f).compositeOver(Color.White.copy(alpha = 0.90f)),
                         elevation = 0.dp,
-                        border = BorderStroke(1.dp, sectionColor.copy(alpha = 0.5f))
+                        border = BorderStroke(2.dp, sectionColor.copy(alpha = 0.80f))
                     ) {
                         Column(modifier = Modifier.padding(20.dp)) {
-                            Text(
-                                text = title,
-                                fontFamily = bodyFont,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.Black
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = sectionColor,
+                                    modifier = Modifier.size(10.dp)
+                                ) {}
+                                Text(
+                                    text = title,
+                                    fontFamily = bodyFont,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = sectionColor
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = noteList.joinToString(" · "),
                                 fontFamily = bodyFont,
@@ -253,6 +264,7 @@ fun RecapScreen(
 @Composable
 fun SuccessScreen(
     customerWasExisting: Boolean,
+    customerEmail: String? = null,
     onDone: () -> Unit
 ) {
     val strings = LocalStrings.current
@@ -324,15 +336,26 @@ fun SuccessScreen(
                         tint = QuestionPrimary,
                         modifier = Modifier.size(28.dp)
                     )
-                    Text(
-                        text = strings.successEmailNotice,
-                        fontFamily = questionBodyFont(),
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color.Black,
-                        lineHeight = 22.sp,
-                        modifier = Modifier.weight(1f)
-                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = strings.successEmailNotice,
+                            fontFamily = questionBodyFont(),
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color.Black,
+                            lineHeight = 22.sp
+                        )
+                        if (!customerEmail.isNullOrBlank()) {
+                            Text(
+                                text = customerEmail,
+                                fontFamily = questionBodyFont(),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = QuestionPrimary,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
+                    }
                 }
             }
 

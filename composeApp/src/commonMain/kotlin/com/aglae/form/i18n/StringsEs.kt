@@ -220,7 +220,7 @@ object StringsEs : Strings {
     override val successTitle = "¡Gracias!"
     override val successMessageNew = "Tu fórmula se ha guardado correctamente."
     override val successMessageExisting = "Tu fórmula se ha guardado correctamente\ny añadido a tu perfil existente."
-    override val successEmailNotice = "Recibirás un primer email directamente después del taller y otro en los próximos días."
+    override val successEmailNotice = "Recibirá su fórmula por email en breve, así como un segundo email en los próximos días."
 
 
     override val languageSelectorContentDescription = "Cambiar idioma"

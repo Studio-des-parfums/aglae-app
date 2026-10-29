@@ -220,7 +220,7 @@ object StringsAr : Strings {
     override val successTitle = "شكرًا لكم!"
     override val successMessageNew = "تم تسجيل تركيبة عطركم بنجاح."
     override val successMessageExisting = "تم تسجيل تركيبة عطركم بنجاح\nوإضافتها إلى ملفكم الشخصي الحالي."
-    override val successEmailNotice = "ستتلقون بريدًا إلكترونيًا مباشرةً بعد ورشة العمل، ثم بريدًا آخر في الأيام القادمة."
+    override val successEmailNotice = "ستتلقون تركيبة عطركم عبر البريد الإلكتروني قريباً، بالإضافة إلى رسالة أخرى في الأيام القادمة."
 
 
     override val languageSelectorContentDescription = "تغيير اللغة"

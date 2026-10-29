@@ -236,7 +236,7 @@ object StringsEn : Strings {
     override val successTitle = "Thank you!"
     override val successMessageNew = "Your formula has been successfully saved."
     override val successMessageExisting = "Your formula has been successfully saved\nand added to your existing profile."
-    override val successEmailNotice = "You will receive an email right after your workshop, followed by another one in the coming days."
+    override val successEmailNotice = "You will receive your formula by email shortly, followed by a second email in the coming days."
 
 
     override val languageSelectorContentDescription = "Change language"

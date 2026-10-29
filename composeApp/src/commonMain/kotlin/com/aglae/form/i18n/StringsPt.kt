@@ -220,7 +220,7 @@ object StringsPt : Strings {
     override val successTitle = "Obrigado!"
     override val successMessageNew = "A sua fórmula foi registada com sucesso."
     override val successMessageExisting = "A sua fórmula foi registada com sucesso\ne adicionada ao seu perfil existente."
-    override val successEmailNotice = "Irá receber um primeiro email diretamente após o workshop e outro nos próximos dias."
+    override val successEmailNotice = "Irá receber a sua fórmula por email em breve, bem como um segundo email nos próximos dias."
 
 
     override val languageSelectorContentDescription = "Mudar de idioma"
