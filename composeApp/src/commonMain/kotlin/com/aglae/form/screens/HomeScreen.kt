@@ -436,8 +436,9 @@ fun HomeScreen(
             LanguageSelector(
                 language = language,
                 onLanguageChange = onLanguageChange,
+                modifier = Modifier.padding(horizontal = 24.dp),
                 contentColor = Primary,
-                borderColor = Primary.copy(alpha = 0.3f)
+                borderColor = OutlineVariant.copy(alpha = 0.5f)
             )
         }
 
