@@ -219,19 +219,9 @@ fun NotesSelectionScreen(
         }
     }
 
-    // Déblocage séquentiel : une famille n'est ouvrable qu'une fois que TOUTES les familles qui
-    // la précèdent (dans l'ordre fond→cœur→tête→booster) ont atteint leur minimum de notes,
-    // ou si au moins une note a été choisie, ou si le superviseur a autorisé le hors normes.
-    fun isUnlocked(name: String): Boolean {
-        if (isApprovedBySupervisor) return true
-        val order = selectionOrder(name)
-        if (order <= 1) return true
-        return sections.filter { selectionOrder(it.name) < order }.all { previous ->
-            val (min, _) = boundsFor(previous.name) ?: (null to null)
-            val count = selectedCounts[previous.name] ?: 0
-            min == null || count >= min || count > 0
-        }
-    }
+    // Les familles olfactives sont directement consultables et sélectionnables dès le départ
+    // pour permettre au client d'explorer librement toutes les listes de notes.
+    fun isUnlocked(name: String): Boolean = true
 
     // Le bouton "Valider ma formule" reste désactivé tant que le nombre de notes choisies dans
     // chaque famille ne respecte pas ses bornes min/max (quand elles sont connues). Aucune borne
@@ -336,7 +326,7 @@ fun NotesSelectionScreen(
                                     fontFamily = bodyFont,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (isCountWithinBounds(count, min, max)) QuestionPrimary else Color(0xFFBA1A1A),
+                                    color = if (max != null && count > max) Color(0xFFBA1A1A) else QuestionPrimary,
                                     modifier = Modifier.padding(top = 8.dp)
                                 )
                                 val notes = selectedNotesFor(section.name).toList()
@@ -373,22 +363,6 @@ fun NotesSelectionScreen(
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                     )
                 }
-            } else if (!allFamiliesValid && selectedCounts.values.sum() > 0) {
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = Color(0xFFFFF3E0),
-                    border = BorderStroke(1.dp, Color(0xFFFFA000)),
-                    modifier = Modifier.padding(vertical = 4.dp)
-                ) {
-                    Text(
-                        text = "⚠ " + strings.horsNormesBadge + " — Validation superviseur requise",
-                        fontFamily = bodyFont,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF8D6E63),
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                    )
-                }
             }
 
             if (noteCountError != null && !isApprovedBySupervisor) {
@@ -405,7 +379,7 @@ fun NotesSelectionScreen(
 
             val totalSelected = selectedCounts.values.sum()
             QuestionActionButton(
-                text = if (allFamiliesValid || isApprovedBySupervisor) strings.validateMyFormula else strings.validateMyFormulaHorsNormes,
+                text = strings.validateMyFormula,
                 onClick = {
                     if (allFamiliesValid || isApprovedBySupervisor) {
                         onConfirm()
