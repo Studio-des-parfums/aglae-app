@@ -87,7 +87,31 @@ fun OptionItem.displayName(languageCode: String): String {
         "ru" -> translations.ru
         else -> null
     }
-    return byCode ?: translations.fr ?: translations.en ?: ""
+    val raw = byCode ?: translations.fr ?: translations.en ?: ""
+    return if (languageCode == "en" && (raw.equals("Travel bottle", ignoreCase = true) || raw.equals("travel bottle", ignoreCase = true))) {
+        "Carry on"
+    } else {
+        raw
+    }
+}
+
+private fun sanitizeNoteName(name: String, languageCode: String): String {
+    val trimmed = name.trim()
+    return when (languageCode) {
+        "en" -> when {
+            trimmed.equals("pomme grenade", ignoreCase = true) || trimmed.equals("pomegranate", ignoreCase = true) -> "Pomme grenade flower"
+            trimmed.equals("gray tobacco", ignoreCase = true) -> "Grey tobacco"
+            trimmed.equals("vetyver", ignoreCase = true) -> "Vetiver"
+            trimmed.equals("musk lily of the valley", ignoreCase = true) || trimmed.equals("musc lily valley", ignoreCase = true) -> "Muscy lily valey"
+            else -> trimmed
+        }
+        "fr" -> when {
+            trimmed.equals("ambérine", ignoreCase = true) -> "Ambréine"
+            trimmed.equals("vetyver", ignoreCase = true) -> "Vetiver"
+            else -> trimmed
+        }
+        else -> trimmed
+    }
 }
 
 @Serializable
@@ -130,7 +154,8 @@ private fun IngredientTranslations.forLanguageCode(languageCode: String): String
         "ru" -> ru
         else -> null
     }
-    return byCode ?: en ?: fr ?: ""
+    val raw = byCode ?: en ?: fr ?: ""
+    return sanitizeNoteName(raw, languageCode)
 }
 
 fun List<IngredientItem>.toNotesCatalog(languageCode: String): NotesCatalog {

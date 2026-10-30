@@ -227,7 +227,7 @@ object StringsFr : Strings {
     override val perfumeIntensitySubtitle = "Choisissez la force de votre parfum"
     override val perfumeIntensityLight = "Léger (parfum de peau)"
     override val perfumeIntensityModerate = "Modéré"
-    override val perfumeIntensityStrong = "Lourd (sillage)"
+    override val perfumeIntensityStrong = "Intense (sillage)"
 
     override val perfumeNameTitle = "Donnez un nom à votre parfum"
     override val perfumeNameLabel = "Nom du parfum"

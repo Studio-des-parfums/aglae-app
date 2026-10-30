@@ -216,7 +216,7 @@ object StringsPt : Strings {
     override val perfumeIntensitySubtitle = "Escolha a força do seu perfume"
     override val perfumeIntensityLight = "Leve (perfume de pele)"
     override val perfumeIntensityModerate = "Moderado"
-    override val perfumeIntensityStrong = "Forte (rastro)"
+    override val perfumeIntensityStrong = "Intenso (rastro)"
 
     override val perfumeNameTitle = "Dê um nome ao seu perfume"
     override val perfumeNameLabel = "Nome do perfume"
