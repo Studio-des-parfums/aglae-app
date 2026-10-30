@@ -148,6 +148,16 @@ object StringsPt : Strings {
     override val notesSelectionTitle = "Escolha as suas notas"
     override val notesSelectionSubtitle = "Explore as diferentes notas que irão compor o seu perfume único."
 
+    override val pyramidTitle = "A PIRÂMIDE OLFATIVA"
+    override val pyramidSubtitle = "DE UM PERFUME"
+    override val pyramidDescription = "A pirâmide olfativa explica como os aromas de um perfume se revelam na pele ao longo do tempo."
+    override val pyramidTopCard = "Primeira impressão"
+    override val pyramidHeartCard = "O caráter do perfume"
+    override val pyramidBaseCard = "A fixação do perfume"
+    override val pyramidTopDuration = "alguns minutos"
+    override val pyramidHeartDuration = "várias horas"
+    override val pyramidBaseDuration = "longa duração"
+
     override val optionsSelectionTitle = "Deseja adicionar alguma opção?"
     override val optionsSelectionSubtitle = "Facultativo — selecione quantas opções quiser, ou avance sem escolher nenhuma."
     override val optionsSelectionEmpty = "Nenhuma opção disponível no momento."

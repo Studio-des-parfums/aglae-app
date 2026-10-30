@@ -181,6 +181,16 @@ object StringsRu : Strings {
     override val notesSelectionTitle = "Выберите ваши ноты"
     override val notesSelectionSubtitle = "Исследуйте различные ноты, которые составят ваш уникальный аромат."
 
+    override val pyramidTitle = "ОЛЬФАКТОРНАЯ ПИРАМИДА"
+    override val pyramidSubtitle = "АРОМАТА"
+    override val pyramidDescription = "Ольфакторная пирамида объясняет, как ноты аромата раскрываются на коже с течением времени."
+    override val pyramidTopCard = "Первое впечатление"
+    override val pyramidHeartCard = "Характер аромата"
+    override val pyramidBaseCard = "Стойкость аромата"
+    override val pyramidTopDuration = "несколько минут"
+    override val pyramidHeartDuration = "несколько часов"
+    override val pyramidBaseDuration = "длительное действие"
+
     override val optionsSelectionTitle = "Хотите добавить опции?"
     override val optionsSelectionSubtitle = "Необязательно — выберите столько опций, сколько пожелаете, или пропустите этот шаг."
     override val optionsSelectionEmpty = "В настоящее время нет доступных опций."

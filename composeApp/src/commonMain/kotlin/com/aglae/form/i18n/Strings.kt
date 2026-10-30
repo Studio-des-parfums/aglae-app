@@ -167,6 +167,17 @@ interface Strings {
     val notesSelectionTitle: String
     val notesSelectionSubtitle: String
 
+    // ── Écran Pyramide olfactive (explication pédagogique) ──
+    val pyramidTitle: String get() = "LA PYRAMIDE OLFACTIVE"
+    val pyramidSubtitle: String get() = "D'UN PARFUM"
+    val pyramidDescription: String get() = "La pyramide olfactive explique comment les senteurs d'un parfum se dévoilent sur la peau au fil du temps."
+    val pyramidTopCard: String get() = "Première impression"
+    val pyramidHeartCard: String get() = "Le caractère du parfum"
+    val pyramidBaseCard: String get() = "La tenue du parfum"
+    val pyramidTopDuration: String get() = "quelques minutes"
+    val pyramidHeartDuration: String get() = "plusieurs heures"
+    val pyramidBaseDuration: String get() = "longue durée"
+
     // ── Options screen (facultatif, juste avant le récapitulatif) ──
     val optionsSelectionTitle: String
     val optionsSelectionSubtitle: String

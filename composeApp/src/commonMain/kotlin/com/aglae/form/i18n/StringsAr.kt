@@ -148,6 +148,16 @@ object StringsAr : Strings {
     override val notesSelectionTitle = "اختاروا نفحاتكم"
     override val notesSelectionSubtitle = "اكتشفوا النفحات المختلفة التي ستشكّل عطركم الفريد."
 
+    override val pyramidTitle = "الهرم العطري"
+    override val pyramidSubtitle = "للعطر"
+    override val pyramidDescription = "يشرح الهرم العطري كيف تتكشف نفحات العطر على البشرة مع مرور الوقت."
+    override val pyramidTopCard = "الانطباع الأول"
+    override val pyramidHeartCard = "طابع العطر وشخصيته"
+    override val pyramidBaseCard = "ثبات العطر ودوامه"
+    override val pyramidTopDuration = "بضع دقائق"
+    override val pyramidHeartDuration = "عدة ساعات"
+    override val pyramidBaseDuration = "طويل الأمد"
+
     override val optionsSelectionTitle = "هل ترغبون في إضافة خيارات؟"
     override val optionsSelectionSubtitle = "اختياري — اختاروا عدد الخيارات التي ترغبون بها، أو تخطّوا هذه الخطوة."
     override val optionsSelectionEmpty = "لا تتوفر أي خيارات حاليًا."
