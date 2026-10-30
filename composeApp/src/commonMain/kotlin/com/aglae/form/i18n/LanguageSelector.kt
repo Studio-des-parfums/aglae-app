@@ -1,94 +1,91 @@
 package com.aglae.form.i18n
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.DropdownMenu
-import androidx.compose.material.DropdownMenuItem
-import androidx.compose.material.Icon
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Language
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.aglae.form.Primary
 
-// ── Sélecteur de langue compact, sous forme de badge + menu déroulant ──
+// ── Sélecteur de langue sous forme de liste directe de drapeaux ──
 @Composable
 fun LanguageSelector(
     language: Language,
     onLanguageChange: (Language) -> Unit,
     modifier: Modifier = Modifier,
-    contentColor: androidx.compose.ui.graphics.Color = MaterialTheme.colors.onSurface,
-    borderColor: androidx.compose.ui.graphics.Color = MaterialTheme.colors.onSurface.copy(alpha = 0.2f)
+    contentColor: Color = MaterialTheme.colors.onSurface,
+    borderColor: Color = MaterialTheme.colors.onSurface.copy(alpha = 0.2f),
+    selectedColor: Color = Primary
 ) {
-    var expanded by remember { mutableStateOf(false) }
     val strings = LocalStrings.current
 
     Surface(
         shape = RoundedCornerShape(9999.dp),
-        color = androidx.compose.ui.graphics.Color.Transparent,
+        color = Color(0xFFFFF8F5).copy(alpha = 0.75f),
         border = BorderStroke(1.dp, borderColor),
-        modifier = modifier
+        modifier = modifier.semantics {
+            contentDescription = strings.languageSelectorContentDescription
+        }
     ) {
         Row(
-            modifier = Modifier
-                .clip(RoundedCornerShape(9999.dp))
-                .clickable { expanded = true }
-                .padding(horizontal = 20.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Filled.Language,
-                contentDescription = strings.languageSelectorContentDescription,
-                tint = contentColor,
-                modifier = Modifier.size(24.dp)
-            )
-            Text(
-                text = language.flag,
-                fontSize = 22.sp
-            )
-            Text(
-                text = language.code.uppercase(),
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = contentColor
-            )
-        }
-
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Language.entries.forEach { lang ->
-                DropdownMenuItem(
-                    onClick = {
-                        onLanguageChange(lang)
-                        expanded = false
-                    }
+                val isSelected = lang == language
+                val scale by animateFloatAsState(
+                    targetValue = if (isSelected) 1.08f else 1.0f,
+                    animationSpec = tween(durationMillis = 180)
+                )
+                val alpha by animateFloatAsState(
+                    targetValue = if (isSelected) 1.0f else 0.55f,
+                    animationSpec = tween(durationMillis = 180)
+                )
+
+                Surface(
+                    shape = RoundedCornerShape(9999.dp),
+                    color = if (isSelected) selectedColor.copy(alpha = 0.16f) else Color.Transparent,
+                    border = if (isSelected) BorderStroke(1.5.dp, selectedColor) else null,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(9999.dp))
+                        .clickable { onLanguageChange(lang) }
+                        .semantics { contentDescription = lang.displayName }
                 ) {
-                    Text(text = lang.flag, fontSize = 22.sp)
-                    androidx.compose.foundation.layout.Spacer(modifier = Modifier.size(10.dp))
-                    Text(
-                        text = lang.displayName,
-                        fontSize = 17.sp,
-                        fontWeight = if (lang == language) FontWeight.Bold else FontWeight.Bold
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .graphicsLayer {
+                                scaleX = scale
+                                scaleY = scale
+                                this.alpha = alpha
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = lang.flag,
+                            fontSize = 24.sp
+                        )
+                    }
                 }
             }
         }
