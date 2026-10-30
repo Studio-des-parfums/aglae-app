@@ -112,7 +112,7 @@ object StringsEn : Strings {
     override val monthError = "The month must be between 1 and 12"
     override val yearError = "The year must have 4 digits (1900-2026)"
     override val questionProfessionTitle = "What is your profession?"
-    override val professionLabel = "Occupation"
+    override val professionLabel = "Profession"
     override val bookingSourceTitle = "Where did you book?"
     override val bookingSourcePhone = "Phone"
     override val bookingSourceWeecando = "Weecando"
