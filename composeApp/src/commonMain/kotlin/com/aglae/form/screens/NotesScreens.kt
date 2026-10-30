@@ -142,258 +142,261 @@ fun PyramidExplanationScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // 1) La pyramide géométrique à 3 étages (centrée)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .widthIn(max = 380.dp)
-                    .height(240.dp)
-            ) {
-                Canvas(modifier = Modifier.fillMaxSize()) {
-                    val w = size.width
-                    val h = size.height
-                    val gap = 4f
-
-                    // Étage Tête (Sommet)
-                    val topH = h / 3f - gap / 2f
-                    val w1 = w * (topH / h)
-                    val pathTop = Path().apply {
-                        moveTo(w / 2f, 0f)
-                        lineTo(w / 2f + w1 / 2f, topH)
-                        lineTo(w / 2f - w1 / 2f, topH)
-                        close()
-                    }
-                    drawPath(pathTop, color = Color(0xFFF7EEE5))
-
-                    // Étage Cœur (Milieu)
-                    val heartYTop = h / 3f + gap / 2f
-                    val heartYBottom = 2f * h / 3f - gap / 2f
-                    val w2Top = w * (heartYTop / h)
-                    val w2Bottom = w * (heartYBottom / h)
-                    val pathHeart = Path().apply {
-                        moveTo(w / 2f - w2Top / 2f, heartYTop)
-                        lineTo(w / 2f + w2Top / 2f, heartYTop)
-                        lineTo(w / 2f + w2Bottom / 2f, heartYBottom)
-                        lineTo(w / 2f - w2Bottom / 2f, heartYBottom)
-                        close()
-                    }
-                    drawPath(pathHeart, color = Color(0xFFDCC1AE))
-
-                    // Étage Fond (Base)
-                    val baseYTop = 2f * h / 3f + gap / 2f
-                    val w3Top = w * (baseYTop / h)
-                    val pathBase = Path().apply {
-                        moveTo(w / 2f - w3Top / 2f, baseYTop)
-                        lineTo(w / 2f + w3Top / 2f, baseYTop)
-                        lineTo(w, h)
-                        lineTo(0f, h)
-                        close()
-                    }
-                    drawPath(pathBase, color = Color(0xFFA67B5B))
-                }
-
-                // Textes et pastilles superposés sur chaque étage
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.SpaceBetween
-                ) {
-                    // Étage Tête (Sommet)
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(2.dp),
-                            modifier = Modifier.padding(top = 10.dp)
-                        ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = Color.White,
-                                elevation = 2.dp,
-                                modifier = Modifier.size(22.dp)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Text("3", color = QuestionPrimary, fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                                }
-                            }
-                            Text(
-                                text = strings.topNotesShortName.uppercase(),
-                                fontFamily = questionHeadlineFont(),
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp,
-                                color = QuestionPrimary,
-                                letterSpacing = 1.sp
-                            )
-                            Text(
-                                text = strings.topNotesName,
-                                fontFamily = bodyFont,
-                                fontSize = 11.sp,
-                                color = QuestionPrimary.copy(alpha = 0.85f)
-                            )
-                        }
-                    }
-
-                    // Étage Cœur (Milieu)
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
-                        ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = Color.White,
-                                elevation = 2.dp,
-                                modifier = Modifier.size(22.dp)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Text("2", color = QuestionPrimary, fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                                }
-                            }
-                            Text(
-                                text = strings.heartNotesShortName.uppercase(),
-                                fontFamily = questionHeadlineFont(),
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp,
-                                color = QuestionPrimary,
-                                letterSpacing = 1.sp
-                            )
-                            Text(
-                                text = strings.heartNotesName,
-                                fontFamily = bodyFont,
-                                fontSize = 11.sp,
-                                color = QuestionPrimary.copy(alpha = 0.85f)
-                            )
-                        }
-                    }
-
-                    // Étage Fond (Base)
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
-                        ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = Color.White,
-                                elevation = 2.dp,
-                                modifier = Modifier.size(22.dp)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Text("1", color = QuestionPrimary, fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                                }
-                            }
-                            Text(
-                                text = strings.baseNotesShortName.uppercase(),
-                                fontFamily = questionHeadlineFont(),
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp,
-                                color = Color.White,
-                                letterSpacing = 1.sp
-                            )
-                            Text(
-                                text = strings.baseNotesName,
-                                fontFamily = bodyFont,
-                                fontSize = 11.sp,
-                                color = Color.White.copy(alpha = 0.9f)
-                            )
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // 2) Les 3 Cartes explicatives disposées sous la pyramide
+            // Conteneur centré avec largeur maximale contrôlée (pour éviter tout étirement sur écran large)
             Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
+                    .widthIn(max = 480.dp)
                     .fillMaxWidth()
-                    .widthIn(max = 520.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                PyramidNoteCard(
-                    icon = "✨",
-                    title = strings.topNotesShortName.uppercase(),
-                    subtitle = strings.pyramidTopCard
-                )
-                PyramidNoteCard(
-                    icon = "🌸",
-                    title = strings.heartNotesShortName.uppercase(),
-                    subtitle = strings.pyramidHeartCard
-                )
-                PyramidNoteCard(
-                    icon = "⏳",
-                    title = strings.baseNotesShortName.uppercase(),
-                    subtitle = strings.pyramidBaseCard
-                )
-            }
-
-            Spacer(modifier = Modifier.height(18.dp))
-
-            // 3) Bandeau chronologique en bas
-            Surface(
-                shape = RoundedCornerShape(18.dp),
-                color = Color.White.copy(alpha = 0.85f),
-                border = BorderStroke(1.dp, QuestionOutlineVariant.copy(alpha = 0.45f)),
-                elevation = 0.dp,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .widthIn(max = 520.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                // 1) La pyramide géométrique à 3 étages
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(250.dp)
                 ) {
-                    Image(
-                        painter = painterResource(Res.drawable.fiole),
-                        contentDescription = null,
-                        modifier = Modifier.size(40.dp)
-                    )
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val w = size.width
+                        val h = size.height
+                        val gap = 4f
 
-                    PyramidChronologyStep(
-                        number = "3",
-                        name = strings.topNotesShortName.uppercase(),
-                        duration = "(${strings.pyramidTopDuration})"
-                    )
+                        // Étage Tête (Sommet)
+                        val topH = h / 3f - gap / 2f
+                        val w1 = w * (topH / h)
+                        val pathTop = Path().apply {
+                            moveTo(w / 2f, 0f)
+                            lineTo(w / 2f + w1 / 2f, topH)
+                            lineTo(w / 2f - w1 / 2f, topH)
+                            close()
+                        }
+                        drawPath(pathTop, color = Color(0xFFF7EEE5))
 
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = null,
-                        tint = QuestionOutlineVariant,
-                        modifier = Modifier.size(18.dp)
-                    )
+                        // Étage Cœur (Milieu)
+                        val heartYTop = h / 3f + gap / 2f
+                        val heartYBottom = 2f * h / 3f - gap / 2f
+                        val w2Top = w * (heartYTop / h)
+                        val w2Bottom = w * (heartYBottom / h)
+                        val pathHeart = Path().apply {
+                            moveTo(w / 2f - w2Top / 2f, heartYTop)
+                            lineTo(w / 2f + w2Top / 2f, heartYTop)
+                            lineTo(w / 2f + w2Bottom / 2f, heartYBottom)
+                            lineTo(w / 2f - w2Bottom / 2f, heartYBottom)
+                            close()
+                        }
+                        drawPath(pathHeart, color = Color(0xFFDCC1AE))
 
-                    PyramidChronologyStep(
-                        number = "2",
-                        name = strings.heartNotesShortName.uppercase(),
-                        duration = "(${strings.pyramidHeartDuration})"
-                    )
+                        // Étage Fond (Base)
+                        val baseYTop = 2f * h / 3f + gap / 2f
+                        val w3Top = w * (baseYTop / h)
+                        val pathBase = Path().apply {
+                            moveTo(w / 2f - w3Top / 2f, baseYTop)
+                            lineTo(w / 2f + w3Top / 2f, baseYTop)
+                            lineTo(w, h)
+                            lineTo(0f, h)
+                            close()
+                        }
+                        drawPath(pathBase, color = Color(0xFFA67B5B))
+                    }
 
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = null,
-                        tint = QuestionOutlineVariant,
-                        modifier = Modifier.size(18.dp)
-                    )
+                    // Textes et pastilles superposés sur chaque étage
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        // Étage Tête (Sommet)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(2.dp),
+                                modifier = Modifier.padding(top = 10.dp)
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = Color.White,
+                                    elevation = 2.dp,
+                                    modifier = Modifier.size(22.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text("3", color = QuestionPrimary, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                    }
+                                }
+                                Text(
+                                    text = strings.topNotesShortName.uppercase(),
+                                    fontFamily = questionHeadlineFont(),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    color = QuestionPrimary,
+                                    letterSpacing = 1.sp
+                                )
+                                Text(
+                                    text = strings.topNotesName,
+                                    fontFamily = bodyFont,
+                                    fontSize = 11.sp,
+                                    color = QuestionPrimary.copy(alpha = 0.85f)
+                                )
+                            }
+                        }
 
-                    PyramidChronologyStep(
-                        number = "1",
-                        name = strings.baseNotesShortName.uppercase(),
-                        duration = "(${strings.pyramidBaseDuration})"
+                        // Étage Cœur (Milieu)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = Color.White,
+                                    elevation = 2.dp,
+                                    modifier = Modifier.size(22.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text("2", color = QuestionPrimary, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                    }
+                                }
+                                Text(
+                                    text = strings.heartNotesShortName.uppercase(),
+                                    fontFamily = questionHeadlineFont(),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    color = QuestionPrimary,
+                                    letterSpacing = 1.sp
+                                )
+                                Text(
+                                    text = strings.heartNotesName,
+                                    fontFamily = bodyFont,
+                                    fontSize = 11.sp,
+                                    color = QuestionPrimary.copy(alpha = 0.85f)
+                                )
+                            }
+                        }
+
+                        // Étage Fond (Base)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = Color.White,
+                                    elevation = 2.dp,
+                                    modifier = Modifier.size(22.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text("1", color = QuestionPrimary, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                    }
+                                }
+                                Text(
+                                    text = strings.baseNotesShortName.uppercase(),
+                                    fontFamily = questionHeadlineFont(),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    color = Color.White,
+                                    letterSpacing = 1.sp
+                                )
+                                Text(
+                                    text = strings.baseNotesName,
+                                    fontFamily = bodyFont,
+                                    fontSize = 11.sp,
+                                    color = Color.White.copy(alpha = 0.9f)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // 2) Les 3 Cartes explicatives disposées sous la pyramide
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    PyramidNoteCard(
+                        icon = "✨",
+                        title = strings.topNotesShortName.uppercase(),
+                        subtitle = strings.pyramidTopCard
                     )
+                    PyramidNoteCard(
+                        icon = "🌸",
+                        title = strings.heartNotesShortName.uppercase(),
+                        subtitle = strings.pyramidHeartCard
+                    )
+                    PyramidNoteCard(
+                        icon = "⏳",
+                        title = strings.baseNotesShortName.uppercase(),
+                        subtitle = strings.pyramidBaseCard
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                // 3) Bandeau chronologique en bas
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = Color.White.copy(alpha = 0.85f),
+                    border = BorderStroke(1.dp, QuestionOutlineVariant.copy(alpha = 0.45f)),
+                    elevation = 0.dp,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Image(
+                            painter = painterResource(Res.drawable.fiole),
+                            contentDescription = null,
+                            modifier = Modifier.size(40.dp)
+                        )
+
+                        PyramidChronologyStep(
+                            number = "3",
+                            name = strings.topNotesShortName.uppercase(),
+                            duration = "(${strings.pyramidTopDuration})"
+                        )
+
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            tint = QuestionOutlineVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+
+                        PyramidChronologyStep(
+                            number = "2",
+                            name = strings.heartNotesShortName.uppercase(),
+                            duration = "(${strings.pyramidHeartDuration})"
+                        )
+
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            tint = QuestionOutlineVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+
+                        PyramidChronologyStep(
+                            number = "1",
+                            name = strings.baseNotesShortName.uppercase(),
+                            duration = "(${strings.pyramidBaseDuration})"
+                        )
+                    }
                 }
             }
         }
