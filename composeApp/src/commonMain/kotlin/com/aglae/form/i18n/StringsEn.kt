@@ -128,7 +128,7 @@ object StringsEn : Strings {
     override val contactCheckError = "Could not verify these details, please try again."
     override val questionLegalTitle = "Regulation and privacy"
     override val legalNotice = "All our fragrance notes comply with current French and European regulations"
-    override val allergyQuestion = "Do you have any fragrance-related or skin allergies?"
+    override val allergyQuestion = "Do you have any perfume or skin allergies?"
     override val allergyDetailsLabel = "Please specify your known allergies"
     override val liabilityQuestion = "If so, would you like to proceed by waiving our liability?"
     override val liabilityDeclineWarning = "In the case of a known allergy, we cannot be held liable: please agree to waive our liability to continue, or go back."
