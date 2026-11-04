@@ -1,0 +1,11 @@
+.git
+.gradle
+.idea
+.kotlin
+.qodo
+.claude
+build
+composeApp/build
+local.properties
+*.iml
+.DS_Store
