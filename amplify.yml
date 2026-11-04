@@ -1,0 +1,13 @@
+version: 1
+frontend:
+  phases:
+    build:
+      commands:
+        - bash vercel-build.sh
+  artifacts:
+    baseDirectory: composeApp/build/dist/wasmJs/productionExecutable
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - .gradle/**/*
