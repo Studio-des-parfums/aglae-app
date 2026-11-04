@@ -22,7 +22,9 @@ import kotlinx.serialization.json.Json
 expect val defaultApiBaseUrl: String
 
 // Back distinct (sdp-dashboard) qui expose le catalogue d'ingrédients/notes.
-private const val ingredientsBaseUrl = "https://sdp-dashboard-back-production.up.railway.app"
+expect val defaultIngredientsBaseUrl: String
+
+private val ingredientsBaseUrl: String = defaultIngredientsBaseUrl
 
 object ApiClient {
     var baseUrl: String = defaultApiBaseUrl

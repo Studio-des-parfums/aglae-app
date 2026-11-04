@@ -18,6 +18,27 @@ val localProperties = Properties().apply {
     }
 }
 
+// URL d'API de la version web, lues au build (variables Railway AGLAE_API_URL et
+// DASHBOARD_API_URL) ; sans variable, les URL de production sont utilisées.
+val webApiUrls = mapOf(
+    "AGLAE_API_URL" to (System.getenv("AGLAE_API_URL") ?: "https://web-production-b371d.up.railway.app"),
+    "DASHBOARD_API_URL" to (System.getenv("DASHBOARD_API_URL") ?: "https://sdp-dashboard-back-production.up.railway.app"),
+).mapValues { (_, url) -> url.trimEnd('/') }
+
+val generateWebConfig by tasks.registering {
+    val outputDir = layout.buildDirectory.dir("generated/webConfig/kotlin")
+    inputs.property("urls", webApiUrls)
+    outputs.dir(outputDir)
+    doLast {
+        val constants = webApiUrls.entries.joinToString("\n") { (name, url) ->
+            "    const val $name: String = \"$url\""
+        }
+        val file = outputDir.get().file("com/aglae/form/network/WebConfig.kt").asFile
+        file.parentFile.mkdirs()
+        file.writeText("package com.aglae.form.network\n\ninternal object WebConfig {\n$constants\n}\n")
+    }
+}
+
 kotlin {
     androidTarget {
         compilations.all {
@@ -85,6 +106,7 @@ kotlin {
         }
 
         val wasmJsMain by getting {
+            kotlin.srcDir(generateWebConfig)
             dependencies {
                 implementation(libs.ktor.client.js)
             }
