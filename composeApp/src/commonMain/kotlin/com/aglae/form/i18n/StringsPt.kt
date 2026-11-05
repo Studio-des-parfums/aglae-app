@@ -1,6 +1,10 @@
 package com.aglae.form.i18n
 
 object StringsPt : Strings {
+    override val stepApprovalCancel = "Cancelar o pedido"
+    override val stepApprovalAsk = "Pedir a validação do supervisor"
+    override val stepApprovalPending = "Pedido enviado, a aguardar o supervisor…"
+    override val stepApprovalRefused = "O supervisor recusou: altere a sua seleção."
     override val back = "Voltar"
     override val home = "Início"
     override val next = "Seguinte"
@@ -115,7 +119,7 @@ object StringsPt : Strings {
     override val professionLabel = "Profissão"
     override val bookingSourceTitle = "Onde reservou?"
     override val bookingSourcePhone = "Telefone"
-    override val bookingSourceWeecando = "Weecando"
+    override val bookingSourceWeecando = "Wecandoo"
     override val bookingSourceWebsite = "Site"
     override val bookingSourceOther = "Outro"
     override val questionLocationTitle = "Qual é o seu país e a sua cidade?"

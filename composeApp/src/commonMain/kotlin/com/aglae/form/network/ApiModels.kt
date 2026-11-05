@@ -158,6 +158,17 @@ private fun IngredientTranslations.forLanguageCode(languageCode: String): String
     return sanitizeNoteName(raw, languageCode)
 }
 
+// Les réponses stockent le nom d'une note dans la langue du client : cette table retrouve son nom
+// français, quelle que soit la langue d'origine, pour l'affichage côté superviseur.
+fun List<IngredientItem>.frenchNoteNames(): Map<String, String> = buildMap {
+    this@frenchNoteNames.forEach { item ->
+        val french = item.translations.forLanguageCode("fr")
+        listOf("en", "es", "pt", "ar", "ru", "fr").forEach { code ->
+            put(item.translations.forLanguageCode(code), french)
+        }
+    }
+}
+
 fun List<IngredientItem>.toNotesCatalog(languageCode: String): NotesCatalog {
     fun ofType(type: String) = filter { it.type == type }
         .map { NoteItem(id = it.id, name = it.translations.forLanguageCode(languageCode), code = it.code) }

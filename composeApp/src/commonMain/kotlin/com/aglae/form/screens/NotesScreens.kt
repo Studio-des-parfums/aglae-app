@@ -1,5 +1,13 @@
 package com.aglae.form.screens
 
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.material.icons.filled.LocalFlorist
+import aglae_form.composeapp.generated.resources.emoji_blossom
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.HourglassEmpty
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.ui.graphics.vector.ImageVector
 import kotlin.math.roundToInt
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
@@ -40,12 +48,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.aglae.form.OnSurfaceVariant
 import com.aglae.form.Primary
 import com.aglae.form.QuestionOnSurface
 import com.aglae.form.QuestionOnSurfaceVariant
 import com.aglae.form.QuestionOutlineVariant
 import com.aglae.form.QuestionPrimary
+import com.aglae.form.QuestionPrimaryDark
+import com.aglae.form.QuestionPrimaryLight
 import com.aglae.form.QuestionSurface
 import com.aglae.form.i18n.LocalStrings
 import com.aglae.form.i18n.localizedKeyboardOptions
@@ -64,7 +75,12 @@ import aglae_form.composeapp.generated.resources.pyramide_olfactive_h
 import aglae_form.composeapp.generated.resources.pyramide_olfactive_v
 
 // ── Écran : explication pédagogique de la pyramide olfactive (rendu d'interface natif traduisible),
-// affiché juste avant la sélection des notes ──
+// affiché juste avant la sélection des notes. Pyramide et cartes côte à côte sur grand écran,
+// empilées sur petit écran. ──
+private val PyramidTopColor = Color(0xFFF3E3D3)
+private val PyramidHeartColor = Color(0xFFD9BCA5)
+private val PyramidBaseColor = Color(0xFF8F6548)
+
 @Composable
 fun PyramidExplanationScreen(
     onNext: () -> Unit,
@@ -72,414 +88,277 @@ fun PyramidExplanationScreen(
 ) {
     val strings = LocalStrings.current
     val bodyFont = questionBodyFont()
+    val fontScale = LocalDensity.current.fontScale
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFFAF7F2))
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .statusBarsPadding()
-                .padding(horizontal = 24.dp)
-                .padding(top = 16.dp, bottom = 100.dp)
-        ) {
-            // En-tête : Logo SDP
-            Image(
-                painter = painterResource(Res.drawable.logoSDP),
-                contentDescription = "Studio des Parfums",
-                modifier = Modifier.height(44.dp)
-            )
+        val isWide = maxWidth >= 840.dp
+        val isCompact = maxWidth < 560.dp
+        val sidePadding = if (isCompact) 20.dp else 40.dp
+        val contentWidth = (maxWidth - sidePadding * 2).coerceAtMost(1040.dp)
+        // Sur grand écran, la pyramide suit la hauteur disponible ; sur petit écran, sa largeur.
+        val pyramidHeight = if (isWide) {
+            // Hauteur restante une fois l'en-tête, le titre, la frise et le bouton placés.
+            (maxHeight - 510.dp * fontScale).coerceIn(260.dp * fontScale, 440.dp * fontScale)
+        } else {
+            (contentWidth.coerceAtMost(480.dp) * 0.7f).coerceAtLeast(240.dp * fontScale)
+        }
 
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Titre principal
-            Text(
-                text = strings.pyramidTitle,
-                fontFamily = questionHeadlineFont(),
-                fontSize = 26.sp,
-                fontWeight = FontWeight.Bold,
-                color = QuestionPrimary,
-                letterSpacing = 2.sp,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            // Filet décoratif "D'UN PARFUM"
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.widthIn(max = 340.dp)
-            ) {
-                Divider(modifier = Modifier.weight(1f), color = QuestionOutlineVariant, thickness = 1.dp)
-                Text(
-                    text = strings.pyramidSubtitle,
-                    fontFamily = questionHeadlineFont(),
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = QuestionPrimary,
-                    letterSpacing = 2.sp
-                )
-                Divider(modifier = Modifier.weight(1f), color = QuestionOutlineVariant, thickness = 1.dp)
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Sous-titre explicatif
-            Text(
-                text = strings.pyramidDescription,
-                fontFamily = bodyFont,
-                fontSize = 14.sp,
-                color = QuestionOnSurfaceVariant,
-                textAlign = TextAlign.Center,
-                lineHeight = 20.sp,
-                modifier = Modifier.widthIn(max = 580.dp)
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Conteneur centré avec largeur maximale contrôlée (pour éviter tout étirement sur écran large)
+        Column(modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(if (isCompact) 20.dp else 28.dp),
                 modifier = Modifier
-                    .widthIn(max = 480.dp)
+                    .weight(1f)
                     .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = sidePadding)
+                    .padding(top = 12.dp, bottom = 16.dp)
             ) {
-                // 1) La pyramide géométrique à 3 étages
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(250.dp)
-                ) {
-                    Canvas(modifier = Modifier.fillMaxSize()) {
-                        val w = size.width
-                        val h = size.height
-                        val gap = 4f
-
-                        // Étage Tête (Sommet)
-                        val topH = h / 3f - gap / 2f
-                        val w1 = w * (topH / h)
-                        val pathTop = Path().apply {
-                            moveTo(w / 2f, 0f)
-                            lineTo(w / 2f + w1 / 2f, topH)
-                            lineTo(w / 2f - w1 / 2f, topH)
-                            close()
-                        }
-                        drawPath(pathTop, color = Color(0xFFF7EEE5))
-
-                        // Étage Cœur (Milieu)
-                        val heartYTop = h / 3f + gap / 2f
-                        val heartYBottom = 2f * h / 3f - gap / 2f
-                        val w2Top = w * (heartYTop / h)
-                        val w2Bottom = w * (heartYBottom / h)
-                        val pathHeart = Path().apply {
-                            moveTo(w / 2f - w2Top / 2f, heartYTop)
-                            lineTo(w / 2f + w2Top / 2f, heartYTop)
-                            lineTo(w / 2f + w2Bottom / 2f, heartYBottom)
-                            lineTo(w / 2f - w2Bottom / 2f, heartYBottom)
-                            close()
-                        }
-                        drawPath(pathHeart, color = Color(0xFFDCC1AE))
-
-                        // Étage Fond (Base)
-                        val baseYTop = 2f * h / 3f + gap / 2f
-                        val w3Top = w * (baseYTop / h)
-                        val pathBase = Path().apply {
-                            moveTo(w / 2f - w3Top / 2f, baseYTop)
-                            lineTo(w / 2f + w3Top / 2f, baseYTop)
-                            lineTo(w, h)
-                            lineTo(0f, h)
-                            close()
-                        }
-                        drawPath(pathBase, color = Color(0xFFA67B5B))
-                    }
-
-                    // Textes et pastilles superposés sur chaque étage
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.SpaceBetween
+                // En-tête : retour à gauche, logo centré, sans chevauchement sur petit écran
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    TextButton(
+                        onClick = onBack,
+                        modifier = Modifier.align(Alignment.CenterStart),
+                        colors = ButtonDefaults.textButtonColors(contentColor = QuestionOnSurfaceVariant)
                     ) {
-                        // Étage Tête (Sommet)
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(2.dp),
-                                modifier = Modifier.padding(top = 10.dp)
-                            ) {
-                                Surface(
-                                    shape = CircleShape,
-                                    color = Color.White,
-                                    elevation = 2.dp,
-                                    modifier = Modifier.size(22.dp)
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Text("3", color = QuestionPrimary, fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                                    }
-                                }
-                                Text(
-                                    text = strings.topNotesShortName.uppercase(),
-                                    fontFamily = questionHeadlineFont(),
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp,
-                                    color = QuestionPrimary,
-                                    letterSpacing = 1.sp
-                                )
-                                Text(
-                                    text = strings.topNotesName,
-                                    fontFamily = bodyFont,
-                                    fontSize = 11.sp,
-                                    color = QuestionPrimary.copy(alpha = 0.85f)
-                                )
-                            }
-                        }
-
-                        // Étage Cœur (Milieu)
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(2.dp)
-                            ) {
-                                Surface(
-                                    shape = CircleShape,
-                                    color = Color.White,
-                                    elevation = 2.dp,
-                                    modifier = Modifier.size(22.dp)
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Text("2", color = QuestionPrimary, fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                                    }
-                                }
-                                Text(
-                                    text = strings.heartNotesShortName.uppercase(),
-                                    fontFamily = questionHeadlineFont(),
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp,
-                                    color = QuestionPrimary,
-                                    letterSpacing = 1.sp
-                                )
-                                Text(
-                                    text = strings.heartNotesName,
-                                    fontFamily = bodyFont,
-                                    fontSize = 11.sp,
-                                    color = QuestionPrimary.copy(alpha = 0.85f)
-                                )
-                            }
-                        }
-
-                        // Étage Fond (Base)
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(2.dp)
-                            ) {
-                                Surface(
-                                    shape = CircleShape,
-                                    color = Color.White,
-                                    elevation = 2.dp,
-                                    modifier = Modifier.size(22.dp)
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Text("1", color = QuestionPrimary, fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                                    }
-                                }
-                                Text(
-                                    text = strings.baseNotesShortName.uppercase(),
-                                    fontFamily = questionHeadlineFont(),
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp,
-                                    color = Color.White,
-                                    letterSpacing = 1.sp
-                                )
-                                Text(
-                                    text = strings.baseNotesName,
-                                    fontFamily = bodyFont,
-                                    fontSize = 11.sp,
-                                    color = Color.White.copy(alpha = 0.9f)
-                                )
-                            }
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = strings.back,
+                            modifier = Modifier.size(20.dp),
+                            tint = QuestionOnSurfaceVariant
+                        )
+                        if (!isCompact) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(text = strings.back, fontFamily = bodyFont, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                         }
                     }
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // 2) Les 3 Cartes explicatives disposées sous la pyramide
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    PyramidNoteCard(
-                        icon = "✨",
-                        title = strings.topNotesShortName.uppercase(),
-                        subtitle = strings.pyramidTopCard
-                    )
-                    PyramidNoteCard(
-                        icon = "🌸",
-                        title = strings.heartNotesShortName.uppercase(),
-                        subtitle = strings.pyramidHeartCard
-                    )
-                    PyramidNoteCard(
-                        icon = "⏳",
-                        title = strings.baseNotesShortName.uppercase(),
-                        subtitle = strings.pyramidBaseCard
+                    Image(
+                        painter = painterResource(Res.drawable.logoSDP),
+                        contentDescription = "Studio des Parfums",
+                        modifier = Modifier.align(Alignment.Center).height(if (isCompact) 60.dp else 76.dp)
                     )
                 }
 
-                Spacer(modifier = Modifier.height(18.dp))
+                PyramidHeading(isCompact)
 
-                // 3) Bandeau chronologique en bas
-                Surface(
-                    shape = RoundedCornerShape(18.dp),
-                    color = Color.White.copy(alpha = 0.85f),
-                    border = BorderStroke(1.dp, QuestionOutlineVariant.copy(alpha = 0.45f)),
-                    elevation = 0.dp,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
+                if (isWide) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        modifier = Modifier.widthIn(max = 1040.dp).fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(40.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Image(
-                            painter = painterResource(Res.drawable.fiole),
-                            contentDescription = null,
-                            modifier = Modifier.size(40.dp)
-                        )
-
-                        PyramidChronologyStep(
-                            number = "3",
-                            name = strings.topNotesShortName.uppercase(),
-                            duration = "(${strings.pyramidTopDuration})"
-                        )
-
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = null,
-                            tint = QuestionOutlineVariant,
-                            modifier = Modifier.size(18.dp)
-                        )
-
-                        PyramidChronologyStep(
-                            number = "2",
-                            name = strings.heartNotesShortName.uppercase(),
-                            duration = "(${strings.pyramidHeartDuration})"
-                        )
-
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = null,
-                            tint = QuestionOutlineVariant,
-                            modifier = Modifier.size(18.dp)
-                        )
-
-                        PyramidChronologyStep(
-                            number = "1",
-                            name = strings.baseNotesShortName.uppercase(),
-                            duration = "(${strings.pyramidBaseDuration})"
-                        )
+                        OlfactivePyramid(Modifier.weight(1.15f).height(pyramidHeight))
+                        PyramidNoteCards(Modifier.weight(1f).height(pyramidHeight), fillHeight = true)
                     }
+                } else {
+                    OlfactivePyramid(Modifier.widthIn(max = 480.dp).fillMaxWidth().height(pyramidHeight))
+                    PyramidNoteCards(Modifier.widthIn(max = 480.dp).fillMaxWidth(), fillHeight = false)
                 }
+
+                PyramidChronology(
+                    showBottle = !isCompact,
+                    modifier = Modifier.widthIn(max = if (isWide) 820.dp else 480.dp).fillMaxWidth()
+                )
+            }
+
+            // Bouton dans le flux : il ne recouvre jamais le contenu défilant.
+            Box(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = sidePadding, vertical = 14.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                QuestionActionButton(text = strings.next, onClick = onNext)
             }
         }
+    }
+}
 
-        // Bouton Retour en haut à gauche
-        TextButton(
-            onClick = onBack,
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .statusBarsPadding()
-                .padding(top = 16.dp, start = 20.dp),
-            colors = ButtonDefaults.textButtonColors(contentColor = QuestionOnSurfaceVariant)
+@Composable
+private fun PyramidHeading(isCompact: Boolean) {
+    val strings = LocalStrings.current
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Text(
+            text = strings.pyramidTitle,
+            fontFamily = questionHeadlineFont(),
+            fontSize = if (isCompact) 24.sp else 36.sp,
+            lineHeight = if (isCompact) 30.sp else 44.sp,
+            fontWeight = FontWeight.Bold,
+            color = QuestionPrimary,
+            letterSpacing = if (isCompact) 1.sp else 2.sp,
+            textAlign = TextAlign.Center
+        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier.widthIn(max = 380.dp)
         ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-                tint = QuestionOnSurfaceVariant
-            )
-            Spacer(modifier = Modifier.width(8.dp))
+            Divider(modifier = Modifier.weight(1f), color = QuestionOutlineVariant, thickness = 1.dp)
             Text(
-                text = strings.back,
-                fontFamily = bodyFont,
-                fontSize = 14.sp,
+                text = strings.pyramidSubtitle,
+                fontFamily = questionHeadlineFont(),
+                fontSize = if (isCompact) 14.sp else 17.sp,
                 fontWeight = FontWeight.Bold,
-                letterSpacing = 1.sp
+                color = QuestionPrimary,
+                letterSpacing = 2.sp
+            )
+            Divider(modifier = Modifier.weight(1f), color = QuestionOutlineVariant, thickness = 1.dp)
+        }
+        Text(
+            text = strings.pyramidDescription,
+            fontFamily = questionBodyFont(),
+            fontSize = if (isCompact) 14.sp else 16.sp,
+            lineHeight = if (isCompact) 21.sp else 24.sp,
+            color = QuestionOnSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.widthIn(max = 600.dp)
+        )
+    }
+}
+
+// Pyramide à trois étages dessinée en vectoriel, nette à toutes les tailles.
+@Composable
+private fun OlfactivePyramid(modifier: Modifier = Modifier) {
+    val strings = LocalStrings.current
+    Box(modifier = modifier) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val w = size.width
+            val h = size.height
+            val gap = 3.dp.toPx()
+            fun tier(yTop: Float, yBottom: Float, color: Color) {
+                val topWidth = w * yTop / h
+                val bottomWidth = w * yBottom / h
+                drawPath(
+                    Path().apply {
+                        moveTo(w / 2f - topWidth / 2f, yTop)
+                        lineTo(w / 2f + topWidth / 2f, yTop)
+                        lineTo(w / 2f + bottomWidth / 2f, yBottom)
+                        lineTo(w / 2f - bottomWidth / 2f, yBottom)
+                        close()
+                    },
+                    color = color
+                )
+            }
+            tier(0f, h * 0.38f - gap / 2f, PyramidTopColor)
+            tier(h * 0.38f + gap / 2f, h * 0.69f - gap / 2f, PyramidHeartColor)
+            tier(h * 0.69f + gap / 2f, h, PyramidBaseColor)
+        }
+        Column(modifier = Modifier.fillMaxSize()) {
+            // L'étage du sommet est étroit en haut : son texte reste dans sa partie basse.
+            PyramidTierLabel("3", strings.topNotesShortName, QuestionPrimary, Alignment.BottomCenter, Modifier.weight(0.38f))
+            PyramidTierLabel("2", strings.heartNotesShortName, QuestionPrimaryDark, Alignment.Center, Modifier.weight(0.31f))
+            PyramidTierLabel("1", strings.baseNotesShortName, Color.White, Alignment.Center, Modifier.weight(0.31f))
+        }
+    }
+}
+
+@Composable
+private fun PyramidTierLabel(
+    number: String,
+    name: String,
+    color: Color,
+    alignment: Alignment,
+    modifier: Modifier = Modifier
+) {
+    Box(modifier = modifier.fillMaxWidth().padding(bottom = 6.dp), contentAlignment = alignment) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            PyramidNumberBadge(number, background = Color.White, content = QuestionPrimary)
+            Text(
+                text = name.uppercase(),
+                fontFamily = questionHeadlineFont(),
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                color = color,
+                letterSpacing = 1.sp,
+                maxLines = 1
             )
         }
+    }
+}
 
-        // Bouton Suivant fixe en bas
-        QuestionActionButton(
-            text = strings.next,
-            onClick = onNext,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
-                .padding(bottom = 20.dp)
+@Composable
+private fun PyramidNumberBadge(number: String, background: Color, content: Color) {
+    Surface(shape = CircleShape, color = background, modifier = Modifier.size(24.dp)) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(number, color = content, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+        }
+    }
+}
+
+// Sur grand écran, chaque carte occupe la hauteur de l'étage de pyramide en face d'elle.
+@Composable
+private fun PyramidNoteCards(modifier: Modifier = Modifier, fillHeight: Boolean) {
+    val strings = LocalStrings.current
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        val cardModifier = if (fillHeight) Modifier.weight(1f) else Modifier
+        PyramidNoteCard(
+            icon = { Icon(Icons.Filled.AutoAwesome, null, tint = QuestionPrimary, modifier = Modifier.size(24.dp)) },
+            title = strings.topNotesShortName.uppercase(),
+            subtitle = strings.pyramidTopCard,
+            modifier = cardModifier
+        )
+        PyramidNoteCard(
+            icon = { Icon(Icons.Filled.LocalFlorist, null, tint = QuestionPrimary, modifier = Modifier.size(24.dp)) },
+            title = strings.heartNotesShortName.uppercase(),
+            subtitle = strings.pyramidHeartCard,
+            modifier = cardModifier
+        )
+        PyramidNoteCard(
+            icon = { Icon(Icons.Filled.HourglassEmpty, null, tint = QuestionPrimary, modifier = Modifier.size(24.dp)) },
+            title = strings.baseNotesShortName.uppercase(),
+            subtitle = strings.pyramidBaseCard,
+            modifier = cardModifier
         )
     }
 }
 
 @Composable
 private fun PyramidNoteCard(
-    icon: String,
+    icon: @Composable () -> Unit,
     title: String,
-    subtitle: String
+    subtitle: String,
+    modifier: Modifier = Modifier
 ) {
-    val bodyFont = questionBodyFont()
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = Color.White.copy(alpha = 0.90f),
-        border = BorderStroke(1.dp, QuestionOutlineVariant.copy(alpha = 0.45f)),
-        elevation = 0.dp,
-        modifier = Modifier.fillMaxWidth()
+        color = Color.White,
+        border = BorderStroke(1.dp, QuestionOutlineVariant.copy(alpha = 0.6f)),
+        modifier = modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Surface(
                 shape = CircleShape,
                 color = Color(0xFFFFF8F3),
                 border = BorderStroke(1.dp, Color(0xFFE8D5C4)),
-                modifier = Modifier.size(44.dp)
+                modifier = Modifier.size(48.dp)
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(text = icon, fontSize = 20.sp)
-                }
+                Box(contentAlignment = Alignment.Center) { icon() }
             }
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
                     text = title,
                     fontFamily = questionHeadlineFont(),
-                    fontSize = 16.sp,
+                    fontSize = 17.sp,
                     fontWeight = FontWeight.Bold,
                     color = QuestionPrimary,
                     letterSpacing = 0.8.sp
                 )
                 Text(
                     text = subtitle,
-                    fontFamily = bodyFont,
-                    fontSize = 13.sp,
+                    fontFamily = questionBodyFont(),
+                    fontSize = 14.sp,
                     color = QuestionOnSurfaceVariant
                 )
             }
@@ -488,46 +367,73 @@ private fun PyramidNoteCard(
 }
 
 @Composable
+private fun PyramidChronology(showBottle: Boolean, modifier: Modifier = Modifier) {
+    val strings = LocalStrings.current
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, QuestionOutlineVariant.copy(alpha = 0.6f)),
+        modifier = modifier
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            if (showBottle) {
+                Image(
+                    painter = painterResource(Res.drawable.fiole),
+                    contentDescription = null,
+                    modifier = Modifier.padding(horizontal = 8.dp).size(44.dp)
+                )
+            }
+            PyramidChronologyStep("3", strings.topNotesShortName.uppercase(), strings.pyramidTopDuration, Modifier.weight(1f))
+            PyramidChronologyArrow()
+            PyramidChronologyStep("2", strings.heartNotesShortName.uppercase(), strings.pyramidHeartDuration, Modifier.weight(1f))
+            PyramidChronologyArrow()
+            PyramidChronologyStep("1", strings.baseNotesShortName.uppercase(), strings.pyramidBaseDuration, Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun PyramidChronologyArrow() {
+    Icon(
+        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+        contentDescription = null,
+        tint = QuestionPrimaryLight,
+        modifier = Modifier.size(16.dp)
+    )
+}
+
+@Composable
 private fun PyramidChronologyStep(
     number: String,
     name: String,
-    duration: String
+    duration: String,
+    modifier: Modifier = Modifier
 ) {
-    val bodyFont = questionBodyFont()
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(3.dp)
     ) {
-        Surface(
-            shape = CircleShape,
+        PyramidNumberBadge(number, background = QuestionPrimary, content = Color.White)
+        Text(
+            text = name,
+            fontFamily = questionHeadlineFont(),
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
             color = QuestionPrimary,
-            elevation = 1.dp,
-            modifier = Modifier.size(24.dp)
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Text(
-                    text = number,
-                    color = Color.White,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-        Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
-            Text(
-                text = name,
-                fontFamily = questionHeadlineFont(),
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                color = QuestionPrimary
-            )
-            Text(
-                text = duration,
-                fontFamily = bodyFont,
-                fontSize = 11.sp,
-                color = QuestionOnSurfaceVariant
-            )
-        }
+            textAlign = TextAlign.Center
+        )
+        Text(
+            text = duration,
+            fontFamily = questionBodyFont(),
+            fontSize = 12.sp,
+            color = QuestionOnSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
     }
 }
 
@@ -549,25 +455,17 @@ fun NotesSelectionScreen(
     selectedBoosterNotes: Set<String> = emptySet(),
     bounds: NoteCountBounds?,
     hasBoosters: Boolean = true,
+    isStepComplete: (String) -> Boolean,
+    allStepsComplete: Boolean,
     onSectionClick: (String) -> Unit,
     noteCountError: String?,
     isApprovedBySupervisor: Boolean = false,
-    outOfRangeIssues: List<String> = emptyList(),
-    onRequestSupervisorApproval: () -> Unit = {},
-    onVerifySupervisorPin: (suspend (String) -> Boolean)? = null,
     onConfirm: () -> Unit,
     onBack: () -> Unit,
     onGoHome: () -> Unit
 ) {
     val strings = LocalStrings.current
     val bodyFont = questionBodyFont()
-    val scope = rememberCoroutineScope()
-
-    var showHorsNormesDialog by remember { mutableStateOf(false) }
-    var showPinDialog by remember { mutableStateOf(false) }
-    var pinCode by remember { mutableStateOf("") }
-    var pinError by remember { mutableStateOf<String?>(null) }
-    var isVerifyingPin by remember { mutableStateOf(false) }
 
     fun shortSectionName(name: String): String = when (name) {
         "Notes de tête" -> strings.topNotesShortName
@@ -625,9 +523,9 @@ fun NotesSelectionScreen(
         }
     }
 
-    // Les familles olfactives sont directement consultables et sélectionnables dès le départ
-    // pour permettre au client d'explorer librement toutes les listes de notes.
-    fun isUnlocked(name: String): Boolean = true
+    // Une famille ne s'ouvre qu'une fois toutes les étapes précédentes validées.
+    fun isUnlocked(name: String): Boolean =
+        sections.takeWhile { it.name != name }.all { isStepComplete(it.name) }
 
     // Le bouton "Valider ma formule" reste désactivé tant que le nombre de notes choisies dans
     // chaque famille ne respecte pas ses bornes min/max (quand elles sont connues). Aucune borne
@@ -760,14 +658,20 @@ fun NotesSelectionScreen(
                     border = BorderStroke(1.dp, Color(0xFF2E7D32)),
                     modifier = Modifier.padding(vertical = 4.dp)
                 ) {
-                    Text(
-                        text = "✓ " + strings.horsNormesApprovedBadge,
-                        fontFamily = bodyFont,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF2E7D32),
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                    )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(Icons.Filled.Check, null, tint = Color(0xFF2E7D32), modifier = Modifier.size(16.dp))
+                        Text(
+                            text = strings.horsNormesApprovedBadge,
+                            fontFamily = bodyFont,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF2E7D32)
+                        )
+                    }
                 }
             }
 
@@ -786,217 +690,111 @@ fun NotesSelectionScreen(
             val totalSelected = selectedCounts.values.sum()
             QuestionActionButton(
                 text = strings.validateMyFormula,
-                onClick = {
-                    if (allFamiliesValid || isApprovedBySupervisor) {
-                        onConfirm()
-                    } else {
-                        showHorsNormesDialog = true
-                    }
-                },
-                enabled = totalSelected > 0
+                onClick = onConfirm,
+                enabled = totalSelected > 0 && allStepsComplete
             )
         }
     }
+}
 
-    if (showHorsNormesDialog) {
-        Dialog(onDismissRequest = { showHorsNormesDialog = false }) {
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = QuestionSurface,
-                border = BorderStroke(1.dp, QuestionOutlineVariant),
-                modifier = Modifier.fillMaxWidth().widthIn(max = 500.dp)
+// Le superviseur présent aux côtés du client autorise directement avec son code.
+@Composable
+private fun SupervisorPinDialog(
+    onVerify: suspend (String) -> Boolean,
+    onDismiss: () -> Unit
+) {
+    val strings = LocalStrings.current
+    val bodyFont = questionBodyFont()
+    val scope = rememberCoroutineScope()
+    var pinCode by remember { mutableStateOf("") }
+    var pinError by remember { mutableStateOf<String?>(null) }
+    var isVerifyingPin by remember { mutableStateOf(false) }
+
+    Dialog(onDismissRequest = { if (!isVerifyingPin) onDismiss() }) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = QuestionSurface,
+            border = BorderStroke(1.dp, QuestionOutlineVariant),
+            modifier = Modifier.fillMaxWidth().widthIn(max = 420.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Column(
-                    modifier = Modifier.padding(24.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFFFFF3E0),
-                        modifier = Modifier.size(52.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text("✨", fontSize = 26.sp)
-                        }
-                    }
+                Text(
+                    text = "Validation superviseur sur place",
+                    fontFamily = questionHeadlineFont(),
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = QuestionPrimary,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = "Entrez votre identifiant / code superviseur pour autoriser cette sélection immédiatement :",
+                    fontFamily = bodyFont,
+                    fontSize = 13.sp,
+                    color = QuestionOnSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
 
+                OutlinedTextField(
+                    value = pinCode,
+                    onValueChange = { pinCode = it; pinError = null },
+                    label = { Text("Code superviseur") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    colors = TextFieldDefaults.outlinedTextFieldColors(
+                        focusedBorderColor = QuestionPrimary,
+                        focusedLabelColor = QuestionPrimary,
+                        cursorColor = QuestionPrimary
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                if (pinError != null) {
                     Text(
-                        text = strings.horsNormesDialogTitle,
-                        fontFamily = questionHeadlineFont(),
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = QuestionPrimary,
-                        textAlign = TextAlign.Center
-                    )
-
-                    Text(
-                        text = strings.horsNormesDialogSubtitle,
-                        fontFamily = bodyFont,
-                        fontSize = 14.sp,
-                        color = QuestionOnSurfaceVariant,
-                        textAlign = TextAlign.Center
-                    )
-
-                    Column(
-                        modifier = Modifier.fillMaxWidth().background(Color.White.copy(alpha = 0.6f), RoundedCornerShape(12.dp)).padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        if (outOfRangeIssues.isNotEmpty()) {
-                            outOfRangeIssues.forEach { issue ->
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Text("•", color = QuestionPrimary, fontWeight = FontWeight.Bold)
-                                    Text(issue, fontFamily = bodyFont, fontSize = 13.sp, color = QuestionPrimary, fontWeight = FontWeight.SemiBold)
-                                }
-                            }
-                        } else {
-                            Text("Nombre de notes en dehors des proportions recommandées.", fontFamily = bodyFont, fontSize = 13.sp, color = QuestionPrimary)
-                        }
-                    }
-
-                    Text(
-                        text = "Votre composition peut être validée par votre parfumeur / superviseur avant le dosage.",
-                        fontFamily = bodyFont,
+                        text = pinError!!,
+                        color = Color(0xFFBA1A1A),
                         fontSize = 13.sp,
-                        color = QuestionOnSurfaceVariant,
-                        textAlign = TextAlign.Center
+                        fontWeight = FontWeight.Bold
                     )
-
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Button(
-                            onClick = {
-                                showHorsNormesDialog = false
-                                onRequestSupervisorApproval()
-                            },
-                            shape = PillShapeCompat,
-                            colors = ButtonDefaults.buttonColors(backgroundColor = QuestionPrimary, contentColor = Color.White),
-                            modifier = Modifier.fillMaxWidth().height(48.dp)
-                        ) {
-                            Text(strings.horsNormesDialogAskSupervisor, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                        }
-
-                        if (onVerifySupervisorPin != null) {
-                            OutlinedButton(
-                                onClick = {
-                                    showHorsNormesDialog = false
-                                    pinCode = ""
-                                    pinError = null
-                                    showPinDialog = true
-                                },
-                                shape = PillShapeCompat,
-                                border = BorderStroke(1.dp, QuestionPrimary),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = QuestionPrimary),
-                                modifier = Modifier.fillMaxWidth().height(48.dp)
-                            ) {
-                                Text(strings.horsNormesDialogPinValidate, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                            }
-                        }
-
-                        TextButton(
-                            onClick = { showHorsNormesDialog = false },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(strings.horsNormesDialogModify, color = QuestionOnSurfaceVariant, fontSize = 14.sp)
-                        }
-                    }
                 }
-            }
-        }
-    }
 
-    if (showPinDialog && onVerifySupervisorPin != null) {
-        Dialog(onDismissRequest = { if (!isVerifyingPin) showPinDialog = false }) {
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = QuestionSurface,
-                border = BorderStroke(1.dp, QuestionOutlineVariant),
-                modifier = Modifier.fillMaxWidth().widthIn(max = 420.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(24.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        text = "Validation superviseur sur place",
-                        fontFamily = questionHeadlineFont(),
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = QuestionPrimary,
-                        textAlign = TextAlign.Center
-                    )
-                    Text(
-                        text = "Entrez votre identifiant / code superviseur pour autoriser cette formule immédiatement :",
-                        fontFamily = bodyFont,
-                        fontSize = 13.sp,
-                        color = QuestionOnSurfaceVariant,
-                        textAlign = TextAlign.Center
-                    )
-
-                    OutlinedTextField(
-                        value = pinCode,
-                        onValueChange = { pinCode = it; pinError = null },
-                        label = { Text("Code superviseur") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        colors = TextFieldDefaults.outlinedTextFieldColors(
-                            focusedBorderColor = QuestionPrimary,
-                            focusedLabelColor = QuestionPrimary,
-                            cursorColor = QuestionPrimary
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    if (pinError != null) {
-                        Text(
-                            text = pinError!!,
-                            color = Color(0xFFBA1A1A),
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    TextButton(
+                        onClick = onDismiss,
+                        enabled = !isVerifyingPin,
+                        modifier = Modifier.weight(1f)
                     ) {
-                        TextButton(
-                            onClick = { showPinDialog = false },
-                            enabled = !isVerifyingPin,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(strings.cancel, color = QuestionOnSurfaceVariant)
-                        }
-                        Button(
-                            onClick = {
-                                isVerifyingPin = true
-                                pinError = null
-                                scope.launch {
-                                    val ok = onVerifySupervisorPin(pinCode)
-                                    isVerifyingPin = false
-                                    if (ok) {
-                                        showPinDialog = false
-                                    } else {
-                                        pinError = "Identifiant superviseur invalide"
-                                    }
+                        Text(strings.cancel, color = QuestionOnSurfaceVariant)
+                    }
+                    Button(
+                        onClick = {
+                            isVerifyingPin = true
+                            pinError = null
+                            scope.launch {
+                                val ok = onVerify(pinCode)
+                                isVerifyingPin = false
+                                if (ok) {
+                                    onDismiss()
+                                } else {
+                                    pinError = "Identifiant superviseur invalide"
                                 }
-                            },
-                            enabled = pinCode.isNotBlank() && !isVerifyingPin,
-                            shape = PillShapeCompat,
-                            colors = ButtonDefaults.buttonColors(backgroundColor = QuestionPrimary, contentColor = Color.White),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            if (isVerifyingPin) {
-                                CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
-                            } else {
-                                Text("Valider", fontWeight = FontWeight.Bold)
                             }
+                        },
+                        enabled = pinCode.isNotBlank() && !isVerifyingPin,
+                        shape = PillShapeCompat,
+                        colors = ButtonDefaults.buttonColors(backgroundColor = QuestionPrimary, contentColor = Color.White),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        if (isVerifyingPin) {
+                            CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+                        } else {
+                            Text("Valider", fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -1025,11 +823,60 @@ fun NotesDetailScreen(
     noteRecommendation: String? = null,
     onDismissRecommendation: () -> Unit = {},
     bounds: NoteCountBounds? = null,
+    approvalStatus: String? = null,
+    canRequestApproval: Boolean = false,
+    onRequestApproval: () -> Unit = {},
+    onCancelApproval: () -> Unit = {},
+    onVerifySupervisorPin: suspend (String) -> Boolean,
+    onValidate: () -> Unit,
     onBack: () -> Unit,
     onGoHome: () -> Unit
 ) {
     val strings = LocalStrings.current
     val bodyFont = questionBodyFont()
+    var showPinDialog by remember { mutableStateOf(false) }
+
+    // Fenêtre bloquante : les notes ne peuvent pas changer pendant que le superviseur décide.
+    // Elle se ferme d'elle-même dès qu'il a répondu.
+    if (approvalStatus == "pending") {
+        Dialog(
+            onDismissRequest = {},
+            properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = QuestionSurface,
+                border = BorderStroke(1.dp, QuestionOutlineVariant),
+                modifier = Modifier.fillMaxWidth().widthIn(max = 420.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    CircularProgressIndicator(color = QuestionPrimary)
+                    Text(
+                        text = strings.stepApprovalPending,
+                        fontFamily = bodyFont,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = QuestionPrimary,
+                        textAlign = TextAlign.Center
+                    )
+                    TextButton(onClick = { showPinDialog = true }) {
+                        Text(strings.horsNormesDialogPinValidate, fontFamily = bodyFont, fontWeight = FontWeight.Bold, color = QuestionPrimary)
+                    }
+                    TextButton(onClick = onCancelApproval) {
+                        Text(strings.stepApprovalCancel, fontFamily = bodyFont, color = QuestionOnSurfaceVariant)
+                    }
+                }
+            }
+        }
+    }
+
+    if (showPinDialog) {
+        SupervisorPinDialog(onVerify = onVerifySupervisorPin, onDismiss = { showPinDialog = false })
+    }
 
     if (pendingRuleWarning != null) {
         val conflictNames = pendingRuleWarning.conflictingNames.joinToString(", ")
@@ -1218,7 +1065,18 @@ fun NotesDetailScreen(
                         }
                     }
 
-                    if (exceedsMax) {
+                    val isApproved = approvalStatus == "approved"
+                    if (isApproved) {
+                        Text(
+                            text = strings.horsNormesApprovedBadge,
+                            fontFamily = bodyFont,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF2E7D32),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
+                        )
+                    } else if (exceedsMax) {
                         Text(
                             text = strings.noteCountTooManyRemove(translatedSectionName, sectionMax!!, selected.size),
                             fontFamily = bodyFont,
@@ -1238,11 +1096,55 @@ fun NotesDetailScreen(
                         )
                     }
 
+                    if ((exceedsMax || belowMin) && !isApproved && canRequestApproval) {
+                        if (approvalStatus != "pending") {
+                            if (approvalStatus == "refused") {
+                                Text(
+                                    text = strings.stepApprovalRefused,
+                                    fontFamily = bodyFont,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFBA1A1A),
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
+                                )
+                            }
+                            OutlinedButton(
+                                onClick = onRequestApproval,
+                                modifier = Modifier.padding(top = 16.dp).widthIn(min = 280.dp),
+                                shape = PillShapeCompat
+                            ) {
+                                Text(
+                                    text = strings.stepApprovalAsk,
+                                    fontFamily = bodyFont,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = QuestionPrimary
+                                )
+                            }
+                        }
+                    }
+
+                    if ((exceedsMax || belowMin) && !isApproved) {
+                        TextButton(
+                            onClick = { showPinDialog = true },
+                            modifier = Modifier.padding(top = 8.dp)
+                        ) {
+                            Text(
+                                text = strings.horsNormesDialogPinValidate,
+                                fontFamily = bodyFont,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = QuestionPrimary
+                            )
+                        }
+                    }
+
                     Button(
-                        onClick = onBack,
+                        onClick = onValidate,
                         modifier = Modifier.padding(top = 24.dp).widthIn(min = 280.dp),
                         shape = PillShapeCompat,
-                        enabled = !exceedsMax && !belowMin,
+                        enabled = (!exceedsMax && !belowMin) || isApproved,
                         colors = ButtonDefaults.buttonColors(
                             backgroundColor = QuestionPrimary,
                             contentColor = Color.White,
@@ -1515,7 +1417,7 @@ fun NoteQuantitiesScreen(
                                 modifier = Modifier.size(24.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
-                                    Text("✓", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                    Icon(Icons.Filled.Check, null, tint = Color.White, modifier = Modifier.size(16.dp))
                                 }
                             }
                             Text(
@@ -1745,7 +1647,7 @@ fun NoteQuantitiesScreen(
 
 @Composable
 fun QuantityStepperButton(
-    icon: String,
+    icon: ImageVector,
     enabled: Boolean,
     color: Color,
     onClick: () -> Unit
@@ -1759,12 +1661,7 @@ fun QuantityStepperButton(
             .clickable(enabled = enabled, onClick = onClick)
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Text(
-                text = icon,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
+            Icon(icon, null, tint = Color.White, modifier = Modifier.size(22.dp))
         }
     }
 }
@@ -1877,7 +1774,7 @@ private fun AddNoteDialog(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         QuantityStepperButton(
-                            icon = "−",
+                            icon = Icons.Filled.Remove,
                             enabled = quantityMl > 0,
                             color = sectionColor,
                             onClick = { quantityMl = (quantityMl - 1).coerceAtLeast(0) }
@@ -1899,7 +1796,7 @@ private fun AddNoteDialog(
                             )
                         }
                         QuantityStepperButton(
-                            icon = "+",
+                            icon = Icons.Filled.Add,
                             enabled = true,
                             color = sectionColor,
                             onClick = { quantityMl += 1 }

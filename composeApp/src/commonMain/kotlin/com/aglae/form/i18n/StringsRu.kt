@@ -34,6 +34,10 @@ private fun boosterPluralNominative(count: Int): String {
 }
 
 object StringsRu : Strings {
+    override val stepApprovalCancel = "Отменить запрос"
+    override val stepApprovalAsk = "Запросить подтверждение у супервайзера"
+    override val stepApprovalPending = "Запрос отправлен, ожидайте ответа супервайзера…"
+    override val stepApprovalRefused = "Супервайзер отклонил запрос: измените свой выбор."
     override val back = "Назад"
     override val home = "Главная"
     override val next = "Далее"
@@ -148,7 +152,7 @@ object StringsRu : Strings {
     override val professionLabel = "Профессия"
     override val bookingSourceTitle = "Откуда вы сделали запись?"
     override val bookingSourcePhone = "Телефон"
-    override val bookingSourceWeecando = "Weecando"
+    override val bookingSourceWeecando = "Wecandoo"
     override val bookingSourceWebsite = "Веб-сайт"
     override val bookingSourceOther = "Другое"
     override val questionLocationTitle = "Ваша страна и город?"

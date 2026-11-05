@@ -392,7 +392,7 @@ fun QuestionnaireScreen(
                 value = profession,
                 onValueChange = onProfessionChange
             ),
-            bookingSourceOptions = listOf("Téléphone", "Weecando", "Site internet", "Autre"),
+            bookingSourceOptions = listOf("Téléphone", "Weecando", "Airbnb", "Site internet", "Autre"),
             selectedBookingSource = bookingSource,
             onBookingSourceSelected = onBookingSourceChange,
             day = day,
@@ -647,6 +647,7 @@ fun QuestionnaireScreen(
                                         when (option) {
                                             "Téléphone" -> strings.bookingSourcePhone
                                             "Weecando" -> strings.bookingSourceWeecando
+                                            "Airbnb" -> "Airbnb"
                                             "Site internet" -> strings.bookingSourceWebsite
                                             else -> strings.bookingSourceOther
                                         }
@@ -856,7 +857,7 @@ private fun QuestionTextField(field: TextFieldData, compact: Boolean = false, fi
             modifier = Modifier
                 .fillMaxWidth()
                 .then(if (fillAvailableWidth) Modifier else Modifier.widthIn(max = field.width.dp))
-                .then(if (compact) Modifier else Modifier.height(64.dp)),
+                .then(if (compact) Modifier else Modifier.heightIn(min = 64.dp)),
             textStyle = MaterialTheme.typography.body1.copy(
                 fontFamily = bodyFont,
                 fontSize = if (compact) 15.sp else 17.sp,

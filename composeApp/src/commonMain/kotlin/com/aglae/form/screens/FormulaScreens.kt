@@ -1,5 +1,12 @@
 package com.aglae.form.screens
 
+import aglae_form.composeapp.generated.resources.Res
+import aglae_form.composeapp.generated.resources.emoji_lemon
+import aglae_form.composeapp.generated.resources.emoji_blossom
+import aglae_form.composeapp.generated.resources.emoji_wood
+import org.jetbrains.compose.resources.painterResource
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -271,14 +278,21 @@ fun FormulaDetailModal(
                         }
 
                         listOf(
-                            "🍋 ${strings.topNotesName}" to detail.topNotes,
-                            "🌸 ${strings.heartNotesName}" to detail.heartNotes,
-                            "🪵 ${strings.baseNotesName}" to detail.baseNotes,
-                            "✨ ${strings.boosterNotesName}" to detail.boosterNotes
-                        ).forEach { (title, notes) ->
+                            Triple(painterResource(Res.drawable.emoji_lemon), Color.Unspecified, strings.topNotesName) to detail.topNotes,
+                            Triple(painterResource(Res.drawable.emoji_blossom), Color.Unspecified, strings.heartNotesName) to detail.heartNotes,
+                            Triple(painterResource(Res.drawable.emoji_wood), Color.Unspecified, strings.baseNotesName) to detail.baseNotes,
+                            Triple(rememberVectorPainter(Icons.Filled.AutoAwesome), Color(0xFFE5851A), strings.boosterNotesName) to detail.boosterNotes
+                        ).forEach { (header, notes) ->
+                            val (icon, tint, title) = header
                             if (notes.isNotEmpty()) {
                                 Column {
-                                    Text(text = title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = OnSurface)
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Icon(painter = icon, contentDescription = null, tint = tint, modifier = Modifier.size(18.dp))
+                                        Text(text = title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = OnSurface)
+                                    }
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
                                         text = notes.joinToString(" · ") { note ->

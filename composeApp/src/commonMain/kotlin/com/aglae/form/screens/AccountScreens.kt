@@ -1,5 +1,6 @@
 package com.aglae.form.screens
 
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -156,7 +157,7 @@ fun OnboardingHelpDialog(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text("✨", fontSize = 20.sp)
+                        Icon(Icons.Filled.AutoAwesome, null, tint = Color(0xFFE5851A), modifier = Modifier.size(22.dp))
                         Text(
                             text = strings.onboardingPerfumerNotice,
                             fontFamily = bodyFont,
@@ -341,7 +342,7 @@ fun ContactSearchScreen(
                 onValueChange = onEmailChange,
                 label = { Text(strings.emailLabel, fontFamily = bodyFont) },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth().height(64.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp),
                 shape = RoundedCornerShape(9999.dp),
                 keyboardOptions = localizedKeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
                 textStyle = MaterialTheme.typography.body1.copy(fontFamily = bodyFont, fontSize = 17.sp, color = QuestionOnSurface),
@@ -362,7 +363,7 @@ fun ContactSearchScreen(
                 onValueChange = onPhoneChange,
                 label = { Text(strings.phoneLabel, fontFamily = bodyFont) },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth().height(64.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp),
                 shape = RoundedCornerShape(9999.dp),
                 keyboardOptions = localizedKeyboardOptions(keyboardType = KeyboardType.Phone, imeAction = ImeAction.Done),
                 textStyle = MaterialTheme.typography.body1.copy(fontFamily = bodyFont, fontSize = 17.sp, color = QuestionOnSurface),

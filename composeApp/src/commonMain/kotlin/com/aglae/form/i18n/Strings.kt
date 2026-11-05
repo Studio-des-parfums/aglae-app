@@ -239,6 +239,10 @@ interface Strings {
 
     // ── Validation hors normes ──
     val horsNormesBadge: String get() = "Hors normes"
+    val stepApprovalAsk: String get() = "Demander la validation du superviseur"
+    val stepApprovalPending: String get() = "Demande envoyée, en attente du superviseur…"
+    val stepApprovalCancel: String get() = "Annuler la demande"
+    val stepApprovalRefused: String get() = "Le superviseur a refusé : modifiez votre sélection."
     val horsNormesDialogTitle: String get() = "Sélection personnalisée hors normes"
     val horsNormesDialogSubtitle: String get() = "Votre sélection ne respecte pas les proportions recommandées :"
     val horsNormesDialogAskSupervisor: String get() = "Faire valider par le parfumeur"

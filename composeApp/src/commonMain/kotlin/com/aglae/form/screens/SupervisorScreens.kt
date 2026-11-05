@@ -1,5 +1,10 @@
 package com.aglae.form.screens
 
+import androidx.compose.material.icons.filled.HourglassEmpty
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -45,7 +50,10 @@ import com.aglae.form.Primary
 import com.aglae.form.PillShape
 import com.aglae.form.SecondaryContainer
 import com.aglae.form.Surface
+import com.aglae.form.i18n.Language
 import com.aglae.form.i18n.LocalLanguage
+import com.aglae.form.i18n.StringsFr
+import com.aglae.form.i18n.stringsFor
 import com.aglae.form.network.AnswerEntry
 import com.aglae.form.network.ApiClient
 import com.aglae.form.network.AtelierItem
@@ -56,7 +64,11 @@ import com.aglae.form.network.NotesCatalog
 import com.aglae.form.network.OptionItem
 import com.aglae.form.network.SessionItem
 import com.aglae.form.network.SupervisorIdentifierResponse
+import com.aglae.form.network.frenchNoteNames
 import com.aglae.form.network.toNotesCatalog
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -65,7 +77,14 @@ private val noteFields = setOf("topNotes", "heartNotes", "baseNotes", "boosterNo
 private val noteQuantityFields = setOf("topNoteQuantities", "heartNoteQuantities", "baseNoteQuantities", "boosterNoteQuantities")
 private val birthDateFields = setOf("birthDay", "birthMonth", "birthYear")
 // Clés gérées par des cartes/sections dédiées : exclues de la boucle générique d'affichage.
-private val handledSeparately = noteFields + noteQuantityFields + birthDateFields + setOf("atelierId", "options")
+private val stepApprovalFields = listOf(
+    Triple("baseNotesApproval", "baseNotes", "Notes de fond"),
+    Triple("heartNotesApproval", "heartNotes", "Notes de cœur"),
+    Triple("topNotesApproval", "topNotes", "Notes de tête"),
+    Triple("boosterNotesApproval", "boosterNotes", "Notes booster")
+)
+private val handledSeparately = noteFields + noteQuantityFields + birthDateFields + setOf("atelierId", "options") +
+    stepApprovalFields.map { it.first }
 
 private fun parseNoteQuantities(raw: String): Map<String, String> =
     raw.split(",").mapNotNull { entry ->
@@ -90,6 +109,26 @@ fun SupervisorHomeScreen(
     var error by remember { mutableStateOf<String?>(null) }
     // null = toutes les salles confondues.
     var selectedRoom by remember { mutableStateOf<String?>(null) }
+    var sessionsAwaitingApproval by remember { mutableStateOf<Set<Int>>(emptySet()) }
+
+    // La liste ne contient pas les réponses : on lit le détail de chaque session pour repérer les
+    // demandes de validation d'étape. En cas d'échec, on garde le dernier état connu.
+    suspend fun fetchPendingApprovals(items: List<SessionItem>) {
+        sessionsAwaitingApproval = coroutineScope {
+            items.map { session ->
+                async {
+                    val pending = try {
+                        ApiClient.fetchSessionDetail(session.id).answers.any { answer ->
+                            answer.answerValue == "pending" && stepApprovalFields.any { it.first == answer.questionKey }
+                        }
+                    } catch (_: Exception) {
+                        session.id in sessionsAwaitingApproval
+                    }
+                    session.id to pending
+                }
+            }.awaitAll().filter { it.second }.map { it.first }.toSet()
+        }
+    }
 
     suspend fun fetchSessions(silent: Boolean = false) {
         if (!silent) {
@@ -98,6 +137,7 @@ fun SupervisorHomeScreen(
         }
         try {
             sessions = ApiClient.fetchActiveSessions(selectedRoom)
+            fetchPendingApprovals(sessions)
             if (!silent) error = null
         } catch (e: Exception) {
             if (!silent) {
@@ -228,6 +268,7 @@ fun SupervisorHomeScreen(
                         SessionCard(
                             session = session,
                             currentSupervisorId = supervisorUser?.id,
+                            awaitingStepApproval = session.id in sessionsAwaitingApproval,
                             onAssign = if (supervisorUser != null) {{
                                 scope.launch {
                                     try {
@@ -251,6 +292,7 @@ fun SupervisorHomeScreen(
 fun SessionCard(
     session: SessionItem,
     currentSupervisorId: Int? = null,
+    awaitingStepApproval: Boolean = false,
     onAssign: (() -> Unit)? = null,
     onCancel: (() -> Unit)? = null,
     onClick: () -> Unit
@@ -343,13 +385,16 @@ fun SessionCard(
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    if (awaitingStepApproval) {
+                        StatusPill(text = "Validation demandée", icon = Icons.Filled.Warning, color = Color(0xFFE65100))
+                    }
                     if (formulaPending) {
-                        StatusPill(text = "⏳ À valider", color = Color(0xFFC9A227))
+                        StatusPill(text = "À valider", icon = Icons.Filled.HourglassEmpty, color = Color(0xFFC9A227))
                     } else if (isFormulaValidated) {
-                        StatusPill(text = "✓ Validé", color = Color(0xFF2E7D32))
+                        StatusPill(text = "Validé", icon = Icons.Filled.Check, color = Color(0xFF2E7D32))
                     }
                     if (isOutOfRange) {
-                        StatusPill(text = "⚠ Hors normes", color = Color(0xFFBA1A1A))
+                        StatusPill(text = "Hors normes", icon = Icons.Filled.Warning, color = Color(0xFFBA1A1A))
                     }
                     when {
                         isMine -> StatusPill(text = "Moi", color = Primary)
@@ -413,22 +458,30 @@ fun SessionCard(
 
 // ── Petit badge de statut (pill) réutilisé sur les cartes de session ──
 @Composable
-fun StatusPill(text: String, color: Color) {
+fun StatusPill(text: String, color: Color, icon: ImageVector? = null) {
     if (text.isBlank()) return
     Surface(
         shape = PillShape,
         color = color.copy(alpha = 0.12f),
         modifier = Modifier.clip(PillShape)
     ) {
-        Text(
-            text = text,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            color = color,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-        )
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            if (icon != null) {
+                Icon(icon, null, tint = color, modifier = Modifier.size(13.dp))
+            }
+            Text(
+                text = text,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = color,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }
 
@@ -516,6 +569,17 @@ fun SupervisorSessionDetailScreen(
     }
     // Toujours en français côté superviseur, quelle que soit la langue de l'app.
     val notesCatalog = ingredients?.toNotesCatalog("fr")
+    val frenchNames = remember(ingredients) { ingredients?.frenchNoteNames().orEmpty() }
+    val frenchNoteName: (String) -> String = { frenchNames[it] ?: it }
+    // Comme les notes, les options sont enregistrées dans la langue du client.
+    var optionItems by remember { mutableStateOf<List<OptionItem>>(emptyList()) }
+    LaunchedEffect(Unit) {
+        try { optionItems = ApiClient.fetchOptions() } catch (_: Exception) {}
+    }
+    val frenchOptionName: (String) -> String = { stored ->
+        optionItems.find { option -> Language.entries.any { option.displayName(it.code) == stored } }
+            ?.displayName("fr") ?: stored
+    }
 
     fun updateAnswer(key: String, value: String) {
         scope.launch {
@@ -648,7 +712,7 @@ fun SupervisorSessionDetailScreen(
             ?.toSet()
             .orEmpty()
         SupervisorOptionsPickerScreen(
-            selected = currentSelected,
+            selected = currentSelected.map(frenchOptionName).toSet(),
             onSave = { selectedOptions ->
                 updateAnswer("options", selectedOptions.joinToString(","))
                 optionsPickerOpen = false
@@ -672,6 +736,7 @@ fun SupervisorSessionDetailScreen(
 
     if (notesQuantitiesScreenOpen) {
         SupervisorNotesQuantitiesScreen(
+            frenchNoteName = frenchNoteName,
             answers = answers,
             notesCatalog = notesCatalog,
             catalogError = ingredientsError,
@@ -787,11 +852,17 @@ fun SupervisorSessionDetailScreen(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(Modifier.padding(16.dp)) {
-                                Text(
-                                    "⚠ Allergie signalée",
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFFBA1A1A)
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(Icons.Filled.Warning, null, tint = Color(0xFFBA1A1A), modifier = Modifier.size(18.dp))
+                                    Text(
+                                        "Allergie signalée",
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFBA1A1A)
+                                    )
+                                }
                                 val details = answers.find { it.questionKey == "allergyDetails" }?.answerValue
                                 Text(
                                     text = if (details.isNullOrBlank()) "Aucun détail précisé par le client." else details,
@@ -807,6 +878,41 @@ fun SupervisorSessionDetailScreen(
                     val isFormulaPending = answers.find { it.questionKey == "formulaStatus" }?.answerValue == "pending_validation"
                     val isFormulaValidated = answers.find { it.questionKey == "formulaStatus" }?.answerValue == "validated"
                     val isHorsNormesFlagged = answers.find { it.questionKey == "notesOutOfRange" }?.answerValue == "true"
+
+                    // Demandes du client bloqué à une étape du choix des notes : hors bornes.
+                    stepApprovalFields.forEach { (approvalKey, notesKey, label) ->
+                        if (answers.find { it.questionKey == approvalKey }?.answerValue == "pending") {
+                            val notes = answers.find { it.questionKey == notesKey }?.answerValue
+                                ?.split(",")?.map { frenchNoteName(it.trim()) }?.filter { it.isNotBlank() }.orEmpty()
+                            Card(
+                                shape = CardShape,
+                                backgroundColor = Color(0xFFFFF8E1),
+                                border = BorderStroke(1.5.dp, Color(0xFFFFA000)),
+                                elevation = 2.dp,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text(
+                                        text = "Demande de validation : $label (${notes.size} note(s))",
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF5D4037)
+                                    )
+                                    Text(text = notes.joinToString(", "), fontSize = 14.sp, color = OnSurface)
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        OutlinedButton(onClick = { updateAnswer(approvalKey, "refused") }) {
+                                            Text("Refuser", color = Color(0xFFBA1A1A), fontWeight = FontWeight.Bold)
+                                        }
+                                        Button(
+                                            onClick = { updateAnswer(approvalKey, "approved") },
+                                            colors = ButtonDefaults.buttonColors(backgroundColor = Color(0xFF2E7D32), contentColor = Color.White)
+                                        ) {
+                                            Text("Laisser passer", fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
 
                     if (isFormulaPending) {
                         Card(
@@ -826,7 +932,7 @@ fun SupervisorSessionDetailScreen(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
-                                        Text("⏳", fontSize = 20.sp)
+                                        Icon(Icons.Filled.HourglassEmpty, null, tint = Color(0xFF5D4037), modifier = Modifier.size(22.dp))
                                         Text(
                                             text = "Formule en attente de validation",
                                             fontWeight = FontWeight.Bold,
@@ -850,23 +956,34 @@ fun SupervisorSessionDetailScreen(
                                         border = BorderStroke(1.dp, Color(0xFFBA1A1A)),
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
+                                        Row(
+                                            modifier = Modifier.padding(10.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                        Icon(Icons.Filled.Warning, null, tint = Color(0xFFBA1A1A), modifier = Modifier.size(18.dp))
                                         Text(
-                                            text = "⚠ Composition hors normes : la sélection dépasse ou n'atteint pas les bornes standards. En tant que superviseur, vous pouvez autoriser et valider cette formule.",
+                                            text = "Composition hors normes : la sélection dépasse ou n'atteint pas les bornes standards. En tant que superviseur, vous pouvez autoriser et valider cette formule.",
                                             color = Color(0xFFBA1A1A),
                                             fontSize = 13.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            modifier = Modifier.padding(10.dp)
+                                            fontWeight = FontWeight.SemiBold
                                         )
+                                        }
                                     }
                                 }
 
                                 if (formulaValidationSuccess) {
-                                    Text(
-                                        text = "✓ Formule validée et transmise à la tablette client !",
-                                        color = Color(0xFF2E7D32),
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 14.sp
-                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Icon(Icons.Filled.Check, null, tint = Color(0xFF2E7D32), modifier = Modifier.size(18.dp))
+                                        Text(
+                                            text = "Formule validée et transmise à la tablette client !",
+                                            color = Color(0xFF2E7D32),
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 14.sp
+                                        )
+                                    }
                                 }
 
                                 Row(
@@ -892,7 +1009,9 @@ fun SupervisorSessionDetailScreen(
                                         if (isValidatingFormula) {
                                             CircularProgressIndicator(color = OnPrimary, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
                                         } else {
-                                            Text("✓ Valider et envoyer", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                            Icon(Icons.Filled.Check, null, modifier = Modifier.size(16.dp))
+                                            Spacer(Modifier.width(6.dp))
+                                            Text("Valider et envoyer", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                         }
                                     }
                                 }
@@ -914,7 +1033,7 @@ fun SupervisorSessionDetailScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    Text("✓", color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                    Icon(Icons.Filled.Check, null, tint = Color(0xFF2E7D32), modifier = Modifier.size(18.dp))
                                     Text(
                                         text = "Formule validée et transmise au client",
                                         color = Color(0xFF2E7D32),
@@ -980,6 +1099,7 @@ fun SupervisorSessionDetailScreen(
                         // visuel que cote client (chips a cocher/decocher), plutot qu'un champ
                         // texte libre.
                         OptionsAnswerCard(
+                            frenchOptionName = frenchOptionName,
                             answerValue = answers.find { it.questionKey == "options" }?.answerValue,
                             onEdit = { optionsPickerOpen = true }
                         )
@@ -987,6 +1107,7 @@ fun SupervisorSessionDetailScreen(
                         // Formule (notes + quantités) : carte résumé cliquable, l'édition complète
                         // se fait sur un écran plein écran dédié (même pattern que Options/Atelier).
                         NotesQuantitiesAnswerCard(
+                            frenchNoteName = frenchNoteName,
                             answers = answers,
                             onEdit = { notesQuantitiesScreenOpen = true }
                         )
@@ -1246,6 +1367,7 @@ fun BirthDateAnswerCard(
 
 @Composable
 fun OptionsAnswerCard(
+    frenchOptionName: (String) -> String,
     answerValue: String?,
     onEdit: () -> Unit
 ) {
@@ -1290,7 +1412,7 @@ fun OptionsAnswerCard(
                             color = SecondaryContainer,
                         ) {
                             Text(
-                                text = option,
+                                text = frenchOptionName(option),
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                                 fontSize = 13.sp,
                                 color = OnSecondaryContainer,
@@ -1421,6 +1543,7 @@ private data class SupervisorNoteFamily(
 
 @Composable
 fun NotesQuantitiesAnswerCard(
+    frenchNoteName: (String) -> String,
     answers: List<AnswerEntry>,
     onEdit: () -> Unit
 ) {
@@ -1504,7 +1627,7 @@ fun NotesQuantitiesAnswerCard(
                                         modifier = Modifier.fillMaxWidth().padding(start = 8.dp),
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
-                                        Text(name, fontSize = 13.sp, color = OnSurfaceVariant)
+                                        Text(frenchNoteName(name), fontSize = 13.sp, color = OnSurfaceVariant)
                                         Text("${qty} mL", fontSize = 13.sp, color = OnSurfaceVariant)
                                     }
                                 }
@@ -1533,6 +1656,7 @@ fun NotesQuantitiesAnswerCard(
 
 @Composable
 fun SupervisorNotesQuantitiesScreen(
+    frenchNoteName: (String) -> String,
     answers: List<AnswerEntry>,
     notesCatalog: NotesCatalog?,
     catalogError: String?,
@@ -1684,7 +1808,8 @@ fun SupervisorNotesQuantitiesScreen(
 
             families.forEach { family ->
             val names = family.names
-            val availableToAdd = family.availableNotes.filter { it !in names }
+            val alreadyChosen = names.map(frenchNoteName)
+            val availableToAdd = family.availableNotes.filter { it !in alreadyChosen }
             val canAddMore = availableToAdd.isNotEmpty()
             if (names.isNotEmpty() || canAddMore) {
                 val sectionColor = colorForSection(family.label)
@@ -1724,7 +1849,7 @@ fun SupervisorNotesQuantitiesScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = name,
+                                text = frenchNoteName(name),
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = sectionColor,
@@ -1736,7 +1861,7 @@ fun SupervisorNotesQuantitiesScreen(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 QuantityStepperButton(
-                                    icon = "−",
+                                    icon = Icons.Filled.Remove,
                                     enabled = currentMl > 0,
                                     color = sectionColor,
                                     onClick = { changeQuantity(family, name, (currentMl - 1).coerceAtLeast(0).toString()) }
@@ -1757,13 +1882,13 @@ fun SupervisorNotesQuantitiesScreen(
                                     )
                                 }
                                 QuantityStepperButton(
-                                    icon = "+",
+                                    icon = Icons.Filled.Add,
                                     enabled = true,
                                     color = sectionColor,
                                     onClick = { changeQuantity(family, name, (currentMl + 1).toString()) }
                                 )
                                 QuantityStepperButton(
-                                    icon = "✕",
+                                    icon = Icons.Filled.Close,
                                     enabled = true,
                                     color = Color(0xFFBA1A1A),
                                     onClick = { removeNote(family, name) }
@@ -1789,7 +1914,8 @@ fun SupervisorNotesQuantitiesScreen(
     val pickerSection = addNotePickerSection
     if (pickerSection != null) {
         val family = families.first { it.sectionKey == pickerSection }
-        val availableToAdd = family.availableNotes.filter { it !in family.names }
+        val alreadyChosen = family.names.map(frenchNoteName)
+        val availableToAdd = family.availableNotes.filter { it !in alreadyChosen }
         SupervisorAddNoteDialog(
             sectionColor = colorForSection(family.label),
             availableNotes = availableToAdd,
@@ -1890,14 +2016,14 @@ private fun SupervisorAddNoteDialog(
                         ) {
                             Text("Quantité", fontSize = 15.sp, color = OnSurface, modifier = Modifier.weight(1f))
                             QuantityStepperButton(
-                                icon = "−",
+                                icon = Icons.Filled.Remove,
                                 enabled = quantityMl > 0,
                                 color = sectionColor,
                                 onClick = { quantityMl = (quantityMl - 1).coerceAtLeast(0) }
                             )
                             Text("$quantityMl mL", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = sectionColor)
                             QuantityStepperButton(
-                                icon = "+",
+                                icon = Icons.Filled.Add,
                                 enabled = true,
                                 color = sectionColor,
                                 onClick = { quantityMl += 1 }
@@ -2052,7 +2178,7 @@ fun EditableAnswerCard(
                 }
             }
             Text(
-                text = answerValue.ifBlank { "-" },
+                text = formatAnswerValue(questionKey, answerValue).ifBlank { "-" },
                 fontSize = 15.sp,
                 color = OnSurface,
                 fontWeight = FontWeight.Bold
@@ -2092,31 +2218,54 @@ fun EditableAnswerCard(
 
 private fun formatQuestionKey(key: String): String = when (key) {
     "gender" -> "Genre"
-    "firstName" -> "Prenom"
+    "firstName" -> "Prénom"
     "lastName" -> "Nom"
     "birthDate" -> "Date de naissance"
     "profession" -> "Profession"
     "country" -> "Pays"
     "city" -> "Ville"
-    "phone" -> "Telephone"
+    "phone" -> "Téléphone"
     "email" -> "Email"
     "hasAllergy" -> "Allergie"
     "allergyDetails" -> "Allergies connues"
-    "liabilityAccepted" -> "Responsabilite"
+    "liabilityAccepted" -> "Responsabilité"
     "rgpdConsent" -> "Consentement RGPD"
     "pregnancyAnswer" -> "Enceinte / allaitante"
-    "quantity" -> "Quantite"
+    "quantity" -> "Quantité"
     "perfumeName" -> "Nom du parfum"
-    "topNotes" -> "Notes de tete"
-    "heartNotes" -> "Notes de coeur"
+    "topNotes" -> "Notes de tête"
+    "heartNotes" -> "Notes de cœur"
     "baseNotes" -> "Notes de fond"
-    "topNoteQuantities" -> "Quantites - Notes de tete"
-    "heartNoteQuantities" -> "Quantites - Notes de coeur"
-    "baseNoteQuantities" -> "Quantites - Notes de fond"
+    "topNoteQuantities" -> "Quantités - Notes de tête"
+    "heartNoteQuantities" -> "Quantités - Notes de cœur"
+    "baseNoteQuantities" -> "Quantités - Notes de fond"
     "options" -> "Options"
-    "bookingSource" -> "Reservation"
-    "perfumeIntensity" -> "Intensite"
+    "bookingSource" -> "Réservation"
+    "perfumeIntensity" -> "Intensité"
     "boosterNotes" -> "Notes booster"
-    "boosterNoteQuantities" -> "Quantites - Notes booster"
+    "boosterNoteQuantities" -> "Quantités - Notes booster"
+    "formulaStatus" -> "Statut de la formule"
+    "notesOutOfRange" -> "Composition hors normes"
+    "notesHorsNormesApproved" -> "Hors normes autorisé"
     else -> key
+}
+
+// Valeurs techniques, ou enregistrées dans la langue du client, affichées en français.
+private fun formatAnswerValue(key: String, value: String): String = when {
+    value == "true" -> "Oui"
+    value == "false" -> "Non"
+    key == "formulaStatus" -> when (value) {
+        "pending_validation" -> "En attente de validation"
+        "validated" -> "Validée"
+        else -> value
+    }
+    key == "perfumeIntensity" -> Language.entries.map(::stringsFor).firstNotNullOfOrNull { strings ->
+        when (value) {
+            strings.perfumeIntensityLight -> StringsFr.perfumeIntensityLight
+            strings.perfumeIntensityModerate -> StringsFr.perfumeIntensityModerate
+            strings.perfumeIntensityStrong -> StringsFr.perfumeIntensityStrong
+            else -> null
+        }
+    } ?: value
+    else -> value
 }

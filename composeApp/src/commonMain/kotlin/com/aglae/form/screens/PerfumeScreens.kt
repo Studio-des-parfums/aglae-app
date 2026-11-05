@@ -92,7 +92,7 @@ fun PerfumeNameScreen(
                 onValueChange = onPerfumeNameChange,
                 label = { Text(strings.perfumeNameLabel, fontFamily = bodyFont) },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth().height(64.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp),
                 shape = RoundedCornerShape(9999.dp),
                 keyboardOptions = localizedKeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Done),
                 textStyle = MaterialTheme.typography.body1.copy(fontFamily = bodyFont, fontSize = 17.sp, color = QuestionOnSurface),
