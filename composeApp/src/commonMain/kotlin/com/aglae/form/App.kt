@@ -190,7 +190,7 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                     loadError = vm.ateliersError,
                     languageCode = language.code,
                     onRetry = { vm.loadAteliers(strings) },
-                    onSelect = { atelier -> vm.chooseAtelier(atelier, language.code) },
+                    onSelect = { atelier, volume -> vm.chooseAtelier(atelier, language.code, volume) },
                     onBack = {
                         vm.currentQuestion = 1
                         vm.screen = "questionnaire"

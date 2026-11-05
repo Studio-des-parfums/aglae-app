@@ -34,6 +34,7 @@ private fun boosterPluralNominative(count: Int): String {
 }
 
 object StringsRu : Strings {
+    override val atelierVolumeChoice = "Выберите объём"
     override val phonePrefixLabel = "Код"
     override val requiredFieldsNotice = "* Обязательные поля"
     override val stepApprovalCancel = "Отменить запрос"

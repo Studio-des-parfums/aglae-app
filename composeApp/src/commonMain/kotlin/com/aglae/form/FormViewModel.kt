@@ -15,6 +15,7 @@ import com.aglae.form.network.FormulaHistoryItem
 import com.aglae.form.network.IngredientItem
 import com.aglae.form.network.IngredientRule
 import com.aglae.form.network.NoteCountBounds
+import com.aglae.form.network.availableVolumes
 import com.aglae.form.network.NoteItem
 import com.aglae.form.network.NoteRuleWarning
 import com.aglae.form.network.SubmissionResult
@@ -616,18 +617,23 @@ class FormViewModel(private val scope: CoroutineScope) {
     // Sélectionne l'atelier, ce qui détermine le coffret (notes proposées) et le volume de
     // flacon (plus de choix de taille dans le questionnaire), force un rechargement du catalogue
     // de notes filtré dessus, et avance vers la suite du parcours (pyramidExplanation).
-    fun chooseAtelier(atelier: AtelierItem, languageCode: String) {
+    fun chooseAtelier(atelier: AtelierItem, languageCode: String, volume: String? = null) {
         val isInitialFormulaResume = reusedFromFormulaId != null && preselectedAtelierId == atelier.id
         selectedAtelierId = atelier.id
         preselectedAtelierId = null
         selectedBoxSetId = atelier.coffretId
         selectedBoxSetName = atelier.displayName("fr")
-        quantity = atelier.volumeMl?.let { "${it}ml" } ?: ""
+        val volumes = atelier.availableVolumes()
+        // Une formule reprise garde son format s'il existe encore dans cet atelier.
+        quantity = volume
+            ?: quantity.takeIf { isInitialFormulaResume && it in volumes }
+            ?: volumes.firstOrNull().orEmpty()
         catalogReloadKey++
         sendAnswer("atelierId", atelier.id.toString())
         if (!isInitialFormulaResume) {
             resetNotesAndDownstream()
         }
+        sendAnswer("quantity", quantity)
         screen = "pyramidExplanation"
     }
 
@@ -1147,7 +1153,12 @@ class FormViewModel(private val scope: CoroutineScope) {
                     selectedAtelierId = atelier.id
                     selectedBoxSetId = atelier.coffretId
                     selectedBoxSetName = atelier.displayName("fr")
-                    quantity = atelier.volumeMl?.let { "${it}ml" } ?: quantity
+                    val volumes = atelier.availableVolumes()
+                    val answeredVolume = value("quantity")
+                    quantity = answeredVolume?.takeIf { it in volumes }
+                        ?: quantity.takeIf { it in volumes }
+                        ?: volumes.firstOrNull()
+                        ?: quantity
                 }
             } catch (_: Exception) {}
         }

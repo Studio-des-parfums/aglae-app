@@ -1,6 +1,7 @@
 package com.aglae.form.i18n
 
 object StringsEn : Strings {
+    override val atelierVolumeChoice = "Choose your size"
     override val phonePrefixLabel = "Code"
     override val requiredFieldsNotice = "* Required fields"
     override val stepApprovalCancel = "Cancel the request"

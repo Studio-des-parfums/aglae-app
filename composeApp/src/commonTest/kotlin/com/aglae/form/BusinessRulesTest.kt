@@ -1,10 +1,12 @@
 package com.aglae.form
 
 import com.aglae.form.i18n.Language
+import com.aglae.form.network.AtelierItem
 import com.aglae.form.network.IngredientItem
 import com.aglae.form.network.IngredientTranslations
 import com.aglae.form.network.OptionItem
 import com.aglae.form.network.OptionTranslations
+import com.aglae.form.network.availableVolumes
 import com.aglae.form.network.displayName
 import com.aglae.form.network.frenchNoteNames
 import com.aglae.form.network.isCountWithinBounds
@@ -39,6 +41,15 @@ class BusinessRulesTest {
     fun optionNameFallsBackToFrench() {
         val option = OptionItem(id = 1, translations = OptionTranslations(fr = "Ruban"))
         assertEquals("Ruban", option.displayName("ru"))
+    }
+
+    @Test
+    fun atelierListsItsFormatsAndFallsBackToSingleVolume() {
+        val base = AtelierItem(id = 1, coffretId = 1)
+        assertEquals(listOf("10ml", "30ml"), base.copy(volumeOptions = listOf(10.0, 30.0)).availableVolumes())
+        assertEquals(listOf("7.5ml"), base.copy(volumeOptions = listOf(7.5)).availableVolumes())
+        assertEquals(listOf("50ml"), base.copy(volumeMl = 50.0).availableVolumes())
+        assertEquals(emptyList(), base.availableVolumes())
     }
 
     @Test

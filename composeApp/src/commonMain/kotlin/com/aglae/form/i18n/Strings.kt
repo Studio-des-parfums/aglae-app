@@ -240,6 +240,7 @@ interface Strings {
     // ── Validation hors normes ──
     val phonePrefixLabel: String get() = "Indicatif"
     val requiredFieldsNotice: String get() = "* Champs obligatoires"
+    val atelierVolumeChoice: String get() = "Choisissez votre format"
     val horsNormesBadge: String get() = "Hors normes"
     val stepApprovalAsk: String get() = "Demander la validation du superviseur"
     val stepApprovalPending: String get() = "Demande envoyée, en attente du superviseur…"
