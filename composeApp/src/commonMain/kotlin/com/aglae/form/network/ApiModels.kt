@@ -32,7 +32,8 @@ data class AtelierItem(
     @SerialName("coffret_id") val coffretId: Int,
     val description: String? = null,
     @SerialName("image_url") val imageUrl: String? = null,
-    @SerialName("volume_ml") val volumeMl: Int? = null,
+    @SerialName("volume_ml") val volumeMl: Double? = null,
+    @SerialName("volume_options") val volumeOptions: List<Double> = emptyList(),
     @SerialName("is_active") val isActive: Boolean = true,
     val translations: AtelierTranslations = AtelierTranslations()
 )
@@ -49,6 +50,13 @@ private fun AtelierTranslations.forLanguageCode(languageCode: String): String {
     }
     return byCode ?: fr ?: en ?: ""
 }
+
+private fun formatVolume(ml: Double): String =
+    if (ml % 1.0 == 0.0) "${ml.toInt()}ml" else "${ml}ml"
+
+// Formats proposés ("10ml", "30ml"…). Un atelier non migré garde son unique volume_ml.
+fun AtelierItem.availableVolumes(): List<String> =
+    volumeOptions.ifEmpty { listOfNotNull(volumeMl) }.map(::formatVolume)
 
 fun AtelierItem.displayName(languageCode: String): String = translations.forLanguageCode(languageCode)
 

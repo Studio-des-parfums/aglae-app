@@ -64,6 +64,7 @@ import com.aglae.form.network.NotesCatalog
 import com.aglae.form.network.OptionItem
 import com.aglae.form.network.SessionItem
 import com.aglae.form.network.SupervisorIdentifierResponse
+import com.aglae.form.network.availableVolumes
 import com.aglae.form.network.frenchNoteNames
 import com.aglae.form.network.toNotesCatalog
 import kotlinx.coroutines.async
@@ -727,6 +728,7 @@ fun SupervisorSessionDetailScreen(
             selectedAtelierId = currentAtelierId,
             onSave = { atelier ->
                 updateAnswer("atelierId", atelier.id.toString())
+                updateAnswer("quantity", atelier.availableVolumes().firstOrNull().orEmpty())
                 atelierPickerOpen = false
             },
             onBack = { atelierPickerOpen = false }

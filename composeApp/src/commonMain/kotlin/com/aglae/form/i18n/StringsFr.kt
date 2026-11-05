@@ -107,7 +107,7 @@ object StringsFr : Strings {
     override val monthError = "Le mois doit être entre 1 et 12"
     override val yearError = "L'année doit comporter 4 chiffres (1900-2026)"
     override val questionProfessionTitle = "Quelle est votre profession ?"
-    override val professionLabel = "Métier"
+    override val professionLabel = "Profession"
     override val bookingSourceTitle = "D'où avez-vous réservé ?"
     override val bookingSourcePhone = "Téléphone"
     override val bookingSourceWeecando = "Wecandoo"

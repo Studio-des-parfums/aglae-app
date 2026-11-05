@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -31,6 +32,7 @@ import com.aglae.form.QuestionOutlineVariant
 import com.aglae.form.QuestionPrimary
 import com.aglae.form.i18n.LocalStrings
 import com.aglae.form.network.AtelierItem
+import com.aglae.form.network.availableVolumes
 import com.aglae.form.network.displayName
 
 // ── Écran : choix de l'atelier, affiché juste après le questionnaire d'informations
@@ -46,13 +48,15 @@ fun AtelierScreen(
     loadError: String?,
     languageCode: String,
     onRetry: () -> Unit,
-    onSelect: (AtelierItem) -> Unit,
+    onSelect: (AtelierItem, String?) -> Unit,
     onBack: () -> Unit,
     onGoHome: () -> Unit
 ) {
     val strings = LocalStrings.current
     val bodyFont = questionBodyFont()
     var selectedAtelier by remember(ateliers) { mutableStateOf<AtelierItem?>(null) }
+    var selectedVolume by remember(selectedAtelier) { mutableStateOf<String?>(null) }
+    val volumes = selectedAtelier?.availableVolumes().orEmpty()
 
     QuestionScreenScaffold(
         onBack = onBack,
@@ -131,10 +135,48 @@ fun AtelierScreen(
                         }
                     }
 
+                    // Atelier proposé en plusieurs formats : le client choisit le sien.
+                    if (volumes.size > 1) {
+                        Text(
+                            text = strings.atelierVolumeChoice,
+                            fontFamily = bodyFont,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = QuestionPrimary,
+                            textAlign = TextAlign.Center
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            volumes.forEach { volume ->
+                                val isChosen = volume == selectedVolume
+                                Surface(
+                                    shape = RoundedCornerShape(9999.dp),
+                                    color = if (isChosen) QuestionPrimary else Color.White.copy(alpha = 0.85f),
+                                    border = BorderStroke(1.dp, if (isChosen) QuestionPrimary else QuestionOutlineVariant),
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(9999.dp))
+                                        .clickable { selectedVolume = volume }
+                                ) {
+                                    Text(
+                                        text = volume.replace("ml", " ml"),
+                                        fontFamily = bodyFont,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isChosen) Color.White else QuestionPrimary,
+                                        modifier = Modifier.padding(horizontal = 22.dp, vertical = 10.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
                     QuestionActionButton(
                         text = strings.validate,
-                        onClick = { selectedAtelier?.let(onSelect) },
-                        enabled = selectedAtelier != null
+                        onClick = {
+                            selectedAtelier?.let { atelier ->
+                                onSelect(atelier, selectedVolume ?: volumes.singleOrNull())
+                            }
+                        },
+                        enabled = selectedAtelier != null && (volumes.size <= 1 || selectedVolume != null)
                     )
                 }
             }
@@ -215,7 +257,7 @@ private fun AtelierCard(atelier: AtelierItem, languageCode: String, isSelected: 
                     maxLines = 2
                 )
                 Text(
-                    text = atelier.volumeMl?.let { "${it}ml" } ?: "",
+                    text = atelier.availableVolumes().joinToString(" / "),
                     fontFamily = bodyFont,
                     fontSize = 12.sp,
                     color = if (isSelected) Color.White.copy(alpha = 0.8f) else QuestionOnSurfaceVariant,
