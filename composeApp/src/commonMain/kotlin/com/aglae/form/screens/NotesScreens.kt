@@ -1,5 +1,7 @@
 package com.aglae.form.screens
 
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.material.icons.filled.LocalFlorist
 import aglae_form.composeapp.generated.resources.emoji_blossom
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.HourglassEmpty
@@ -53,6 +55,8 @@ import com.aglae.form.QuestionOnSurface
 import com.aglae.form.QuestionOnSurfaceVariant
 import com.aglae.form.QuestionOutlineVariant
 import com.aglae.form.QuestionPrimary
+import com.aglae.form.QuestionPrimaryDark
+import com.aglae.form.QuestionPrimaryLight
 import com.aglae.form.QuestionSurface
 import com.aglae.form.i18n.LocalStrings
 import com.aglae.form.i18n.localizedKeyboardOptions
@@ -71,7 +75,12 @@ import aglae_form.composeapp.generated.resources.pyramide_olfactive_h
 import aglae_form.composeapp.generated.resources.pyramide_olfactive_v
 
 // ── Écran : explication pédagogique de la pyramide olfactive (rendu d'interface natif traduisible),
-// affiché juste avant la sélection des notes ──
+// affiché juste avant la sélection des notes. Pyramide et cartes côte à côte sur grand écran,
+// empilées sur petit écran. ──
+private val PyramidTopColor = Color(0xFFF3E3D3)
+private val PyramidHeartColor = Color(0xFFD9BCA5)
+private val PyramidBaseColor = Color(0xFF8F6548)
+
 @Composable
 fun PyramidExplanationScreen(
     onNext: () -> Unit,
@@ -79,368 +88,234 @@ fun PyramidExplanationScreen(
 ) {
     val strings = LocalStrings.current
     val bodyFont = questionBodyFont()
+    val fontScale = LocalDensity.current.fontScale
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFFAF7F2))
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .statusBarsPadding()
-                .padding(horizontal = 24.dp)
-                .padding(top = 16.dp, bottom = 100.dp)
-        ) {
-            // En-tête : Logo SDP
-            Image(
-                painter = painterResource(Res.drawable.logoSDP),
-                contentDescription = "Studio des Parfums",
-                modifier = Modifier.height(44.dp)
-            )
+        val isWide = maxWidth >= 840.dp
+        val isCompact = maxWidth < 560.dp
+        val sidePadding = if (isCompact) 20.dp else 40.dp
+        val contentWidth = (maxWidth - sidePadding * 2).coerceAtMost(1040.dp)
+        // Sur grand écran, la pyramide suit la hauteur disponible ; sur petit écran, sa largeur.
+        val pyramidHeight = if (isWide) {
+            // Hauteur restante une fois l'en-tête, le titre, la frise et le bouton placés.
+            (maxHeight - 510.dp * fontScale).coerceIn(260.dp * fontScale, 440.dp * fontScale)
+        } else {
+            (contentWidth.coerceAtMost(480.dp) * 0.7f).coerceAtLeast(240.dp * fontScale)
+        }
 
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Titre principal
-            Text(
-                text = strings.pyramidTitle,
-                fontFamily = questionHeadlineFont(),
-                fontSize = 26.sp,
-                fontWeight = FontWeight.Bold,
-                color = QuestionPrimary,
-                letterSpacing = 2.sp,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            // Filet décoratif "D'UN PARFUM"
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.widthIn(max = 340.dp)
-            ) {
-                Divider(modifier = Modifier.weight(1f), color = QuestionOutlineVariant, thickness = 1.dp)
-                Text(
-                    text = strings.pyramidSubtitle,
-                    fontFamily = questionHeadlineFont(),
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = QuestionPrimary,
-                    letterSpacing = 2.sp
-                )
-                Divider(modifier = Modifier.weight(1f), color = QuestionOutlineVariant, thickness = 1.dp)
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Sous-titre explicatif
-            Text(
-                text = strings.pyramidDescription,
-                fontFamily = bodyFont,
-                fontSize = 14.sp,
-                color = QuestionOnSurfaceVariant,
-                textAlign = TextAlign.Center,
-                lineHeight = 20.sp,
-                modifier = Modifier.widthIn(max = 580.dp)
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Conteneur centré avec largeur maximale contrôlée (pour éviter tout étirement sur écran large)
+        Column(modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(if (isCompact) 20.dp else 28.dp),
                 modifier = Modifier
-                    .widthIn(max = 480.dp)
+                    .weight(1f)
                     .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = sidePadding)
+                    .padding(top = 12.dp, bottom = 16.dp)
             ) {
-                // 1) La pyramide géométrique à 3 étages
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(250.dp)
-                ) {
-                    Canvas(modifier = Modifier.fillMaxSize()) {
-                        val w = size.width
-                        val h = size.height
-                        val gap = 4f
-
-                        // Étage Tête (Sommet)
-                        val topH = h / 3f - gap / 2f
-                        val w1 = w * (topH / h)
-                        val pathTop = Path().apply {
-                            moveTo(w / 2f, 0f)
-                            lineTo(w / 2f + w1 / 2f, topH)
-                            lineTo(w / 2f - w1 / 2f, topH)
-                            close()
-                        }
-                        drawPath(pathTop, color = Color(0xFFF7EEE5))
-
-                        // Étage Cœur (Milieu)
-                        val heartYTop = h / 3f + gap / 2f
-                        val heartYBottom = 2f * h / 3f - gap / 2f
-                        val w2Top = w * (heartYTop / h)
-                        val w2Bottom = w * (heartYBottom / h)
-                        val pathHeart = Path().apply {
-                            moveTo(w / 2f - w2Top / 2f, heartYTop)
-                            lineTo(w / 2f + w2Top / 2f, heartYTop)
-                            lineTo(w / 2f + w2Bottom / 2f, heartYBottom)
-                            lineTo(w / 2f - w2Bottom / 2f, heartYBottom)
-                            close()
-                        }
-                        drawPath(pathHeart, color = Color(0xFFDCC1AE))
-
-                        // Étage Fond (Base)
-                        val baseYTop = 2f * h / 3f + gap / 2f
-                        val w3Top = w * (baseYTop / h)
-                        val pathBase = Path().apply {
-                            moveTo(w / 2f - w3Top / 2f, baseYTop)
-                            lineTo(w / 2f + w3Top / 2f, baseYTop)
-                            lineTo(w, h)
-                            lineTo(0f, h)
-                            close()
-                        }
-                        drawPath(pathBase, color = Color(0xFFA67B5B))
-                    }
-
-                    // Textes et pastilles superposés sur chaque étage
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.SpaceBetween
+                // En-tête : retour à gauche, logo centré, sans chevauchement sur petit écran
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    TextButton(
+                        onClick = onBack,
+                        modifier = Modifier.align(Alignment.CenterStart),
+                        colors = ButtonDefaults.textButtonColors(contentColor = QuestionOnSurfaceVariant)
                     ) {
-                        // Étage Tête (Sommet)
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(2.dp),
-                                modifier = Modifier.padding(top = 10.dp)
-                            ) {
-                                Surface(
-                                    shape = CircleShape,
-                                    color = Color.White,
-                                    elevation = 2.dp,
-                                    modifier = Modifier.size(22.dp)
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Text("3", color = QuestionPrimary, fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                                    }
-                                }
-                                Text(
-                                    text = strings.topNotesShortName.uppercase(),
-                                    fontFamily = questionHeadlineFont(),
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp,
-                                    color = QuestionPrimary,
-                                    letterSpacing = 1.sp
-                                )
-                                Text(
-                                    text = strings.topNotesName,
-                                    fontFamily = bodyFont,
-                                    fontSize = 11.sp,
-                                    color = QuestionPrimary.copy(alpha = 0.85f)
-                                )
-                            }
-                        }
-
-                        // Étage Cœur (Milieu)
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(2.dp)
-                            ) {
-                                Surface(
-                                    shape = CircleShape,
-                                    color = Color.White,
-                                    elevation = 2.dp,
-                                    modifier = Modifier.size(22.dp)
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Text("2", color = QuestionPrimary, fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                                    }
-                                }
-                                Text(
-                                    text = strings.heartNotesShortName.uppercase(),
-                                    fontFamily = questionHeadlineFont(),
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp,
-                                    color = QuestionPrimary,
-                                    letterSpacing = 1.sp
-                                )
-                                Text(
-                                    text = strings.heartNotesName,
-                                    fontFamily = bodyFont,
-                                    fontSize = 11.sp,
-                                    color = QuestionPrimary.copy(alpha = 0.85f)
-                                )
-                            }
-                        }
-
-                        // Étage Fond (Base)
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(2.dp)
-                            ) {
-                                Surface(
-                                    shape = CircleShape,
-                                    color = Color.White,
-                                    elevation = 2.dp,
-                                    modifier = Modifier.size(22.dp)
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Text("1", color = QuestionPrimary, fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                                    }
-                                }
-                                Text(
-                                    text = strings.baseNotesShortName.uppercase(),
-                                    fontFamily = questionHeadlineFont(),
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp,
-                                    color = Color.White,
-                                    letterSpacing = 1.sp
-                                )
-                                Text(
-                                    text = strings.baseNotesName,
-                                    fontFamily = bodyFont,
-                                    fontSize = 11.sp,
-                                    color = Color.White.copy(alpha = 0.9f)
-                                )
-                            }
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = strings.back,
+                            modifier = Modifier.size(20.dp),
+                            tint = QuestionOnSurfaceVariant
+                        )
+                        if (!isCompact) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(text = strings.back, fontFamily = bodyFont, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                         }
                     }
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // 2) Les 3 Cartes explicatives disposées sous la pyramide
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    PyramidNoteCard(
-                        icon = { Icon(Icons.Filled.AutoAwesome, null, tint = Color(0xFFE5851A), modifier = Modifier.size(22.dp)) },
-                        title = strings.topNotesShortName.uppercase(),
-                        subtitle = strings.pyramidTopCard
-                    )
-                    PyramidNoteCard(
-                        icon = { Image(painterResource(Res.drawable.emoji_blossom), null, modifier = Modifier.size(22.dp)) },
-                        title = strings.heartNotesShortName.uppercase(),
-                        subtitle = strings.pyramidHeartCard
-                    )
-                    PyramidNoteCard(
-                        icon = { Icon(Icons.Filled.HourglassEmpty, null, tint = Color(0xFF8D6E63), modifier = Modifier.size(22.dp)) },
-                        title = strings.baseNotesShortName.uppercase(),
-                        subtitle = strings.pyramidBaseCard
+                    Image(
+                        painter = painterResource(Res.drawable.logoSDP),
+                        contentDescription = "Studio des Parfums",
+                        modifier = Modifier.align(Alignment.Center).height(if (isCompact) 60.dp else 76.dp)
                     )
                 }
 
-                Spacer(modifier = Modifier.height(18.dp))
+                PyramidHeading(isCompact)
 
-                // 3) Bandeau chronologique en bas
-                Surface(
-                    shape = RoundedCornerShape(18.dp),
-                    color = Color.White.copy(alpha = 0.85f),
-                    border = BorderStroke(1.dp, QuestionOutlineVariant.copy(alpha = 0.45f)),
-                    elevation = 0.dp,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
+                if (isWide) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        modifier = Modifier.widthIn(max = 1040.dp).fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(40.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Image(
-                            painter = painterResource(Res.drawable.fiole),
-                            contentDescription = null,
-                            modifier = Modifier.size(40.dp)
-                        )
-
-                        PyramidChronologyStep(
-                            number = "3",
-                            name = strings.topNotesShortName.uppercase(),
-                            duration = "(${strings.pyramidTopDuration})"
-                        )
-
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = null,
-                            tint = QuestionOutlineVariant,
-                            modifier = Modifier.size(18.dp)
-                        )
-
-                        PyramidChronologyStep(
-                            number = "2",
-                            name = strings.heartNotesShortName.uppercase(),
-                            duration = "(${strings.pyramidHeartDuration})"
-                        )
-
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = null,
-                            tint = QuestionOutlineVariant,
-                            modifier = Modifier.size(18.dp)
-                        )
-
-                        PyramidChronologyStep(
-                            number = "1",
-                            name = strings.baseNotesShortName.uppercase(),
-                            duration = "(${strings.pyramidBaseDuration})"
-                        )
+                        OlfactivePyramid(Modifier.weight(1.15f).height(pyramidHeight))
+                        PyramidNoteCards(Modifier.weight(1f).height(pyramidHeight), fillHeight = true)
                     }
+                } else {
+                    OlfactivePyramid(Modifier.widthIn(max = 480.dp).fillMaxWidth().height(pyramidHeight))
+                    PyramidNoteCards(Modifier.widthIn(max = 480.dp).fillMaxWidth(), fillHeight = false)
                 }
+
+                PyramidChronology(
+                    showBottle = !isCompact,
+                    modifier = Modifier.widthIn(max = if (isWide) 820.dp else 480.dp).fillMaxWidth()
+                )
+            }
+
+            // Bouton dans le flux : il ne recouvre jamais le contenu défilant.
+            Box(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = sidePadding, vertical = 14.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                QuestionActionButton(text = strings.next, onClick = onNext)
             }
         }
+    }
+}
 
-        // Bouton Retour en haut à gauche
-        TextButton(
-            onClick = onBack,
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .statusBarsPadding()
-                .padding(top = 16.dp, start = 20.dp),
-            colors = ButtonDefaults.textButtonColors(contentColor = QuestionOnSurfaceVariant)
+@Composable
+private fun PyramidHeading(isCompact: Boolean) {
+    val strings = LocalStrings.current
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Text(
+            text = strings.pyramidTitle,
+            fontFamily = questionHeadlineFont(),
+            fontSize = if (isCompact) 24.sp else 36.sp,
+            lineHeight = if (isCompact) 30.sp else 44.sp,
+            fontWeight = FontWeight.Bold,
+            color = QuestionPrimary,
+            letterSpacing = if (isCompact) 1.sp else 2.sp,
+            textAlign = TextAlign.Center
+        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier.widthIn(max = 380.dp)
         ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-                tint = QuestionOnSurfaceVariant
-            )
-            Spacer(modifier = Modifier.width(8.dp))
+            Divider(modifier = Modifier.weight(1f), color = QuestionOutlineVariant, thickness = 1.dp)
             Text(
-                text = strings.back,
-                fontFamily = bodyFont,
-                fontSize = 14.sp,
+                text = strings.pyramidSubtitle,
+                fontFamily = questionHeadlineFont(),
+                fontSize = if (isCompact) 14.sp else 17.sp,
                 fontWeight = FontWeight.Bold,
-                letterSpacing = 1.sp
+                color = QuestionPrimary,
+                letterSpacing = 2.sp
+            )
+            Divider(modifier = Modifier.weight(1f), color = QuestionOutlineVariant, thickness = 1.dp)
+        }
+        Text(
+            text = strings.pyramidDescription,
+            fontFamily = questionBodyFont(),
+            fontSize = if (isCompact) 14.sp else 16.sp,
+            lineHeight = if (isCompact) 21.sp else 24.sp,
+            color = QuestionOnSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.widthIn(max = 600.dp)
+        )
+    }
+}
+
+// Pyramide à trois étages dessinée en vectoriel, nette à toutes les tailles.
+@Composable
+private fun OlfactivePyramid(modifier: Modifier = Modifier) {
+    val strings = LocalStrings.current
+    Box(modifier = modifier) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val w = size.width
+            val h = size.height
+            val gap = 3.dp.toPx()
+            fun tier(yTop: Float, yBottom: Float, color: Color) {
+                val topWidth = w * yTop / h
+                val bottomWidth = w * yBottom / h
+                drawPath(
+                    Path().apply {
+                        moveTo(w / 2f - topWidth / 2f, yTop)
+                        lineTo(w / 2f + topWidth / 2f, yTop)
+                        lineTo(w / 2f + bottomWidth / 2f, yBottom)
+                        lineTo(w / 2f - bottomWidth / 2f, yBottom)
+                        close()
+                    },
+                    color = color
+                )
+            }
+            tier(0f, h * 0.38f - gap / 2f, PyramidTopColor)
+            tier(h * 0.38f + gap / 2f, h * 0.69f - gap / 2f, PyramidHeartColor)
+            tier(h * 0.69f + gap / 2f, h, PyramidBaseColor)
+        }
+        Column(modifier = Modifier.fillMaxSize()) {
+            // L'étage du sommet est étroit en haut : son texte reste dans sa partie basse.
+            PyramidTierLabel("3", strings.topNotesShortName, QuestionPrimary, Alignment.BottomCenter, Modifier.weight(0.38f))
+            PyramidTierLabel("2", strings.heartNotesShortName, QuestionPrimaryDark, Alignment.Center, Modifier.weight(0.31f))
+            PyramidTierLabel("1", strings.baseNotesShortName, Color.White, Alignment.Center, Modifier.weight(0.31f))
+        }
+    }
+}
+
+@Composable
+private fun PyramidTierLabel(
+    number: String,
+    name: String,
+    color: Color,
+    alignment: Alignment,
+    modifier: Modifier = Modifier
+) {
+    Box(modifier = modifier.fillMaxWidth().padding(bottom = 6.dp), contentAlignment = alignment) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            PyramidNumberBadge(number, background = Color.White, content = QuestionPrimary)
+            Text(
+                text = name.uppercase(),
+                fontFamily = questionHeadlineFont(),
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                color = color,
+                letterSpacing = 1.sp,
+                maxLines = 1
             )
         }
+    }
+}
 
-        // Bouton Suivant fixe en bas
-        QuestionActionButton(
-            text = strings.next,
-            onClick = onNext,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
-                .padding(bottom = 20.dp)
+@Composable
+private fun PyramidNumberBadge(number: String, background: Color, content: Color) {
+    Surface(shape = CircleShape, color = background, modifier = Modifier.size(24.dp)) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(number, color = content, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+        }
+    }
+}
+
+// Sur grand écran, chaque carte occupe la hauteur de l'étage de pyramide en face d'elle.
+@Composable
+private fun PyramidNoteCards(modifier: Modifier = Modifier, fillHeight: Boolean) {
+    val strings = LocalStrings.current
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        val cardModifier = if (fillHeight) Modifier.weight(1f) else Modifier
+        PyramidNoteCard(
+            icon = { Icon(Icons.Filled.AutoAwesome, null, tint = QuestionPrimary, modifier = Modifier.size(24.dp)) },
+            title = strings.topNotesShortName.uppercase(),
+            subtitle = strings.pyramidTopCard,
+            modifier = cardModifier
+        )
+        PyramidNoteCard(
+            icon = { Icon(Icons.Filled.LocalFlorist, null, tint = QuestionPrimary, modifier = Modifier.size(24.dp)) },
+            title = strings.heartNotesShortName.uppercase(),
+            subtitle = strings.pyramidHeartCard,
+            modifier = cardModifier
+        )
+        PyramidNoteCard(
+            icon = { Icon(Icons.Filled.HourglassEmpty, null, tint = QuestionPrimary, modifier = Modifier.size(24.dp)) },
+            title = strings.baseNotesShortName.uppercase(),
+            subtitle = strings.pyramidBaseCard,
+            modifier = cardModifier
         )
     }
 }
@@ -449,44 +324,41 @@ fun PyramidExplanationScreen(
 private fun PyramidNoteCard(
     icon: @Composable () -> Unit,
     title: String,
-    subtitle: String
+    subtitle: String,
+    modifier: Modifier = Modifier
 ) {
-    val bodyFont = questionBodyFont()
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = Color.White.copy(alpha = 0.90f),
-        border = BorderStroke(1.dp, QuestionOutlineVariant.copy(alpha = 0.45f)),
-        elevation = 0.dp,
-        modifier = Modifier.fillMaxWidth()
+        color = Color.White,
+        border = BorderStroke(1.dp, QuestionOutlineVariant.copy(alpha = 0.6f)),
+        modifier = modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Surface(
                 shape = CircleShape,
                 color = Color(0xFFFFF8F3),
                 border = BorderStroke(1.dp, Color(0xFFE8D5C4)),
-                modifier = Modifier.size(44.dp)
+                modifier = Modifier.size(48.dp)
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    icon()
-                }
+                Box(contentAlignment = Alignment.Center) { icon() }
             }
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
                     text = title,
                     fontFamily = questionHeadlineFont(),
-                    fontSize = 16.sp,
+                    fontSize = 17.sp,
                     fontWeight = FontWeight.Bold,
                     color = QuestionPrimary,
                     letterSpacing = 0.8.sp
                 )
                 Text(
                     text = subtitle,
-                    fontFamily = bodyFont,
-                    fontSize = 13.sp,
+                    fontFamily = questionBodyFont(),
+                    fontSize = 14.sp,
                     color = QuestionOnSurfaceVariant
                 )
             }
@@ -495,46 +367,73 @@ private fun PyramidNoteCard(
 }
 
 @Composable
+private fun PyramidChronology(showBottle: Boolean, modifier: Modifier = Modifier) {
+    val strings = LocalStrings.current
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, QuestionOutlineVariant.copy(alpha = 0.6f)),
+        modifier = modifier
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            if (showBottle) {
+                Image(
+                    painter = painterResource(Res.drawable.fiole),
+                    contentDescription = null,
+                    modifier = Modifier.padding(horizontal = 8.dp).size(44.dp)
+                )
+            }
+            PyramidChronologyStep("3", strings.topNotesShortName.uppercase(), strings.pyramidTopDuration, Modifier.weight(1f))
+            PyramidChronologyArrow()
+            PyramidChronologyStep("2", strings.heartNotesShortName.uppercase(), strings.pyramidHeartDuration, Modifier.weight(1f))
+            PyramidChronologyArrow()
+            PyramidChronologyStep("1", strings.baseNotesShortName.uppercase(), strings.pyramidBaseDuration, Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun PyramidChronologyArrow() {
+    Icon(
+        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+        contentDescription = null,
+        tint = QuestionPrimaryLight,
+        modifier = Modifier.size(16.dp)
+    )
+}
+
+@Composable
 private fun PyramidChronologyStep(
     number: String,
     name: String,
-    duration: String
+    duration: String,
+    modifier: Modifier = Modifier
 ) {
-    val bodyFont = questionBodyFont()
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(3.dp)
     ) {
-        Surface(
-            shape = CircleShape,
+        PyramidNumberBadge(number, background = QuestionPrimary, content = Color.White)
+        Text(
+            text = name,
+            fontFamily = questionHeadlineFont(),
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
             color = QuestionPrimary,
-            elevation = 1.dp,
-            modifier = Modifier.size(24.dp)
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Text(
-                    text = number,
-                    color = Color.White,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-        Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
-            Text(
-                text = name,
-                fontFamily = questionHeadlineFont(),
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                color = QuestionPrimary
-            )
-            Text(
-                text = duration,
-                fontFamily = bodyFont,
-                fontSize = 11.sp,
-                color = QuestionOnSurfaceVariant
-            )
-        }
+            textAlign = TextAlign.Center
+        )
+        Text(
+            text = duration,
+            fontFamily = questionBodyFont(),
+            fontSize = 12.sp,
+            color = QuestionOnSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
     }
 }
 
