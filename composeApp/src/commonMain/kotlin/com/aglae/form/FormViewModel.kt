@@ -323,6 +323,107 @@ class FormViewModel(private val scope: CoroutineScope) {
         pendingRuleWarningNoteName = null
     }
 
+    // ── Choix des notes étape par étape ──
+    // Une étape n'ouvre la suivante qu'une fois validée, et seulement si son nombre de notes
+    // respecte les bornes ou si le superviseur l'a autorisé. Toute modification la rouvre.
+    var validatedSteps by mutableStateOf<Set<String>>(emptySet())
+    var stepApprovals by mutableStateOf<Map<String, String>>(emptyMap())
+
+    private fun stepApprovalKey(section: String): String = when (section) {
+        "Notes de tête" -> "topNotesApproval"
+        "Notes de cœur" -> "heartNotesApproval"
+        "Notes booster" -> "boosterNotesApproval"
+        else -> "baseNotesApproval"
+    }
+
+    private val noteSteps: List<String>
+        get() = buildList {
+            add("Notes de fond")
+            add("Notes de cœur")
+            add("Notes de tête")
+            if (hasBoosters) add("Notes booster")
+        }
+
+    private fun isStepWithinBounds(section: String): Boolean {
+        val bounds = noteCountBounds
+        val (count, min, max) = when (section) {
+            "Notes de tête" -> Triple(selectedTopNotes.size, bounds?.minTop, bounds?.maxTop)
+            "Notes de cœur" -> Triple(selectedHeartNotes.size, bounds?.minHeart, bounds?.maxHeart)
+            "Notes booster" -> Triple(selectedBoosterNotes.size, 1, 2)
+            else -> Triple(selectedBaseNotes.size, bounds?.minBase, bounds?.maxBase)
+        }
+        return (min == null || count >= min) && (max == null || count <= max)
+    }
+
+    fun isStepApproved(section: String): Boolean = stepApprovals[section] == "approved"
+
+    fun isStepComplete(section: String): Boolean =
+        section in validatedSteps && (isStepWithinBounds(section) || isStepApproved(section))
+
+    fun areAllStepsComplete(): Boolean = noteSteps.all(::isStepComplete)
+
+    fun validateStep(section: String) {
+        if (isStepWithinBounds(section) || isStepApproved(section)) {
+            validatedSteps = validatedSteps + section
+        }
+    }
+
+    fun requestStepApproval(section: String) {
+        stepApprovals = stepApprovals + (section to "pending")
+        sendAnswer(stepApprovalKey(section), "pending")
+    }
+
+    fun cancelStepApproval(section: String) {
+        stepApprovals = stepApprovals - section
+        sendAnswer(stepApprovalKey(section), "")
+    }
+
+    suspend fun approveStepWithPin(section: String, pin: String): Boolean = try {
+        if (ApiClient.verifySupervisorIdentifier(pin) != null) {
+            stepApprovals = stepApprovals + (section to "approved")
+            sendAnswer(stepApprovalKey(section), "approved")
+            true
+        } else false
+    } catch (_: Exception) {
+        false
+    }
+
+    // Une autorisation ne vaut que pour la sélection présentée au superviseur.
+    fun onStepSelectionChanged(section: String) {
+        validatedSteps = validatedSteps - section
+        if (stepApprovals[section].orEmpty().isNotEmpty()) {
+            stepApprovals = stepApprovals - section
+            sendAnswer(stepApprovalKey(section), "")
+        }
+        if (notesOutOfRangeApprovedBySupervisor) {
+            notesOutOfRangeApprovedBySupervisor = false
+            sendAnswer("notesHorsNormesApproved", "")
+        }
+    }
+
+    private fun applyStepApprovals(answers: Map<String, String>) {
+        noteSteps.forEach { section ->
+            answers[stepApprovalKey(section)]?.let { status ->
+                // Réponse lue avant l'envoi de la demande : elle ne doit pas lever l'attente.
+                if (status.isEmpty() && stepApprovals[section] == "pending") return@let
+                stepApprovals = if (status.isEmpty()) stepApprovals - section else stepApprovals + (section to status)
+            }
+        }
+    }
+
+    suspend fun refreshStepApprovals() {
+        val sessionId = currentSessionId ?: return
+        val detail = try { ApiClient.fetchSessionDetail(sessionId) } catch (_: Exception) { return }
+        applyStepApprovals(detail.answers.associate { it.questionKey to it.answerValue })
+    }
+
+    private fun clearStepProgress() {
+        validatedSteps = emptySet()
+        stepApprovals = emptyMap()
+        listOf("topNotesApproval", "heartNotesApproval", "baseNotesApproval", "boosterNotesApproval")
+            .forEach { sendAnswer(it, "") }
+    }
+
     // ── Vérification si le nombre de notes choisies par famille respecte les bornes ──
     fun areNoteCountsWithinBounds(): Boolean {
         val bounds = noteCountBounds
@@ -372,6 +473,9 @@ class FormViewModel(private val scope: CoroutineScope) {
     // la confirmation qu'on vérifie le respect des bornes min/max renvoyées par le back. Retourne
     // true (et vide `noteCountError`) si tout est valide ou si le superviseur a autorisé le hors normes.
     fun validateNoteCounts(strings: Strings): Boolean {
+        if (!areNoteCountsWithinBounds() && areAllStepsComplete()) {
+            approveOutOfRangeNotes()
+        }
         if (notesOutOfRangeApprovedBySupervisor) {
             noteCountError = null
             return true
@@ -479,6 +583,8 @@ class FormViewModel(private val scope: CoroutineScope) {
         submissionResult = null
         suggestQuantitiesError = null
 
+        clearStepProgress()
+
         // Nettoie aussi les réponses envoyées à la session sur le serveur pour éviter que
         // refreshNotesFromSession ne les recharge.
         sendAnswer("topNotes", "")
@@ -564,6 +670,8 @@ class FormViewModel(private val scope: CoroutineScope) {
         boosterNoteQuantities = emptyMap()
         perfumeName = ""
         perfumeIntensity = ""
+        validatedSteps = emptySet()
+        stepApprovals = emptyMap()
         notesOutOfRangeApprovedBySupervisor = false
         formulaStatus = ""
         submitError = null
@@ -1060,6 +1168,7 @@ class FormViewModel(private val scope: CoroutineScope) {
         parseQuantities(value("heartNoteQuantities"))?.let { heartNoteQuantities = it }
         parseQuantities(value("baseNoteQuantities"))?.let { baseNoteQuantities = it }
         parseQuantities(value("boosterNoteQuantities"))?.let { boosterNoteQuantities = it }
+        applyStepApprovals(detail.answers.associate { it.questionKey to it.answerValue })
     }
 
     // ── Soumission finale du formulaire ──

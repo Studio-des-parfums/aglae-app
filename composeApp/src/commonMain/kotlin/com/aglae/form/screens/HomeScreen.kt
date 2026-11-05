@@ -81,6 +81,7 @@ import com.aglae.form.setAssignedRoom
 import com.aglae.form.i18n.Language
 import com.aglae.form.i18n.LanguageSelector
 import com.aglae.form.i18n.LocalStrings
+import com.aglae.form.i18n.StringsFr
 import com.aglae.form.network.ApiClient
 import com.aglae.form.network.SupervisorIdentifierResponse
 import kotlinx.coroutines.launch
@@ -226,13 +227,13 @@ fun HomeScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Text(
-                        text = strings.supervisorDialogTitle,
+                        text = StringsFr.supervisorDialogTitle,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color = OnSurface
                     )
                     Text(
-                        text = strings.supervisorDialogSubtitle,
+                        text = StringsFr.supervisorDialogSubtitle,
                         fontSize = 14.sp,
                         color = OnSurfaceVariant
                     )
@@ -242,7 +243,7 @@ fun HomeScreen(
                             supervisorCode = it
                             verifyError = null
                         },
-                        label = { Text(strings.supervisorDialogIdentifierLabel) },
+                        label = { Text(StringsFr.supervisorDialogIdentifierLabel) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                         keyboardOptions = KeyboardOptions(
@@ -275,7 +276,7 @@ fun HomeScreen(
                                 verifyError = null
                             }
                         ) {
-                            Text(strings.cancel, color = OnSurfaceVariant)
+                            Text(StringsFr.cancel, color = OnSurfaceVariant)
                         }
                         Button(
                             onClick = {
@@ -290,10 +291,10 @@ fun HomeScreen(
                                             verifyError = null
                                             onSupervisorVerified(result)
                                         } else {
-                                            verifyError = strings.supervisorDialogInvalidCode
+                                            verifyError = StringsFr.supervisorDialogInvalidCode
                                         }
                                     } catch (e: Exception) {
-                                        verifyError = strings.supervisorDialogConnectionError
+                                        verifyError = StringsFr.supervisorDialogConnectionError
                                     } finally {
                                         isVerifying = false
                                     }
@@ -316,7 +317,7 @@ fun HomeScreen(
                                     strokeWidth = 2.dp
                                 )
                             } else {
-                                Text(strings.validate, fontWeight = FontWeight.Bold)
+                                Text(StringsFr.validate, fontWeight = FontWeight.Bold)
                             }
                         }
                     }

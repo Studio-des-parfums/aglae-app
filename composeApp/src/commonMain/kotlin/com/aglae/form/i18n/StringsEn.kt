@@ -1,6 +1,10 @@
 package com.aglae.form.i18n
 
 object StringsEn : Strings {
+    override val stepApprovalCancel = "Cancel the request"
+    override val stepApprovalAsk = "Ask the supervisor for approval"
+    override val stepApprovalPending = "Request sent, waiting for the supervisor…"
+    override val stepApprovalRefused = "The supervisor declined: please change your selection."
     override val back = "Back"
     override val home = "Home"
     override val next = "Next"

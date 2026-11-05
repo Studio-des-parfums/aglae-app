@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import com.aglae.form.i18n.Language
 import com.aglae.form.i18n.LocalLanguage
 import com.aglae.form.i18n.LocalStrings
+import com.aglae.form.i18n.FrenchOnly
 import com.aglae.form.i18n.stringsFor
 import com.aglae.form.network.ApiClient
 import com.aglae.form.network.toNotesCatalog
@@ -366,6 +367,8 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                         selectedBoosterNotes = vm.selectedBoosterNotes,
                         bounds = vm.noteCountBounds,
                         hasBoosters = vm.hasBoosters,
+                        isStepComplete = vm::isStepComplete,
+                        allStepsComplete = vm.areAllStepsComplete(),
                         onSectionClick = { section ->
                             vm.selectedNoteSection = section
                             vm.noteCountError = null
@@ -373,13 +376,6 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                         },
                         noteCountError = vm.noteCountError,
                         isApprovedBySupervisor = vm.notesOutOfRangeApprovedBySupervisor,
-                        outOfRangeIssues = vm.getOutOfRangeIssues(strings),
-                        onRequestSupervisorApproval = {
-                            vm.screen = "perfumeIntensity"
-                        },
-                        onVerifySupervisorPin = { pin ->
-                            vm.verifyAndApproveFormulaLocally(pin)
-                        },
                         onConfirm = {
                             if (vm.validateNoteCounts(strings)) {
                                 vm.screen = "perfumeIntensity"
@@ -539,6 +535,7 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                     // via vm.handleNoteClick/resolveRuleWarning une fois les règles évaluées pour
                     // cocher). Capture `name` par fermeture au moment de l'appel.
                     fun applyToggle(name: String) {
+                        vm.onStepSelectionChanged(vm.selectedNoteSection)
                         when (vm.selectedNoteSection) {
                             "Notes de tête" -> {
                                 vm.selectedTopNotes =
@@ -575,6 +572,14 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                         }
                     }
 
+                    // Attend ici la réponse du superviseur, sans relire les notes pour ne pas
+                    // écraser un clic du client encore en cours d'envoi.
+                    LaunchedEffect(vm.currentSessionId) {
+                        while (vm.currentSessionId != null) {
+                            delay(3000)
+                            vm.refreshStepApprovals()
+                        }
+                    }
                     NotesDetailScreen(
                         sectionName = vm.selectedNoteSection,
                         notes = currentCatalog,
@@ -594,6 +599,15 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                         noteRecommendation = vm.noteRecommendation,
                         onDismissRecommendation = { vm.noteRecommendation = null; vm.noteRecommendationSource = null },
                         bounds = vm.noteCountBounds,
+                        approvalStatus = vm.stepApprovals[vm.selectedNoteSection],
+                        canRequestApproval = vm.currentSessionId != null,
+                        onRequestApproval = { vm.requestStepApproval(vm.selectedNoteSection) },
+                        onCancelApproval = { vm.cancelStepApproval(vm.selectedNoteSection) },
+                        onVerifySupervisorPin = { pin -> vm.approveStepWithPin(vm.selectedNoteSection, pin) },
+                        onValidate = {
+                            vm.validateStep(vm.selectedNoteSection)
+                            vm.screen = "notesSelection"
+                        },
                         onBack = { vm.screen = "notesSelection" },
                         onGoHome = { vm.resetAll() }
                     )
@@ -626,19 +640,23 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                     customerEmail = vm.email.ifBlank { vm.searchEmail }.ifBlank { null },
                     onDone = { vm.resetAll() }
                 )
-                "supervisor" -> SupervisorHomeScreen(
-                    supervisorUser = vm.supervisorUser,
-                    onBack = { vm.screen = "home" },
-                    onSessionClick = { id ->
-                        vm.selectedSupervisorSessionId = id
-                        vm.screen = "supervisorSessionDetail"
-                    }
-                )
-                "supervisorSessionDetail" -> vm.selectedSupervisorSessionId?.let { id ->
-                    SupervisorSessionDetailScreen(
-                        sessionId = id,
-                        onBack = { vm.screen = "supervisor" }
+                "supervisor" -> FrenchOnly {
+                    SupervisorHomeScreen(
+                        supervisorUser = vm.supervisorUser,
+                        onBack = { vm.screen = "home" },
+                        onSessionClick = { id ->
+                            vm.selectedSupervisorSessionId = id
+                            vm.screen = "supervisorSessionDetail"
+                        }
                     )
+                }
+                "supervisorSessionDetail" -> vm.selectedSupervisorSessionId?.let { id ->
+                    FrenchOnly {
+                        SupervisorSessionDetailScreen(
+                            sessionId = id,
+                            onBack = { vm.screen = "supervisor" }
+                        )
+                    }
                 }
             }
 
