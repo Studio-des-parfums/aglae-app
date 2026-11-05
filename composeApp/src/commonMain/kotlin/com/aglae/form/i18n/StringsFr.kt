@@ -110,7 +110,7 @@ object StringsFr : Strings {
     override val professionLabel = "Métier"
     override val bookingSourceTitle = "D'où avez-vous réservé ?"
     override val bookingSourcePhone = "Téléphone"
-    override val bookingSourceWeecando = "Weecando"
+    override val bookingSourceWeecando = "Wecandoo"
     override val bookingSourceWebsite = "Site internet"
     override val bookingSourceOther = "Autre"
     override val questionLocationTitle = "Quel est votre pays et votre ville ?"

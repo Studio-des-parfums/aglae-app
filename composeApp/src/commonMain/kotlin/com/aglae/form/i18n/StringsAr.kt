@@ -119,7 +119,7 @@ object StringsAr : Strings {
     override val professionLabel = "المهنة"
     override val bookingSourceTitle = "من أين قمتم بالحجز؟"
     override val bookingSourcePhone = "الهاتف"
-    override val bookingSourceWeecando = "Weecando"
+    override val bookingSourceWeecando = "Wecandoo"
     override val bookingSourceWebsite = "الموقع الإلكتروني"
     override val bookingSourceOther = "أخرى"
     override val questionLocationTitle = "ما هو بلدكم ومدينتكم؟"

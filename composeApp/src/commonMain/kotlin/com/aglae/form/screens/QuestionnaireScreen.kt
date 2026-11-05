@@ -392,7 +392,7 @@ fun QuestionnaireScreen(
                 value = profession,
                 onValueChange = onProfessionChange
             ),
-            bookingSourceOptions = listOf("Téléphone", "Weecando", "Site internet", "Autre"),
+            bookingSourceOptions = listOf("Téléphone", "Weecando", "Airbnb", "Site internet", "Autre"),
             selectedBookingSource = bookingSource,
             onBookingSourceSelected = onBookingSourceChange,
             day = day,
@@ -647,6 +647,7 @@ fun QuestionnaireScreen(
                                         when (option) {
                                             "Téléphone" -> strings.bookingSourcePhone
                                             "Weecando" -> strings.bookingSourceWeecando
+                                            "Airbnb" -> "Airbnb"
                                             "Site internet" -> strings.bookingSourceWebsite
                                             else -> strings.bookingSourceOther
                                         }

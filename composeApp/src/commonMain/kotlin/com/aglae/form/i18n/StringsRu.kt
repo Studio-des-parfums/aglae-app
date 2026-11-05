@@ -152,7 +152,7 @@ object StringsRu : Strings {
     override val professionLabel = "Профессия"
     override val bookingSourceTitle = "Откуда вы сделали запись?"
     override val bookingSourcePhone = "Телефон"
-    override val bookingSourceWeecando = "Weecando"
+    override val bookingSourceWeecando = "Wecandoo"
     override val bookingSourceWebsite = "Веб-сайт"
     override val bookingSourceOther = "Другое"
     override val questionLocationTitle = "Ваша страна и город?"
