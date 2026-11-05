@@ -34,6 +34,8 @@ private fun boosterPluralNominative(count: Int): String {
 }
 
 object StringsRu : Strings {
+    override val phonePrefixLabel = "Код"
+    override val requiredFieldsNotice = "* Обязательные поля"
     override val stepApprovalCancel = "Отменить запрос"
     override val stepApprovalAsk = "Запросить подтверждение у супервайзера"
     override val stepApprovalPending = "Запрос отправлен, ожидайте ответа супервайзера…"

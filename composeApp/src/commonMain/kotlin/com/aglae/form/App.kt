@@ -273,13 +273,28 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                     profession = vm.profession,
                     onProfessionChange = { vm.profession = it; vm.sendAnswer("profession", it, 350L) },
                     country = vm.country,
-                    onCountryChange = { vm.country = it; vm.sendAnswer("country", it, 350L) },
+                    onCountryChange = {
+                        vm.country = it
+                        vm.sendAnswer("country", it, 350L)
+                        if (!vm.phonePrefixChosen) {
+                            phonePrefixForCountry(it)?.let { prefix ->
+                                vm.phonePrefix = prefix
+                                vm.sendAnswer("phone", vm.fullPhone)
+                            }
+                        }
+                    },
                     city = vm.city,
                     onCityChange = { vm.city = it; vm.sendAnswer("city", it, 350L) },
                     bookingSource = vm.bookingSource,
                     onBookingSourceChange = { vm.bookingSource = it; vm.sendAnswer("bookingSource", it, 350L) },
                     phone = vm.phone,
-                    onPhoneChange = { vm.phone = it; vm.sendAnswer("phone", it, 350L) },
+                    onPhoneChange = { vm.phone = it; vm.sendAnswer("phone", vm.fullPhone, 350L) },
+                    phonePrefix = vm.phonePrefix,
+                    onPhonePrefixChange = {
+                        vm.phonePrefix = it
+                        vm.phonePrefixChosen = true
+                        vm.sendAnswer("phone", vm.fullPhone)
+                    },
                     email = vm.email,
                     onEmailChange = { vm.email = it; vm.sendAnswer("email", it, 350L) },
                     allergyAnswer = vm.allergyAnswer,
@@ -616,7 +631,7 @@ private fun AppContent(language: Language, onLanguageChange: (Language) -> Unit)
                     firstName = vm.firstName,
                     lastName = vm.lastName,
                     email = vm.email,
-                    phone = vm.phone,
+                    phone = vm.fullPhone,
                     quantity = vm.quantity,
                     topNotes = vm.selectedTopNotes.map { name -> vm.topNoteQuantities[name]?.takeIf { it.isNotBlank() }?.let { "$name ($it ml)" } ?: name },
                     heartNotes = vm.selectedHeartNotes.map { name -> vm.heartNoteQuantities[name]?.takeIf { it.isNotBlank() }?.let { "$name ($it ml)" } ?: name },

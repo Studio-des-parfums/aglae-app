@@ -127,6 +127,16 @@ class FormViewModel(private val scope: CoroutineScope) {
     var city by mutableStateOf("")
     var bookingSource by mutableStateOf("")
     var phone by mutableStateOf("")
+    var phonePrefix by mutableStateOf(DEFAULT_PHONE_PREFIX)
+    // Tant que le client n'a pas choisi d'indicatif, celui-ci suit le pays sélectionné.
+    var phonePrefixChosen by mutableStateOf(false)
+    val fullPhone: String get() = fullPhoneNumber(phonePrefix, phone)
+
+    private fun setPhoneFromFull(full: String) {
+        val (prefix, number) = splitPhoneNumber(full)
+        phonePrefix = prefix
+        phone = number
+    }
     var email by mutableStateOf("")
     var allergyAnswer by mutableStateOf("")
     var allergyDetails by mutableStateOf("")
@@ -642,6 +652,8 @@ class FormViewModel(private val scope: CoroutineScope) {
         city = ""
         bookingSource = ""
         phone = ""
+        phonePrefix = DEFAULT_PHONE_PREFIX
+        phonePrefixChosen = false
         email = ""
         allergyAnswer = ""
         allergyDetails = ""
@@ -855,7 +867,7 @@ class FormViewModel(private val scope: CoroutineScope) {
         lastName = customer.lastName ?: ""
         gender = customer.gender ?: ""
         email = searchEmail.ifBlank { email }
-        phone = searchPhone.ifBlank { phone }
+        if (searchPhone.isNotBlank()) setPhoneFromFull(searchPhone)
         // Démarre directement à la question légale (index 1) : la page "Vos informations"
         // (index 0) n'est jamais posée pour un client déjà connu.
         currentQuestion = 1
@@ -1060,7 +1072,7 @@ class FormViewModel(private val scope: CoroutineScope) {
             try {
                 val result = ApiClient.searchCustomer(
                     email = email.trim().ifBlank { null },
-                    phone = phone.trim().ifBlank { null }
+                    phone = fullPhone.ifBlank { null }
                 )
                 if (result != null) {
                     contactCheckError = strings.contactAlreadyExists
@@ -1105,7 +1117,7 @@ class FormViewModel(private val scope: CoroutineScope) {
         value("country")?.let { country = it }
         value("bookingSource")?.let { bookingSource = it }
         value("city")?.let { city = it }
-        value("phone")?.let { phone = it }
+        value("phone")?.let { setPhoneFromFull(it) }
         value("email")?.let { email = it }
         value("hasAllergy")?.let { allergyAnswer = it }
         value("allergyDetails")?.let { allergyDetails = it }
@@ -1189,7 +1201,7 @@ class FormViewModel(private val scope: CoroutineScope) {
                     country = country.ifBlank { null },
                     city = city.ifBlank { null },
                     bookingSource = bookingSource.ifBlank { null },
-                    phone = phone.trim(),
+                    phone = fullPhone,
                     email = email.trim(),
                     hasAllergy = when (allergyAnswer) { "Oui" -> true; "Non" -> false; else -> null },
                     liabilityAccepted = when (liabilityAnswer) { "Oui" -> true; "Non" -> false; else -> null },

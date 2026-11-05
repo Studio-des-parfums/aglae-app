@@ -1,6 +1,8 @@
 package com.aglae.form.i18n
 
 object StringsEn : Strings {
+    override val phonePrefixLabel = "Code"
+    override val requiredFieldsNotice = "* Required fields"
     override val stepApprovalCancel = "Cancel the request"
     override val stepApprovalAsk = "Ask the supervisor for approval"
     override val stepApprovalPending = "Request sent, waiting for the supervisor…"

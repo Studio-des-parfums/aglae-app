@@ -1,5 +1,7 @@
 package com.aglae.form.screens
 
+import com.aglae.form.PHONE_PREFIXES
+import com.aglae.form.isValidPhoneNumber
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
@@ -81,38 +83,7 @@ private fun isValidYear(year: String): Boolean {
     return y in 1900..2026
 }
 
-// Bornes (min, max chiffres) par pays, miroir de PHONE_RULES côté sdp-ocr-back
-// (app/services/phone/phone_validator.py) : garde la validation cohérente entre client
-// et serveur. Le pays vient du champ "Pays" saisi sur la même page (Coordonnées).
-private val phoneDigitRulesByCountry = mapOf(
-    "France" to (10 to 10),
-    "Belgique" to (9 to 10),
-    "Suisse" to (9 to 10),
-    "États-Unis" to (10 to 10),
-    "Canada" to (10 to 10),
-    "Royaume-Uni" to (10 to 11),
-    "Allemagne" to (10 to 11),
-    "Espagne" to (9 to 9),
-    "Italie" to (9 to 10),
-    "Portugal" to (9 to 9),
-    "Pays-Bas" to (9 to 10),
-    "Maroc" to (9 to 10),
-    "Algérie" to (9 to 10),
-    "Tunisie" to (8 to 8)
-)
-
-// Pays non listé (orthographe libre, pays hors liste ci-dessus) : validation générique
-// sur le nombre de chiffres d'un numéro international valide (norme E.164, hors indicatif).
-private const val genericPhoneMinDigits = 7
-private const val genericPhoneMaxDigits = 15
-
-private fun isValidPhone(phone: String, country: String): Boolean {
-    val digitCount = phone.count { it.isDigit() }
-    if (digitCount == 0) return false
-    val (min, max) = phoneDigitRulesByCountry[country.trim()]
-        ?: (genericPhoneMinDigits to genericPhoneMaxDigits)
-    return digitCount in min..max
-}
+private fun required(label: String) = "$label *"
 
 sealed class QuestionData {
     abstract val title: String
@@ -137,6 +108,8 @@ sealed class QuestionData {
         val onCountrySelected: (String) -> Unit,
         val birthFields: List<TextFieldData>, // ville (affichée à côté de la date de naissance et du pays)
         val contactFields: List<TextFieldData>, // téléphone, email
+        val phonePrefix: String,
+        val onPhonePrefixSelected: (String) -> Unit,
         val professionField: TextFieldData,
         val bookingSourceOptions: List<String>,
         val selectedBookingSource: String,
@@ -202,6 +175,8 @@ fun QuestionnaireScreen(
     bookingSource: String,
     onBookingSourceChange: (String) -> Unit,
     phone: String,
+    phonePrefix: String,
+    onPhonePrefixChange: (String) -> Unit,
     onPhoneChange: (String) -> Unit,
     email: String,
     onEmailChange: (String) -> Unit,
@@ -344,12 +319,12 @@ fun QuestionnaireScreen(
             onGenderSelected = onGenderChange,
             identityFields = listOf(
                 TextFieldData(
-                    label = strings.lastNameLabel,
+                    label = required(strings.lastNameLabel),
                     value = lastName,
                     onValueChange = onLastNameChange
                 ),
                 TextFieldData(
-                    label = strings.firstNameLabel,
+                    label = required(strings.firstNameLabel),
                     value = firstName,
                     onValueChange = onFirstNameChange
                 )
@@ -358,14 +333,14 @@ fun QuestionnaireScreen(
             onCountrySelected = onCountryChange,
             birthFields = listOf(
                 TextFieldData(
-                    label = strings.cityLabel,
+                    label = required(strings.cityLabel),
                     value = city,
                     onValueChange = onCityChange
                 )
             ),
             contactFields = listOf(
                 TextFieldData(
-                    label = strings.phoneLabel,
+                    label = required(strings.phoneLabel),
                     value = phone,
                     onValueChange = { newValue ->
                         if (newValue.all { it.isDigit() || it == '+' || it == ' ' || it == '.' || it == '-' }) {
@@ -374,11 +349,11 @@ fun QuestionnaireScreen(
                     },
                     keyboardType = KeyboardType.Phone,
                     width = 280,
-                    isError = phone.isNotEmpty() && !isValidPhone(phone, country),
-                    errorMessage = if (phone.isNotEmpty() && !isValidPhone(phone, country)) strings.phoneError else null
+                    isError = phone.isNotEmpty() && !isValidPhoneNumber(phonePrefix, phone),
+                    errorMessage = if (phone.isNotEmpty() && !isValidPhoneNumber(phonePrefix, phone)) strings.phoneError else null
                 ),
                 TextFieldData(
-                    label = strings.emailLabel,
+                    label = required(strings.emailLabel),
                     value = email,
                     onValueChange = onEmailChange,
                     keyboardType = KeyboardType.Email,
@@ -387,6 +362,8 @@ fun QuestionnaireScreen(
                     errorMessage = if (email.isNotEmpty() && !isValidEmail(email)) strings.emailError else null
                 )
             ),
+            phonePrefix = phonePrefix,
+            onPhonePrefixSelected = onPhonePrefixChange,
             professionField = TextFieldData(
                 label = strings.professionLabel,
                 value = profession,
@@ -406,10 +383,9 @@ fun QuestionnaireScreen(
             isComplete = gender.isNotBlank() && firstName.isNotBlank() && lastName.isNotBlank() &&
                     day.isNotBlank() && month.isNotBlank() && year.isNotBlank() &&
                     isValidDay(day) && isValidMonth(month) && isValidYear(year) &&
-                    profession.isNotBlank() &&
                     country.isNotBlank() && city.isNotBlank() &&
                     bookingSource.isNotBlank() &&
-                    phone.isNotBlank() && isValidPhone(phone, country) &&
+                    phone.isNotBlank() && isValidPhoneNumber(phonePrefix, phone) &&
                     email.isNotBlank() && isValidEmail(email)
         ),
         QuestionData.NoticeQuestion(
@@ -613,7 +589,7 @@ fun QuestionnaireScreen(
                                         month = question.month,
                                         year = question.year,
                                         onDateSelected = question.onDateSelected,
-                                        label = strings.birthDateLabel,
+                                        label = required(strings.birthDateLabel),
                                         isError = question.day.isNotEmpty() && !isValidDay(question.day),
                                         errorMessage = if (question.day.isNotEmpty() && !isValidDay(question.day)) strings.dayError else null
                                     )
@@ -621,7 +597,7 @@ fun QuestionnaireScreen(
                                 Box(modifier = Modifier.weight(1f)) {
                                     CountrySelectField(
                                         selected = question.country,
-                                        label = strings.countryLabel,
+                                        label = required(strings.countryLabel),
                                         onSelected = question.onCountrySelected
                                     )
                                 }
@@ -633,9 +609,38 @@ fun QuestionnaireScreen(
                             }
 
                             // Ligne 3 : téléphone, email
-                            FieldsRow(question.contactFields)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.Top
+                                ) {
+                                    Box(modifier = Modifier.width(112.dp)) {
+                                        LabeledSelectField(
+                                            selected = question.phonePrefix,
+                                            options = PHONE_PREFIXES.map { it.first },
+                                            optionLabel = { prefix ->
+                                                "$prefix  ${PHONE_PREFIXES.first { it.first == prefix }.second}"
+                                            },
+                                            selectedLabel = { it },
+                                            label = strings.phonePrefixLabel,
+                                            onSelected = question.onPhonePrefixSelected
+                                        )
+                                    }
+                                    Box(modifier = Modifier.weight(1f)) {
+                                        QuestionTextField(question.contactFields[0], compact = true, fillAvailableWidth = true)
+                                    }
+                                }
+                                Box(modifier = Modifier.weight(1f)) {
+                                    QuestionTextField(question.contactFields[1], compact = true, fillAvailableWidth = true)
+                                }
+                            }
 
-                            // Ligne 4 : métier
+                            // Ligne 4 : profession (facultative)
                             QuestionTextField(question.professionField, compact = true)
 
                             // Ligne 5 : d'où le client a réservé (obligatoire)
@@ -652,10 +657,17 @@ fun QuestionnaireScreen(
                                             else -> strings.bookingSourceOther
                                         }
                                     },
-                                    label = strings.bookingSourceTitle,
+                                    label = required(strings.bookingSourceTitle),
                                     onSelected = question.onBookingSourceSelected
                                 )
                             }
+
+                            Text(
+                                text = strings.requiredFieldsNotice,
+                                fontFamily = bodyFont,
+                                fontSize = 13.sp,
+                                color = QuestionOnSurfaceVariant
+                            )
                         }
 
                         if (contactCheckError != null) {
@@ -910,7 +922,7 @@ private fun GenderSelectField(
             value = if (selected.isNotBlank()) optionLabel(selected) else "",
             onValueChange = {},
             readOnly = true,
-            label = { Text(strings.questionGenderTitle, fontFamily = bodyFont, fontSize = 14.sp) },
+            label = { Text(required(strings.questionGenderTitle), fontFamily = bodyFont, fontSize = 14.sp) },
             trailingIcon = {
                 Icon(
                     imageVector = Icons.Default.ArrowDropDown,
@@ -1060,6 +1072,7 @@ private fun LabeledSelectField(
     selected: String,
     options: List<String>,
     optionLabel: (String) -> String,
+    selectedLabel: (String) -> String = optionLabel,
     label: String,
     onSelected: (String) -> Unit
 ) {
@@ -1068,7 +1081,7 @@ private fun LabeledSelectField(
 
     Box(modifier = Modifier.fillMaxWidth()) {
         OutlinedTextField(
-            value = if (selected.isNotBlank()) optionLabel(selected) else "",
+            value = if (selected.isNotBlank()) selectedLabel(selected) else "",
             onValueChange = {},
             readOnly = true,
             label = { Text(label, fontFamily = bodyFont, fontSize = 14.sp) },
